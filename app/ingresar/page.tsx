@@ -37,7 +37,7 @@ export default function Ingresar() {
   }
 
   return (
-    <main className="wrap stack" style={{ paddingTop: 48, gap: 20 }}>
+    <main className="wrap stack login" style={{ paddingTop: 48, gap: 20 }}>
       <div>
         <h1 style={{ fontSize: 28, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Taller Ridder</h1>
         <p className="muted" style={{ margin: 0 }}>Ingresá con tu usuario.</p>

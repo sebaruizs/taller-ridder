@@ -9,12 +9,14 @@ export default async function Cuenta() {
   return (
     <>
       <Topbar titulo="Mi cuenta" volver="/ordenes" />
-      <main className="wrap stack" style={{ paddingTop: 0 }}>
-        <section className="card stack" style={{ gap: 4 }}>
-          <strong>{u.nombre}</strong>
-          <span className="small muted">Usuario: {u.usuario}</span>
-        </section>
-        <CambiarPassword />
+      <main className="wrap" style={{ paddingTop: 0 }}>
+        <div className="stack form-angosto">
+          <section className="card stack" style={{ gap: 4 }}>
+            <strong>{u.nombre}</strong>
+            <span className="small muted">Usuario: {u.usuario}</span>
+          </section>
+          <CambiarPassword />
+        </div>
       </main>
     </>
   );

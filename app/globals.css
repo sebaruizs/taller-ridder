@@ -137,3 +137,47 @@ textarea.input { min-height: 110px; resize: vertical; }
 .skeleton { height: 92px; border-radius: var(--radius); background: linear-gradient(90deg, #ecebe6, #f7f6f2, #ecebe6); background-size: 200% 100%; animation: sk 1.2s infinite; }
 @keyframes sk { to { background-position: -200% 0; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* Grillas: en el celular son una columna; en PC se abren (ver media query). */
+.grid-ordenes, .grid-usuarios { display: flex; flex-direction: column; gap: 10px; }
+.filtros { display: flex; flex-direction: column; gap: 10px; }
+.finalizar-grid { display: flex; flex-direction: column; gap: 16px; }
+.finalizar-grid > div { display: flex; flex-direction: column; gap: 16px; }
+
+.sidebar { display: none; }
+.side-link {
+  display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px;
+  text-decoration: none; font-weight: 600; color: var(--ink-2);
+}
+.side-link:hover { background: var(--surface); color: var(--ink); }
+.side-link[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
+.side-user { margin-top: auto; padding: 14px 8px 4px; border-top: 1px solid var(--line); }
+
+@media (min-width: 1024px) {
+  .shell { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+  .sidebar {
+    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh;
+    padding: 20px 14px; border-right: 1px solid var(--line); background: #efede7;
+  }
+  .contenido .topbar, .contenido .wrap { max-width: 1160px; padding-left: 32px; padding-right: 32px; }
+  .contenido .topbar { padding-top: 28px; padding-bottom: 16px; }
+  .contenido .topbar h1 { font-size: 28px; }
+  .contenido .topbar nav { display: none; }
+  .contenido .wrap { padding-bottom: 48px; }
+  .contenido .bottom-bar { position: static; background: none; backdrop-filter: none; border: 0; padding: 0; margin-top: 8px; }
+  .contenido .bottom-bar > div { max-width: none; margin: 0; }
+  .contenido .bottom-bar > .accion-corta { max-width: 240px; }
+
+  .filtros { flex-direction: row; align-items: center; }
+  .filtros .input { max-width: 300px; flex: none; }
+  .filtros .chips { flex-wrap: wrap; overflow: visible; }
+  .grid-ordenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+  .grid-ordenes .card:hover { border-color: var(--ink-3); }
+  .grid-usuarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+  .finalizar-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+  .fotos { grid-template-columns: repeat(4, 1fr); }
+  .form-angosto { max-width: 600px; }
+
+  .login { max-width: 440px; margin: 12vh auto 0; padding: 32px; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; }
+}

@@ -107,6 +107,8 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0, gap: 16 }}>
+      <div className="finalizar-grid">
+      <div>
       <section className="card stack" style={{ gap: 8 }}>
         <div className="row between wrap-row">
           <span className="placa placa-lg">{orden.chapa}</span>
@@ -142,7 +144,9 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
           </label>
         )}
       </div>
+      </div>
 
+      <div>
       <div className="field">
         <span className="label">Fotos <span className="muted small">(opcional)</span></span>
         <div className="fotos">
@@ -200,6 +204,8 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
           )}
           <span className="tiny muted center">Finaliza como {mecanico}</span>
         </div>
+      </div>
+      </div>
       </div>
     </main>
   );

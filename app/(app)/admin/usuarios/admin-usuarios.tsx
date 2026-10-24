@@ -91,7 +91,7 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
   if (form) {
     const nuevo = form.id === null;
     return (
-      <main className="wrap stack" style={{ paddingTop: 0, gap: 14 }}>
+      <main className="wrap"><div className="stack form-angosto" style={{ gap: 14 }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>{nuevo ? "Nuevo usuario" : `Editar ${form.usuario}`}</h2>
         <form className="stack" style={{ gap: 14 }} onSubmit={guardar}>
           {nuevo && (
@@ -153,13 +153,14 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
             <button className="btn btn-primary" style={{ flex: 1 }} disabled={guardando}>{guardando ? "Guardando…" : "Guardar"}</button>
           </div>
         </form>
-      </main>
+      </div></main>
     );
   }
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
       {aviso && <div className="alert alert-ok">{aviso}</div>}
+      <div className="grid-usuarios">
       {usuarios.map((u) => (
         <button key={u.id} className="card stack" style={{ gap: 4, textAlign: "left", cursor: "pointer", opacity: u.activo ? 1 : 0.55 }} onClick={() => editar(u)}>
           <div className="row between">
@@ -170,8 +171,9 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
           <div className="small muted">Odoo: {contactoNombre(u) ?? "sin contacto"}</div>
         </button>
       ))}
+      </div>
       <div className="bottom-bar">
-        <div>
+        <div className="accion-corta">
           <button className="btn btn-primary btn-block btn-lg" onClick={() => { setAviso(null); setError(null); setForm({ ...VACIO }); }}>
             Nuevo usuario
           </button>

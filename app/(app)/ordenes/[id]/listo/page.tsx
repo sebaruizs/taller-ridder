@@ -16,7 +16,7 @@ export default async function Listo(props: PageProps<"/ordenes/[id]/listo">) {
   const r = fin.resumen as unknown as Resumen;
 
   return (
-    <main className="wrap stack" style={{ paddingTop: 24, gap: 16 }}>
+    <main className="wrap"><div className="stack form-angosto" style={{ paddingTop: 24, gap: 16, margin: "0 auto" }}>
       <div className="success-mark" aria-hidden>✓</div>
       <h1 className="center" style={{ margin: 0, fontSize: 24, letterSpacing: "-0.02em" }}>Trabajo finalizado</h1>
       <p className="center muted" style={{ margin: 0 }}>Quedó cargado en Odoo.</p>
@@ -48,6 +48,6 @@ export default async function Listo(props: PageProps<"/ordenes/[id]/listo">) {
           <Link href="/ordenes" className="btn btn-primary btn-block btn-lg">Volver a la lista</Link>
         </div>
       </div>
-    </main>
+    </div></main>
   );
 }

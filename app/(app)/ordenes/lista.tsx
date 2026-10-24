@@ -65,24 +65,26 @@ export function ListaOrdenes({ tienePartner }: { tienePartner: boolean }) {
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
-      <input
-        className="input"
-        type="search"
-        inputMode="text"
-        autoCapitalize="characters"
-        placeholder="Buscar por chapa"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        aria-label="Buscar por chapa"
-      />
-      <div className="chips" role="group" aria-label="Filtros">
-        <button className="chip" aria-pressed={!mias && !tipo} onClick={() => filtrar(() => { setMias(false); setTipo(null); })}>Todas</button>
-        <button className="chip" aria-pressed={mias} onClick={() => filtrar(() => setMias((m) => !m))}>Asignadas a mí</button>
-        {tipos.map((t) => (
-          <button key={t.id} className="chip" aria-pressed={tipo === t.id} onClick={() => filtrar(() => setTipo((x) => (x === t.id ? null : t.id)))}>
-            {t.name}
-          </button>
-        ))}
+      <div className="filtros">
+        <input
+          className="input"
+          type="search"
+          inputMode="text"
+          autoCapitalize="characters"
+          placeholder="Buscar por chapa"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          aria-label="Buscar por chapa"
+        />
+        <div className="chips" role="group" aria-label="Filtros">
+          <button className="chip" aria-pressed={!mias && !tipo} onClick={() => filtrar(() => { setMias(false); setTipo(null); })}>Todas</button>
+          <button className="chip" aria-pressed={mias} onClick={() => filtrar(() => setMias((m) => !m))}>Asignadas a mí</button>
+          {tipos.map((t) => (
+            <button key={t.id} className="chip" aria-pressed={tipo === t.id} onClick={() => filtrar(() => setTipo((x) => (x === t.id ? null : t.id)))}>
+              {t.name}
+            </button>
+          ))}
+        </div>
       </div>
 
       {mias && !tienePartner && (
@@ -90,7 +92,7 @@ export function ListaOrdenes({ tienePartner }: { tienePartner: boolean }) {
       )}
       {error && <div className="alert alert-danger">{error}</div>}
 
-      {cargando && !data && [0, 1, 2].map((i) => <div key={i} className="skeleton" />)}
+      {cargando && !data && <div className="grid-ordenes">{[0, 1, 2].map((i) => <div key={i} className="skeleton" />)}</div>}
 
       {data && (
         <div className="small muted" aria-live="polite">
@@ -103,7 +105,7 @@ export function ListaOrdenes({ tienePartner }: { tienePartner: boolean }) {
         <div className="card center muted">{qDebounced ? `No hay motos en proceso con "${qDebounced}".` : "No hay motos en proceso."}</div>
       )}
 
-      {data?.ordenes.map((o) => (
+      {!!data?.ordenes.length && <div className="grid-ordenes">{data.ordenes.map((o) => (
         <Link key={o.id} href={`/ordenes/${o.id}/finalizar`} className="card stack" style={{ gap: 8 }}>
           <div className="row between">
             <span className="placa">{o.chapa}</span>
@@ -120,7 +122,7 @@ export function ListaOrdenes({ tienePartner }: { tienePartner: boolean }) {
             <span>{o.mecanico ?? "Sin asignar"}</span>
           </div>
         </Link>
-      ))}
+      ))}</div>}
 
       {paginas > 1 && (
         <div className="row between">
