@@ -8,6 +8,20 @@
       "when": 1792849869265,
       "tag": "0000_inicial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792853659462,
+      "tag": "0001_quitar_pin",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792853675845,
+      "tag": "0002_usuario_y_contrasena",
+      "breakpoints": true
     }
   ]
 }

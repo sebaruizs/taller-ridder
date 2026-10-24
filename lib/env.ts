@@ -18,6 +18,7 @@ const schema = z.object({
     .default("false")
     .transform((v) => v === "true"),
   ODOO_VEHICLE_STATE_PARA_ENTREGAR: z.coerce.number().int().default(1),
+  ODOO_TAG_MECANICO: z.coerce.number().int().positive().default(20),
   TELEGRAM_BOT_TOKEN: z.string().optional().default(""),
   TELEGRAM_CHAT_TALLER: z.string().optional().default(""),
   TELEGRAM_CHAT_ERRORES: z.string().optional().default(""),

@@ -21,10 +21,12 @@ export type Rol = (typeof ROLES)[number];
 
 export const usuarios = pgTable("usuarios", {
   id: serial("id").primaryKey(),
-  nombre: text("nombre").notNull().unique(),
+  usuario: text("usuario").notNull().unique(),
+  nombre: text("nombre").notNull(),
   rol: text("rol", { enum: ROLES }).notNull(),
-  pinHash: text("pin_hash").notNull(),
+  passwordHash: text("password_hash").notNull(),
   odooPartnerId: integer("odoo_partner_id"),
+  odooPartnerNombre: text("odoo_partner_nombre"),
   activo: boolean("activo").notNull().default(true),
   intentosFallidos: integer("intentos_fallidos").notNull().default(0),
   bloqueadoHasta: timestamp("bloqueado_hasta", { withTimezone: true }),

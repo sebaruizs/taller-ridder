@@ -8,7 +8,7 @@ La base propia (Postgres) guarda únicamente usuarios, sesiones, el log y el est
 
 ## Estado
 
-- **Etapa 1 (lista):** ingreso con PIN, roles, lista de órdenes en proceso, finalizar y confirmación.
+- **Etapa 1 (lista):** ingreso con usuario y contraseña, roles, usuarios vinculados a su contacto de Odoo, lista de órdenes en proceso, finalizar y confirmación.
 - Etapa 2: nueva orden, kanban y detalle (jefe).
 - Etapa 3: historial, usuarios y log (admin).
 
@@ -26,7 +26,7 @@ En `.env.local`:
 - `DATABASE_URL=pglite://./.data/pglite`
 - `COOKIE_SECURE=false`
 - `ODOO_READONLY=true`: **recomendado para probar con la instancia real**. Bloquea toda escritura en Odoo; las lecturas funcionan.
-- Completá `ODOO_*`, `SESSION_SECRET`, `ADMIN_NOMBRE` y `ADMIN_PIN`.
+- Completá `ODOO_*`, `SESSION_SECRET`, `ADMIN_USER` y `ADMIN_PASSWORD`.
 
 ```bash
 npm run dev        # http://localhost:3000
@@ -34,14 +34,21 @@ npm test           # tests unitarios
 npm run typecheck
 ```
 
-El primer admin se crea solo al arrancar si la base está vacía (`ADMIN_NOMBRE` / `ADMIN_PIN`).
-Hasta que esté la pantalla de usuarios (Etapa 3), los usuarios se crean desde la terminal (con el servidor apagado si usás PGlite):
+## Usuarios
+
+Igual que en cobranzas: cada persona entra con **usuario y contraseña** (mínimo 8 caracteres).
+
+- El primer admin se crea solo al arrancar si la base está vacía (`ADMIN_USER` / `ADMIN_PASSWORD`).
+- El admin crea y edita usuarios en **Usuarios**: rol, nombre, contraseña, activo y **contacto de Odoo**.
+- El contacto se elige entre los `res.partner` con la etiqueta **mecanico** (`ODOO_TAG_MECANICO`, id 20). Es obligatorio para los mecánicos: se usa como "Responsable" (`vendor_id`) al finalizar y para el filtro "Asignadas a mí".
+- Cada uno cambia su contraseña en **Cuenta**. Cambiar la contraseña o desactivar un usuario cierra sus sesiones.
+- Después de 5 intentos fallidos el usuario queda bloqueado 15 minutos; además hay un límite por IP.
+
+Para emergencias (por ejemplo, recuperar el admin) se puede crear un usuario desde la terminal:
 
 ```bash
-npm run usuario -- --nombre "Carlos Ramirez" --rol mecanico --pin 1234 --partner 1685
+npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una-clave-larga"
 ```
-
-`--partner` es el id del `res.partner` del mecánico en Odoo. Se usa como "Responsable" (`vendor_id`) al finalizar y para el filtro "Asignadas a mí".
 
 ## Variables de entorno
 
@@ -57,7 +64,8 @@ npm run usuario -- --nombre "Carlos Ramirez" --rol mecanico --pin 1234 --partner
 | `TELEGRAM_BOT_TOKEN` | Token del bot |
 | `TELEGRAM_CHAT_TALLER` | Grupo del taller (avisos de trabajos) |
 | `TELEGRAM_CHAT_ERRORES` | Grupo de errores (fallas al escribir en Odoo) |
-| `ADMIN_NOMBRE`, `ADMIN_PIN`, `ADMIN_ODOO_PARTNER_ID` | Primer admin (solo si no hay usuarios) |
+| `ODOO_TAG_MECANICO` | id de la etiqueta de contactos "mecanico" (20) |
+| `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"
 
@@ -91,7 +99,8 @@ lib/odoo.ts     cliente JSON-RPC (timeout, uid cacheado, modo solo lectura)
 lib/taller.ts   reglas del taller y armado de payloads (sin I/O, testeado)
 lib/finalizar.ts                 pasos de la finalización (testeado con Odoo simulado)
 lib/finalizar-servicio.ts        persistencia y candado por clave
-lib/auth.ts, lib/permisos.ts     sesiones, PIN y permisos por rol
+lib/auth.ts, lib/permisos.ts     sesiones, contraseñas y permisos por rol
+lib/usuarios.ts                  alta y edición de usuarios, contactos de Odoo
 lib/db/         esquema Drizzle; las migraciones están en drizzle/
 tests/          tests unitarios (Vitest)
 ```

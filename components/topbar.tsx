@@ -1,7 +1,9 @@
 "use client";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import type { Rol } from "@/lib/db/schema";
 
-export function Topbar({ titulo, nombre, volver }: { titulo: string; nombre?: string; volver?: string }) {
+export function Topbar({ titulo, nombre, rol, volver }: { titulo: string; nombre?: string; rol?: Rol; volver?: string }) {
   const router = useRouter();
   async function salir() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -22,9 +24,11 @@ export function Topbar({ titulo, nombre, volver }: { titulo: string; nombre?: st
         </div>
       </div>
       {nombre && (
-        <button className="btn btn-ghost small" onClick={salir}>
-          Salir
-        </button>
+        <nav className="row" style={{ gap: 0 }}>
+          {rol === "admin" && <Link className="btn btn-ghost small" href="/admin/usuarios">Usuarios</Link>}
+          <Link className="btn btn-ghost small" href="/cuenta">Cuenta</Link>
+          <button className="btn btn-ghost small" onClick={salir}>Salir</button>
+        </nav>
       )}
     </header>
   );

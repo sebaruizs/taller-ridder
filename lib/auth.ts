@@ -3,16 +3,16 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, ne } from "drizzle-orm";
 import { getDb, schema } from "./db";
 import { env } from "./env";
 import { DURACION_SESION_DIAS, puede, type Accion } from "./permisos";
-import { estaBloqueado, trasIntentoFallido } from "./pin";
+import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido } from "./credenciales";
 import type { Rol } from "./db/schema";
 
 export const COOKIE = "taller_sesion";
 
-export type Usuario = { id: number; nombre: string; rol: Rol; odooPartnerId: number | null };
+export type Usuario = { id: number; usuario: string; nombre: string; rol: Rol; odooPartnerId: number | null };
 
 export class NoAutorizado extends Error {
   constructor(readonly status: 401 | 403) {
@@ -24,27 +24,36 @@ function hashToken(token: string): string {
   return createHash("sha256").update(token).update(env().SESSION_SECRET).digest("hex");
 }
 
-export function hashPin(pin: string): Promise<string> {
-  return hash(pin);
+export function hashPassword(password: string): Promise<string> {
+  return hash(password);
 }
 
 export type ResultadoLogin = { ok: true; usuario: Usuario } | { ok: false; error: string; status: number };
 
-export async function login(usuarioId: number, pin: string): Promise<ResultadoLogin> {
+const INCORRECTO = "Usuario o contraseña incorrectos";
+const DEMASIADOS = "Demasiados intentos. Probá de nuevo en unos minutos.";
+
+async function ipCliente(): Promise<string> {
+  const h = await headers();
+  return h.get("x-forwarded-for")?.split(",")[0]?.trim() || h.get("x-real-ip") || "local";
+}
+
+export async function login(usuario: string, password: string): Promise<ResultadoLogin> {
+  const ip = await ipCliente();
+  if (ipBloqueada(ip)) return { ok: false, error: DEMASIADOS, status: 429 };
   const db = await getDb();
-  const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.id, usuarioId));
-  if (!u || !u.activo) return { ok: false, error: "Usuario no encontrado", status: 401 };
-  const ahora = new Date();
-  if (estaBloqueado(u, ahora)) {
-    const min = Math.ceil((u.bloqueadoHasta!.getTime() - ahora.getTime()) / 60_000);
-    return { ok: false, error: `Demasiados intentos. Probá de nuevo en ${min} min.`, status: 429 };
+  const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, usuario));
+  if (!u || !u.activo) {
+    registrarFalloIp(ip);
+    return { ok: false, error: INCORRECTO, status: 401 };
   }
-  if (!(await verify(u.pinHash, pin))) {
+  const ahora = new Date();
+  if (estaBloqueado(u, ahora)) return { ok: false, error: DEMASIADOS, status: 429 };
+  if (!(await verify(u.passwordHash, password))) {
+    registrarFalloIp(ip);
     const sig = trasIntentoFallido(u, ahora);
     await db.update(schema.usuarios).set(sig).where(eq(schema.usuarios.id, u.id));
-    return sig.bloqueadoHasta
-      ? { ok: false, error: "Demasiados intentos. Probá de nuevo en 15 min.", status: 429 }
-      : { ok: false, error: "PIN incorrecto", status: 401 };
+    return sig.bloqueadoHasta ? { ok: false, error: DEMASIADOS, status: 429 } : { ok: false, error: INCORRECTO, status: 401 };
   }
   await db.update(schema.usuarios).set({ intentosFallidos: 0, bloqueadoHasta: null }).where(eq(schema.usuarios.id, u.id));
 
@@ -65,7 +74,20 @@ export async function login(usuarioId: number, pin: string): Promise<ResultadoLo
     expires: expira,
   });
   await registrar(u.id, "login");
-  return { ok: true, usuario: { id: u.id, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId } };
+  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId } };
+}
+
+export async function cambiarPassword(usuarioId: number, actual: string, nueva: string): Promise<string | null> {
+  const db = await getDb();
+  const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.id, usuarioId));
+  if (!u || !(await verify(u.passwordHash, actual))) return "La contraseña actual no coincide";
+  await db.update(schema.usuarios).set({ passwordHash: await hashPassword(nueva) }).where(eq(schema.usuarios.id, usuarioId));
+  const token = (await cookies()).get(COOKIE)?.value;
+  await db
+    .delete(schema.sesiones)
+    .where(and(eq(schema.sesiones.usuarioId, usuarioId), ne(schema.sesiones.id, token ? hashToken(token) : "")));
+  await registrar(usuarioId, "usuario.cambiar_password");
+  return null;
 }
 
 export async function logout(): Promise<void> {
@@ -85,6 +107,7 @@ export async function usuarioActual(): Promise<Usuario | null> {
   const [fila] = await db
     .select({
       id: schema.usuarios.id,
+      usuario: schema.usuarios.usuario,
       nombre: schema.usuarios.nombre,
       rol: schema.usuarios.rol,
       odooPartnerId: schema.usuarios.odooPartnerId,
@@ -94,7 +117,7 @@ export async function usuarioActual(): Promise<Usuario | null> {
     .innerJoin(schema.usuarios, eq(schema.sesiones.usuarioId, schema.usuarios.id))
     .where(and(eq(schema.sesiones.id, hashToken(token)), gt(schema.sesiones.expira, new Date())));
   if (!fila || !fila.activo) return null;
-  return { id: fila.id, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId };
+  return { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId };
 }
 
 // Para Route Handlers: tira NoAutorizado (401/403).
