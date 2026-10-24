@@ -78,6 +78,15 @@ describe("finalizar", () => {
     expect(nota.body).toContain("Trabajo finalizado por Juan");
   });
 
+  it("las fotos guardadas como Uint8Array (algunos drivers de Postgres) se mandan bien en base64", async () => {
+    const t = armar({ fotos: 1 });
+    const original = t.deps.store.fotos;
+    t.deps.store.fotos = async () => (await original()).map((f) => ({ ...f, datos: new Uint8Array(f.datos) as unknown as Buffer }));
+    await ejecutarFinalizacion(t.estado, t.deps);
+    const att = t.llamadas.find((l) => l.model === "ir.attachment")!;
+    expect((att.args[0] as { datas: string }).datas).toBe(Buffer.from("foto0").toString("base64"));
+  });
+
   it("sin fotos no crea adjuntos ni falla", async () => {
     const t = armar({ fotos: 0 });
     const r = await ejecutarFinalizacion(t.estado, t.deps);

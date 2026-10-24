@@ -140,7 +140,7 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
           attId = await odoo.create("ir.attachment", {
             name: foto.nombre,
             type: "binary",
-            datas: foto.datos.toString("base64"),
+            datas: Buffer.from(foto.datos).toString("base64"),
             mimetype: foto.mimetype,
             res_model: MODELO_ORDEN,
             res_id: f.ordenId,
