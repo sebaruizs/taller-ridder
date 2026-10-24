@@ -38,7 +38,7 @@ export default async function Inventario(props: PageProps<"/inventario">) {
 
   return (
     <>
-      <Topbar titulo="Inventario" nombre={u.nombre} rol={u.rol} />
+      <Topbar titulo="Inventario" nombre={u.nombre} rol={u.rol} accion={puedeU(u, "inventario.crear") ? { href: "/inventario/nuevo", texto: "Nuevo producto" } : undefined} />
       <main className="wrap stack inventario-wrap">
         {puedeU(u, "inventario.crear") && <Link href="/inventario/nuevo" className="btn btn-primary solo-movil">+ Nuevo producto</Link>}
         <section className="kpis">

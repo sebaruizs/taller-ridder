@@ -7,9 +7,10 @@ export default async function PaginaTablero() {
   const u = await exigirPagina("ordenes.ver_todas");
   return (
     <>
-      <Topbar titulo="Tablero" nombre={u.nombre} rol={u.rol} />
+      <Topbar titulo="Tablero" nombre={u.nombre} rol={u.rol} accion={puedeU(u, "ordenes.crear") ? { href: "/ordenes/nueva", texto: "Nueva orden" } : undefined} />
       <Tablero
         acciones={{
+          crear: puedeU(u, "ordenes.crear"),
           iniciar: puedeU(u, "ordenes.mover_estado"),
           finalizar: puedeU(u, "ordenes.finalizar"),
           verificar: puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]),

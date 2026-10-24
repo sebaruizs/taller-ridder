@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, modulosDelRol, moduloDeAccion, pantallasDe, permisosDelRol, puede, puedeU, resumenPermisosOff, type Accion } from "@/lib/permisos";
+import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, menuDe, modulosDelRol, moduloDeAccion, pantallasDe, permisosDelRol, puede, puedeU, resumenPermisosOff, type Accion } from "@/lib/permisos";
 import { ROLES } from "@/lib/db/schema";
 
 const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar"];
@@ -116,5 +116,20 @@ describe("permisos por módulo", () => {
 
   it("el resumen muestra el módulo apagado sin repetir sus permisos", () => {
     expect(resumenPermisosOff(["modulo.compras", "cargar_compras", "repuestos"])).toEqual(["módulo Compras", "Cargar repuestos"]);
+  });
+});
+
+describe("menú lateral", () => {
+  it("las pantallas de alta no van en el menú: se entra desde cada módulo", () => {
+    const hrefs = menuDe(pantallasDe({ rol: "jefe", permisosOff: [] })).map((p) => p.href);
+    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/inventario", "/compras"]);
+  });
+
+  it("si cargar es lo único que tiene en el módulo, el alta sí aparece", () => {
+    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "inventario"] };
+    const hrefs = menuDe(pantallasDe(u)).map((p) => p.href);
+    expect(hrefs).toContain("/ordenes/nueva");
+    expect(hrefs).toContain("/inventario/nuevo");
+    expect(hrefs).not.toContain("/compras/nueva");
   });
 });

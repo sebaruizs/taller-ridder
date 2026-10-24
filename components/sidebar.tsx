@@ -3,11 +3,11 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Rol } from "@/lib/db/schema";
-import { SECCIONES, type Pantalla } from "@/lib/permisos";
+import { SECCIONES, menuDe, type Pantalla } from "@/lib/permisos";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
 
-// Marca la opción más específica: en "/inventario/nuevo" se marca "Nuevo producto", no "Productos".
+// Marca la opción más específica; en "/inventario/nuevo" queda marcado "Productos".
 function hrefActivo(pathname: string, hrefs: string[]): string | null {
   const coinciden = hrefs.filter((h) => pathname === h || pathname.startsWith(h + "/"));
   return coinciden.sort((a, b) => b.length - a.length)[0] ?? null;
@@ -17,7 +17,8 @@ function hrefActivo(pathname: string, hrefs: string[]): string | null {
 export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; pantallas: Pantalla[] }) {
   const pathname = usePathname();
   const router = useRouter();
-  const actual = hrefActivo(pathname, [...pantallas.map((p) => p.href), "/cuenta"]);
+  const menu = menuDe(pantallas);
+  const actual = hrefActivo(pathname, [...menu.map((p) => p.href), "/cuenta"]);
   const config = [...pantallas.filter((p) => p.seccion === "Configuración"), { href: "/cuenta", nombre: "Mi cuenta" }];
   const [abierto, setAbierto] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -53,13 +54,14 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
       </div>
       <nav className="stack" style={{ gap: 14, flex: 1, overflowY: "auto" }} aria-label="Menú">
         {SECCIONES.map((s) => {
-          const items = pantallas.filter((p) => p.seccion === s);
+          const items = menu.filter((p) => p.seccion === s);
           if (!items.length) return null;
           return (
             <section key={s} className="stack" style={{ gap: 2 }}>
               <h2 className="side-seccion">{s}</h2>
               {items.map((l) => (
                 <Link key={l.href} href={l.href} className="side-link" aria-current={actual === l.href ? "page" : undefined}>
+                  <Icono href={l.href} />
                   {l.nombre}
                 </Link>
               ))}
@@ -100,5 +102,22 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
         <button className="btn btn-block" style={{ marginTop: 10 }} onClick={salir}>Salir</button>
       </div>
     </aside>
+  );
+}
+
+// Íconos de trazo simple (24x24) para ubicar cada opción de un vistazo.
+const ICONOS: Record<string, React.ReactNode> = {
+  "/tablero": <><rect x="3" y="4" width="5" height="16" rx="1.5" /><rect x="9.5" y="4" width="5" height="11" rx="1.5" /><rect x="16" y="4" width="5" height="7" rx="1.5" /></>,
+  "/ordenes": <path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3.6 17.2a1.9 1.9 0 0 0 2.7 2.7l5.7-5.7a4 4 0 0 0 5.2-5.4l-2.4 2.4-2.3-.5-.5-2.3z" />,
+  "/verificar": <><circle cx="12" cy="12" r="9" /><path d="m8.5 12 2.5 2.5 4.5-5" /></>,
+  "/inventario": <><path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="m3 8 9 5 9-5M12 13v8" /></>,
+  "/compras": <><circle cx="9" cy="20" r="1.3" /><circle cx="18" cy="20" r="1.3" /><path d="M2.5 3h2.6l2.3 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6" /></>,
+};
+
+function Icono({ href }: { href: string }) {
+  return (
+    <svg className="side-icono" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONOS[href] ?? <path d="M12 5v14M5 12h14" />}
+    </svg>
   );
 }

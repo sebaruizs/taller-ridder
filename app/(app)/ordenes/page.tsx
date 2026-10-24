@@ -7,7 +7,7 @@ export default async function Ordenes() {
   const u = await exigirPagina("ordenes.ver_en_proceso");
   return (
     <>
-      <Topbar titulo="Motos en proceso" nombre={u.nombre} rol={u.rol} />
+      <Topbar titulo="Motos en proceso" nombre={u.nombre} rol={u.rol} accion={puedeU(u, "ordenes.crear") ? { href: "/ordenes/nueva", texto: "Nueva orden" } : undefined} />
       <ListaOrdenes
         tienePartner={Boolean(u.odooPartnerId)}
         accesos={{

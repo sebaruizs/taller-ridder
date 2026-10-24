@@ -17,7 +17,7 @@ type Columna = { ordenes: OrdenLista[]; total: number; pagina: number; porPagina
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
 const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
 
-export function Tablero({ acciones }: { acciones: { iniciar: boolean; finalizar: boolean; verificar: boolean } }) {
+export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boolean; finalizar: boolean; verificar: boolean } }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
@@ -100,6 +100,7 @@ export function Tablero({ acciones }: { acciones: { iniciar: boolean; finalizar:
 
   return (
     <main className="wrap stack tablero-wrap">
+      {acciones.crear && <Link href="/ordenes/nueva" className="btn btn-primary solo-movil">+ Nueva orden</Link>}
       <input className="input tablero-buscar" type="search" autoCapitalize="characters" placeholder="Buscar por chapa" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar por chapa" />
       {aviso && <div className={`alert ${aviso.ok ? "alert-ok" : "alert-danger"}`} role="status">{aviso.msg}</div>}
 

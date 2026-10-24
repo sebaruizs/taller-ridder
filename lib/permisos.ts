@@ -117,21 +117,22 @@ export const SECCIONES = ["Taller", "Inventario", "Compras"] as const;
 export type Seccion = (typeof SECCIONES)[number] | "Configuración";
 
 export const PANTALLAS = [
-  { href: "/ordenes/nueva", nombre: "+ Nueva orden", seccion: "Taller", acciones: ["ordenes.crear"] },
+  { href: "/ordenes/nueva", nombre: "Nueva orden", seccion: "Taller", acciones: ["ordenes.crear"], alta: true },
   { href: "/tablero", nombre: "Tablero", seccion: "Taller", acciones: ["ordenes.ver_todas"] },
   { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Configuración", acciones: ["usuarios.gestionar"] },
-  { href: "/inventario/nuevo", nombre: "+ Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"] },
+  { href: "/inventario/nuevo", nombre: "Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"], alta: true },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
-  { href: "/compras/nueva", nombre: "+ Nueva compra", seccion: "Compras", acciones: ["compras.crear"] },
+  { href: "/compras/nueva", nombre: "Nueva compra", seccion: "Compras", acciones: ["compras.crear"], alta: true },
   { href: "/compras", nombre: "Compras", seccion: "Compras", acciones: ["compras.ver"] },
-] as const satisfies readonly { href: string; nombre: string; seccion: Seccion; acciones: readonly Accion[] }[];
+] as const satisfies readonly { href: string; nombre: string; seccion: Seccion; acciones: readonly Accion[]; alta?: boolean }[];
 
-export type Pantalla = { href: string; nombre: string; seccion: Seccion };
+// alta: pantalla de "nuevo"; en el menú no aparece, se entra con el botón de cada módulo.
+export type Pantalla = { href: string; nombre: string; seccion: Seccion; alta: boolean };
 
 export function pantallasDe(u: Sujeto): Pantalla[] {
-  return PANTALLAS.filter((p) => puedeAlguna(u, p.acciones)).map(({ href, nombre, seccion }) => ({ href, nombre, seccion }));
+  return PANTALLAS.filter((p) => puedeAlguna(u, p.acciones)).map((p) => ({ href: p.href, nombre: p.nombre, seccion: p.seccion, alta: "alta" in p }));
 }
 
 // Primera pantalla útil para el usuario; "/cuenta" siempre está, así nunca hay bucles de redirección.
@@ -146,3 +147,9 @@ export const DURACION_SESION_DIAS: Record<Rol, number> = {
   jefe: 14,
   admin: 1,
 };
+
+// Lo que va en el menú: sin las pantallas de alta, salvo que sea lo único del módulo
+// (por ejemplo, alguien que solo puede cargar órdenes y no ver listas).
+export function menuDe(pantallas: readonly Pantalla[]): Pantalla[] {
+  return pantallas.filter((p) => !p.alta || !pantallas.some((o) => o.seccion === p.seccion && !o.alta));
+}

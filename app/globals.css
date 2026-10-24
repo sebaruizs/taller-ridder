@@ -76,6 +76,7 @@ a { color: inherit; }
 }
 
 .topbar + .wrap { padding-top: 16px !important; }
+.topbar .topbar-accion { display: none; }
 
 .muted { color: var(--ink-2); }
 .small { font-size: 14px; }
@@ -237,7 +238,11 @@ textarea.input { min-height: 110px; resize: vertical; }
   display: flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: 10px;
   text-decoration: none; font-weight: 600; font-size: 14.5px; color: var(--brand-ink-2);
 }
+.side-link { gap: 10px; }
+.side-icono { flex: none; opacity: 0.8; }
+.side-link[aria-current="page"] .side-icono { opacity: 1; }
 .side-link:hover { background: rgba(255, 255, 255, 0.06); color: #fff; }
+.sidebar .side-link:focus-visible { outline: 2px solid rgba(255, 255, 255, 0.7); outline-offset: -2px; }
 .side-link[aria-current="page"] { background: var(--accent); color: var(--accent-ink); }
 .side-seccion {
   margin: 0; padding: 0 12px 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em;
@@ -274,6 +279,7 @@ textarea.input { min-height: 110px; resize: vertical; }
   .contenido .topbar h1 { font-size: 26px; letter-spacing: -0.02em; }
   .contenido .topbar .sub { color: var(--ink-3); }
   .contenido .topbar .logo, .contenido .topbar nav { display: none; }
+  .contenido .topbar .topbar-accion { display: inline-flex; margin-left: auto; }
   .contenido .topbar .volver { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
   .contenido .wrap { max-width: 1160px; padding-left: 32px; padding-right: 32px; padding-bottom: 48px; }
   .contenido .bottom-bar { position: static; background: none; backdrop-filter: none; border: 0; padding: 0; margin-top: 8px; }

@@ -39,7 +39,7 @@ export default async function Compras(props: PageProps<"/compras">) {
 
   return (
     <>
-      <Topbar titulo="Compras" nombre={u.nombre} rol={u.rol} />
+      <Topbar titulo="Compras" nombre={u.nombre} rol={u.rol} accion={puedeU(u, "compras.crear") ? { href: "/compras/nueva", texto: "Nueva compra" } : undefined} />
       <main className="wrap stack inventario-wrap">
         {puedeU(u, "compras.crear") && <Link href="/compras/nueva" className="btn btn-primary solo-movil">+ Nueva compra</Link>}
 
