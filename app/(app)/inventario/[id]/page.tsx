@@ -44,7 +44,18 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
 
         <section className="kpis">
           <div className="card kpi"><span className="small muted">Disponible</span><strong className={p.disponible <= 0 ? "rojo" : ""}>{cantidad(p.disponible)}</strong></div>
-          <div className="card kpi"><span className="small muted">Costo</span><strong>{gs(p.costo)}</strong></div>
+          <div className="card kpi">
+            <span className="small muted">Costo (última compra)</span>
+            <strong>{gs(p.costo)}</strong>
+            <span className="tiny muted">
+              {p.costoOrigen === "compra" ? `${fecha(p.costoFecha)}${p.costoProveedor ? ` · ${p.costoProveedor}` : ""}` : "Sin compras: se usa el costo de Odoo"}
+            </span>
+          </div>
+          <div className="card kpi">
+            <span className="small muted">Costo en Odoo</span>
+            <strong>{gs(p.costoOdoo)}</strong>
+            <span className="tiny muted">La app no lo modifica</span>
+          </div>
           <div className="card kpi"><span className="small muted">Precio de venta</span><PrecioEditable productoId={p.id} precio={p.precio} costo={p.costo} puedeEditar={puedeU(u, "inventario.editar_precio")} variante="kpi" /></div>
           <div className="card kpi"><span className="small muted">Valor en stock</span><strong>{gs(p.valor)}</strong></div>
         </section>

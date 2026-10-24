@@ -3,7 +3,7 @@ import { z } from "zod";
 import { exigirPagina } from "@/lib/auth";
 import { puedeU } from "@/lib/permisos";
 import { categoriasInventario, listarProductos, resumenInventario } from "@/lib/inventario";
-import { cantidad, gs, gsCorto } from "@/lib/formato";
+import { cantidad, fecha, gs, gsCorto } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
 import { PrecioEditable } from "@/components/precio-editable";
 
@@ -42,7 +42,11 @@ export default async function Inventario(props: PageProps<"/inventario">) {
       <main className="wrap stack inventario-wrap">
         {puedeU(u, "inventario.crear") && <Link href="/inventario/nuevo" className="btn btn-primary solo-movil">+ Nuevo producto</Link>}
         <section className="kpis">
-          <div className="card kpi"><span className="small muted">Valor del stock</span><strong>{gsCorto(resumen.valor)}</strong></div>
+          <div className="card kpi">
+            <span className="small muted">Valor del stock</span>
+            <strong>{gsCorto(resumen.valor)}</strong>
+            <span className="tiny muted">Con costo de última compra · Odoo: {gsCorto(resumen.valorOdoo)}</span>
+          </div>
           <div className="card kpi"><span className="small muted">Unidades en depósito</span><strong>{cantidad(resumen.unidades)}</strong></div>
           <div className="card kpi"><span className="small muted">Productos con stock</span><strong>{resumen.conStock}</strong></div>
           <div className="card kpi"><span className="small muted">Productos sin stock</span><strong>{resumen.sinStock}</strong></div>
@@ -75,7 +79,8 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                   <th>Producto</th>
                   <th>Categoría</th>
                   <th className="num">Disponible</th>
-                  <th className="num">Costo</th>
+                  <th className="num" title="Precio de la última compra (no se escribe en Odoo)">Costo</th>
+                  <th className="num">Costo Odoo</th>
                   <th className="num">Precio</th>
                   <th className="num">Valor en stock</th>
                 </tr>
@@ -89,7 +94,11 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                     </td>
                     <td className="small muted">{p.categoria ?? "—"}</td>
                     <td className={`num ${p.disponible <= 0 ? "rojo" : ""}`}>{cantidad(p.disponible)}</td>
-                    <td className="num">{gs(p.costo)}</td>
+                    <td className="num">
+                      {gs(p.costo)}
+                      <div className="tiny muted">{p.costoOrigen === "compra" ? `últ. compra ${fecha(p.costoFecha)}` : "sin compras"}</div>
+                    </td>
+                    <td className="num muted">{gs(p.costoOdoo)}</td>
                     <td className="num"><PrecioEditable productoId={p.id} precio={p.precio} costo={p.costo} puedeEditar={puedePrecio} variante="celda" /></td>
                     <td className="num">{gs(p.valor)}</td>
                   </tr>
@@ -106,7 +115,7 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                   </div>
                   <div className="small muted">{p.categoria ?? "Sin categoría"}{p.codigo ? ` · ${p.codigo}` : ""}</div>
                   <div className="row between small">
-                    <span>Costo {gs(p.costo)}</span>
+                    <span>Costo {gs(p.costo)}{p.costoOrigen === "odoo" ? " (Odoo)" : ""}</span>
                     <span>Precio {gs(p.precio)}</span>
                   </div>
                 </Link>

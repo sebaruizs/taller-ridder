@@ -1,7 +1,18 @@
 import "server-only";
-import { odoo, type Many2one } from "./odoo";
+import { odoo, type Domain, type Many2one } from "./odoo";
 import { chapaDe, MODELO_LINEA } from "./taller";
-import { POR_PAGINA_INVENTARIO, dominioProductos, tipoMovimiento, valorStock, type FiltroStock, type TipoMovimiento } from "./inventario-dominio";
+import {
+  POR_PAGINA_INVENTARIO,
+  costoApp,
+  dominioProductos,
+  tipoMovimiento,
+  ultimasCompras,
+  valorStock,
+  type FiltroStock,
+  type LineaCompraCosto,
+  type TipoMovimiento,
+  type UltimaCompra,
+} from "./inventario-dominio";
 
 type ProductoOdoo = {
   id: number;
@@ -24,24 +35,46 @@ export type ProductoLista = {
   codigo: string | null;
   categoria: string | null;
   disponible: number;
+  // Costo de la app (última compra); costoOdoo es el standard_price, que la app no toca.
   costo: number;
+  costoOrigen: "compra" | "odoo";
+  costoFecha: string | null;
+  costoProveedor: string | null;
+  costoOdoo: number;
   precio: number;
   unidad: string | null;
   valor: number;
 };
 
-function aLista(p: ProductoOdoo): ProductoLista {
+function aLista(p: ProductoOdoo, ultimas: Map<number, UltimaCompra>): ProductoLista {
+  const c = costoApp(ultimas.get(p.id), p.standard_price);
   return {
     id: p.id,
     nombre: p.display_name,
     codigo: p.default_code || null,
     categoria: p.categ_id ? p.categ_id[1] : null,
     disponible: p.qty_available,
-    costo: p.standard_price,
+    costo: c.costo,
+    costoOrigen: c.origen,
+    costoFecha: c.fecha,
+    costoProveedor: c.proveedor,
+    costoOdoo: p.standard_price,
     precio: p.list_price,
     unidad: p.uom_id ? p.uom_id[1] : null,
-    valor: valorStock(p.qty_available, p.standard_price),
+    valor: valorStock(p.qty_available, c.costo),
   };
+}
+
+// Última compra confirmada de cada producto (o de todos si no se pasan ids). Solo lectura.
+async function ultimasComprasDe(ids?: number[]): Promise<Map<number, UltimaCompra>> {
+  if (ids && !ids.length) return new Map();
+  const domain: Domain = [["state", "in", ["purchase", "done"]], ["product_id", "!=", false]];
+  if (ids) domain.push(["product_id", "in", ids]);
+  const lineas = await odoo.searchRead<LineaCompraCosto>("purchase.order.line", domain, ["product_id", "price_unit", "date_order", "partner_id"], {
+    limit: 5000,
+    order: "date_order desc, id desc",
+  });
+  return ultimasCompras(lineas);
 }
 
 export async function listarProductos(f: { q?: string; categoriaId?: number; stock?: FiltroStock; pagina: number }) {
@@ -54,17 +87,37 @@ export async function listarProductos(f: { q?: string; categoriaId?: number; sto
       order: "name asc, id asc",
     }),
   ]);
-  return { total, pagina: f.pagina, porPagina: POR_PAGINA_INVENTARIO, productos: filas.map(aLista) };
+  const ultimas = await ultimasComprasDe(filas.map((p) => p.id));
+  return { total, pagina: f.pagina, porPagina: POR_PAGINA_INVENTARIO, productos: filas.map((p) => aLista(p, ultimas)) };
 }
 
-// Totales del depósito: lo que hay en ubicaciones internas, con el valor que calcula Odoo.
+// Totales del depósito (ubicaciones internas). El valor usa el costo de la app (última compra);
+// valorOdoo es el que calcula Odoo con su propio costo.
 export async function resumenInventario() {
-  const [conStock, sinStock, [quants]] = await Promise.all([
+  const [conStock, sinStock, porProducto, ultimas] = await Promise.all([
     odoo.searchCount("product.product", dominioProductos({ stock: "con" })),
     odoo.searchCount("product.product", dominioProductos({ stock: "sin" })),
-    odoo.readGroup<{ value: number; quantity: number }>("stock.quant", [["location_id.usage", "=", "internal"]], ["value:sum", "quantity:sum"], []),
+    odoo.readGroup<{ product_id: Many2one; value: number; quantity: number }>(
+      "stock.quant",
+      [["location_id.usage", "=", "internal"]],
+      ["product_id", "value:sum", "quantity:sum"],
+      ["product_id"],
+    ),
+    ultimasComprasDe(),
   ]);
-  return { conStock, sinStock, unidades: quants?.quantity ?? 0, valor: quants?.value ?? 0 };
+  const ids = porProducto.map((g) => (g.product_id ? g.product_id[0] : 0)).filter(Boolean);
+  const costosOdoo = ids.length
+    ? new Map((await odoo.read<{ id: number; standard_price: number }>("product.product", ids, ["id", "standard_price"])).map((p) => [p.id, p.standard_price]))
+    : new Map<number, number>();
+  let unidades = 0;
+  let valor = 0;
+  let valorOdoo = 0;
+  for (const g of porProducto) {
+    unidades += g.quantity;
+    valorOdoo += g.value;
+    if (g.product_id) valor += valorStock(g.quantity, costoApp(ultimas.get(g.product_id[0]), costosOdoo.get(g.product_id[0]) ?? 0).costo);
+  }
+  return { conStock, sinStock, unidades, valor, valorOdoo };
 }
 
 let cacheCategorias: { hasta: number; lista: { id: number; nombre: string; cantidad: number }[] } | undefined;
@@ -104,7 +157,7 @@ export async function detalleProducto(id: number) {
     .searchRead<ProductoOdoo>("product.product", [["id", "=", id], ["active", "in", [true, false]]], [...CAMPOS, "product_tmpl_id", "seller_ids"], { limit: 1 })
     .catch(() => []);
   if (!p) return null;
-  return { ...aLista(p), sellerIds: p.seller_ids, tmplId: p.product_tmpl_id ? p.product_tmpl_id[0] : null };
+  return { ...aLista(p, await ultimasComprasDe([p.id])), sellerIds: p.seller_ids, tmplId: p.product_tmpl_id ? p.product_tmpl_id[0] : null };
 }
 
 export async function comprasDeProducto(id: number, sellerIds: number[]) {

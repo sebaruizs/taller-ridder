@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dominioProductos, tipoMovimiento, valorStock } from "@/lib/inventario-dominio";
+import { costoApp, dominioProductos, tipoMovimiento, ultimasCompras, valorStock } from "@/lib/inventario-dominio";
 import { gsCorto } from "@/lib/formato";
 import { inicioDe, puedeU } from "@/lib/permisos";
 
@@ -28,6 +28,19 @@ describe("inventario", () => {
   it("el valor en stock no cuenta cantidades negativas", () => {
     expect(valorStock(3, 20000)).toBe(60000);
     expect(valorStock(-2, 20000)).toBe(0);
+  });
+
+  it("el costo de la app es el precio de la última compra, separado del de Odoo", () => {
+    const ultimas = ultimasCompras([
+      { product_id: [5, "Foco H4"], price_unit: 22300, date_order: "2026-10-20 13:00:00", partner_id: [9, "Repuestos SA"] },
+      { product_id: [5, "Foco H4"], price_unit: 18000, date_order: "2026-08-01 10:00:00", partner_id: [9, "Repuestos SA"] },
+      { product_id: false, price_unit: 1, date_order: false, partner_id: false },
+    ]);
+    expect(costoApp(ultimas.get(5), 20000)).toEqual({ costo: 22300, origen: "compra", fecha: "2026-10-20", proveedor: "Repuestos SA" });
+  });
+
+  it("sin compras registradas usa el costo de Odoo y lo indica", () => {
+    expect(costoApp(undefined, 20000)).toEqual({ costo: 20000, origen: "odoo", fecha: null, proveedor: null });
   });
 
   it("montos grandes se resumen en millones", () => {

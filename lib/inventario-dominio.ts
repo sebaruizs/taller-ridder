@@ -26,3 +26,25 @@ export function tipoMovimiento(origenInterno: boolean, destinoInterno: boolean):
 export function valorStock(cantidad: number, costo: number): number {
   return cantidad > 0 ? cantidad * costo : 0;
 }
+
+// Costo de la app: el precio unitario de la última compra confirmada. Es una variable propia,
+// no se escribe en Odoo; el costo de Odoo (standard_price) se muestra aparte.
+export type UltimaCompra = { precio: number; fecha: string | null; proveedor: string | null };
+export type LineaCompraCosto = { product_id: [number, string] | false; price_unit: number; date_order: string | false; partner_id: [number, string] | false };
+
+// Las líneas tienen que venir de la más nueva a la más vieja: gana la primera de cada producto.
+export function ultimasCompras(lineas: LineaCompraCosto[]): Map<number, UltimaCompra> {
+  const m = new Map<number, UltimaCompra>();
+  for (const l of lineas) {
+    if (!l.product_id || m.has(l.product_id[0])) continue;
+    m.set(l.product_id[0], { precio: l.price_unit, fecha: l.date_order ? l.date_order.slice(0, 10) : null, proveedor: l.partner_id ? l.partner_id[1] : null });
+  }
+  return m;
+}
+
+// Sin compras registradas se usa el costo de Odoo, avisando de dónde sale.
+export function costoApp(ultima: UltimaCompra | undefined, costoOdoo: number) {
+  return ultima
+    ? { costo: ultima.precio, origen: "compra" as const, fecha: ultima.fecha, proveedor: ultima.proveedor }
+    : { costo: costoOdoo, origen: "odoo" as const, fecha: null, proveedor: null };
+}
