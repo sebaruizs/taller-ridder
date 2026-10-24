@@ -9,8 +9,11 @@ type Tipo = { id: number; name: string };
 
 const DIAS_ALERTA = 7;
 
-export function ListaOrdenes({ tienePartner, puedeCrear }: { tienePartner: boolean; puedeCrear: boolean }) {
+type Modo = "proceso" | "verificar";
+
+export function ListaOrdenes({ tienePartner, puedeCrear, modo = "proceso" }: { tienePartner: boolean; puedeCrear: boolean; modo?: Modo }) {
   const router = useRouter();
+  const verificar = modo === "verificar";
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
   const [mias, setMias] = useState(false);
@@ -22,11 +25,12 @@ export function ListaOrdenes({ tienePartner, puedeCrear }: { tienePartner: boole
 
   const consulta = useMemo(() => {
     const params = new URLSearchParams({ page: String(pagina) });
+    if (verificar) params.set("estado", "cancelled");
     if (qDebounced) params.set("q", qDebounced);
     if (mias) params.set("mias", "1");
     if (tipo) params.set("tipo", String(tipo));
     return params.toString();
-  }, [qDebounced, mias, tipo, pagina]);
+  }, [qDebounced, mias, tipo, pagina, verificar]);
   const cargando = resultado?.consulta !== consulta;
   const error = resultado?.consulta === consulta ? resultado.error : null;
 
@@ -65,8 +69,14 @@ export function ListaOrdenes({ tienePartner, puedeCrear }: { tienePartner: boole
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
-      {puedeCrear && (
-        <Link href="/ordenes/nueva" className="btn btn-primary solo-movil">+ Nueva orden</Link>
+      {puedeCrear && !verificar && (
+        <div className="stack solo-movil" style={{ gap: 8 }}>
+          <Link href="/ordenes/nueva" className="btn btn-primary">+ Nueva orden</Link>
+          <div className="row" style={{ gap: 8 }}>
+            <Link href="/tablero" className="btn" style={{ flex: 1 }}>Tablero</Link>
+            <Link href="/verificar" className="btn" style={{ flex: 1 }}>Para verificar</Link>
+          </div>
+        </div>
       )}
       <div className="filtros">
         <input
@@ -81,7 +91,7 @@ export function ListaOrdenes({ tienePartner, puedeCrear }: { tienePartner: boole
         />
         <div className="chips" role="group" aria-label="Filtros">
           <button className="chip" aria-pressed={!mias && !tipo} onClick={() => filtrar(() => { setMias(false); setTipo(null); })}>Todas</button>
-          <button className="chip" aria-pressed={mias} onClick={() => filtrar(() => setMias((m) => !m))}>Asignadas a mí</button>
+          {!verificar && <button className="chip" aria-pressed={mias} onClick={() => filtrar(() => setMias((m) => !m))}>Asignadas a mí</button>}
           {tipos.map((t) => (
             <button key={t.id} className="chip" aria-pressed={tipo === t.id} onClick={() => filtrar(() => setTipo((x) => (x === t.id ? null : t.id)))}>
               {t.name}
@@ -105,11 +115,15 @@ export function ListaOrdenes({ tienePartner, puedeCrear }: { tienePartner: boole
       )}
 
       {data?.ordenes.length === 0 && !cargando && (
-        <div className="card center muted">{qDebounced ? `No hay motos en proceso con "${qDebounced}".` : "No hay motos en proceso."}</div>
+        <div className="card center muted">
+          {verificar
+            ? qDebounced ? `No hay motos para verificar con "${qDebounced}".` : "No hay motos para verificar."
+            : qDebounced ? `No hay motos en proceso con "${qDebounced}".` : "No hay motos en proceso."}
+        </div>
       )}
 
       {!!data?.ordenes.length && <div className="grid-ordenes">{data.ordenes.map((o) => (
-        <Link key={o.id} href={`/ordenes/${o.id}/finalizar`} className="card stack" style={{ gap: 8 }}>
+        <Link key={o.id} href={verificar ? `/verificar/${o.id}` : `/ordenes/${o.id}/finalizar`} className="card stack" style={{ gap: 8 }}>
           <div className="row between">
             <span className="placa">{o.chapa}</span>
             {o.dias !== null && (

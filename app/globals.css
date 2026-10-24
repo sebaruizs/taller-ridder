@@ -124,7 +124,7 @@ a { color: inherit; }
   min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
   background: var(--surface); font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer;
 }
-.chip[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 
 .badge { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
@@ -181,6 +181,14 @@ textarea.input { min-height: 110px; resize: vertical; }
 .finalizar-grid { display: flex; flex-direction: column; gap: 16px; }
 .finalizar-grid > div { display: flex; flex-direction: column; gap: 16px; }
 
+/* Tablero: en el celular una columna por pestaña; en PC las 4 lado a lado. */
+.tablero-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.tablero-n { margin-left: 6px; font-weight: 700; opacity: 0.7; }
+.tablero { display: flex; flex-direction: column; }
+.tablero-col { display: none; flex-direction: column; gap: 10px; }
+.tablero-col[data-activa="true"] { display: flex; }
+.tablero-col-head { display: none; }
+
 /* Ingreso: pantalla marino con el logo, como cobranzas. */
 .login-pantalla { min-height: 100dvh; display: grid; place-items: center; padding: 24px; background: var(--brand); color: #fff; }
 .login-caja { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 18px; }
@@ -234,6 +242,13 @@ textarea.input { min-height: 110px; resize: vertical; }
   .grid-ordenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
   .grid-ordenes .card:hover { border-color: var(--ridder); }
   .grid-usuarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
+
+  .contenido .wrap.tablero-wrap { max-width: none; }
+  .tablero-buscar { max-width: 300px; }
+  .tablero-tabs { display: none; }
+  .tablero { display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }
+  .tablero-col, .tablero-col[data-activa] { display: flex; background: var(--surface-2); border-radius: var(--radius); padding: 10px; }
+  .tablero-col-head { display: flex; padding: 4px 4px 2px; }
 
   .finalizar-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
   .fotos { grid-template-columns: repeat(4, 1fr); }

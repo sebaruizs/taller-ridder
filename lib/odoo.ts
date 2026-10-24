@@ -97,6 +97,9 @@ export const odoo = {
   create(model: string, vals: Record<string, unknown>) {
     return executeKw<number>(model, "create", [vals]);
   },
+  unlink(model: string, ids: number[]) {
+    return executeKw<boolean>(model, "unlink", [ids]);
+  },
   messagePost(model: string, id: number, kwargs: Record<string, unknown>) {
     return executeKw<number>(model, "message_post", [[id]], kwargs);
   },

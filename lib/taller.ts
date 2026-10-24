@@ -71,8 +71,8 @@ export function normalizarChapa(q: string): string {
   return q.replace(/\s+/g, "").toUpperCase();
 }
 
-export function dominioOrdenesEnProceso(f: { chapa?: string; tipoId?: number; partnerId?: number | null }): Domain {
-  const d: Domain = [["state", "=", "running"]];
+export function dominioOrdenes(f: { estado?: EstadoOrden; chapa?: string; tipoId?: number; partnerId?: number | null }): Domain {
+  const d: Domain = [["state", "=", f.estado ?? "running"]];
   if (f.chapa) d.push(["vehicle_id.license_plate", "ilike", normalizarChapa(f.chapa)]);
   if (f.tipoId) d.push(["service_type_id", "=", f.tipoId]);
   if (f.partnerId !== undefined) d.push(["vendor_id", "=", f.partnerId ?? 0]);
@@ -129,6 +129,71 @@ export function payloadNotaFinalizacion(p: { mecanico: string; observacion: stri
     message_type: "comment",
     subtype_xmlid: "mail.mt_note",
   };
+}
+
+// ---------- tablero ----------
+
+export const COLUMNAS_TABLERO = ["new", "running", "cancelled", "done"] as const satisfies readonly EstadoOrden[];
+
+export function payloadNotaCambioEstado(p: { autor: string; de: EstadoOrden; a: EstadoOrden }) {
+  return {
+    body: `<p><b>${escaparHtml(p.autor)}</b> pasó la orden de «${ESTADOS[p.de]}» a «${ESTADOS[p.a]}» (app del taller).</p>`,
+    message_type: "comment",
+    subtype_xmlid: "mail.mt_note",
+  };
+}
+
+// ---------- verificación y repuestos (jefe de taller) ----------
+
+export const MODELO_LINEA = "fleet.vehicle.log.services.product.line";
+
+export type LineaRepuesto = { id: number; producto: string; productoId: number; cantidad: number; costoUnitario: number; total: number };
+
+// No se toca "delivered": esas líneas no mueven stock hoy y así deben seguir.
+export function payloadLineaRepuesto(ordenId: number, p: { productoId: number; cantidad: number; costoUnitario: number }) {
+  return { service_id: ordenId, product_id: p.productoId, quantity: p.cantidad, unit_cost: p.costoUnitario };
+}
+
+export function formatoGs(n: number): string {
+  return `Gs. ${new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Math.round(n))}`;
+}
+
+export function totalRepuestos(lineas: Pick<LineaRepuesto, "total">[]): number {
+  return lineas.reduce((s, l) => s + (l.total || 0), 0);
+}
+
+function cantidadTexto(n: number): string {
+  return Number.isInteger(n) ? String(n) : new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 }).format(n);
+}
+
+export function payloadNotaVerificacion(p: { autor: string; lineas: LineaRepuesto[] }) {
+  const total = totalRepuestos(p.lineas);
+  const detalle = p.lineas.length
+    ? `<ul>${p.lineas
+        .map((l) => `<li>${cantidadTexto(l.cantidad)} × ${escaparHtml(l.producto)} — ${formatoGs(l.total)}</li>`)
+        .join("")}</ul><p>Total repuestos: <b>${formatoGs(total)}</b></p>`
+    : "<p>Sin repuestos.</p>";
+  return {
+    body: `<p><b>Verificado por ${escaparHtml(p.autor)}</b> (app del taller). Nuevo estado: ${ESTADOS.to_be_paid}.</p>${detalle}`,
+    message_type: "comment",
+    subtype_xmlid: "mail.mt_note",
+  };
+}
+
+export function mensajeTelegramVerificado(p: { autor: string; chapa: string; tipo: string | null; lineas: LineaRepuesto[] }): string {
+  const lineas = p.lineas.length
+    ? p.lineas.map((l) => `• ${cantidadTexto(l.cantidad)} × ${l.producto}`).join("\n")
+    : "• Sin repuestos";
+  return [
+    `🔎 Verificado por ${p.autor}`,
+    `🚗 Vehículo: ${p.chapa}`,
+    `📝 Tarea: ${p.tipo ?? "—"}`,
+    `📌 Estado: ${ESTADOS.to_be_paid}`,
+    "",
+    "Repuestos:",
+    lineas,
+    `💰 Total repuestos: ${formatoGs(totalRepuestos(p.lineas))}`,
+  ].join("\n");
 }
 
 // ---------- nueva orden (jefe de taller) ----------

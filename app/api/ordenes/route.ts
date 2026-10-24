@@ -1,13 +1,15 @@
 import { z } from "zod";
 import { exigir } from "@/lib/auth";
 import { errorJson, json, manejar } from "@/lib/api";
-import { listarEnProceso } from "@/lib/ordenes";
+import { listarOrdenes } from "@/lib/ordenes";
 import { leerFotos } from "@/lib/fotos-form";
 import { mecanicosOdoo } from "@/lib/usuarios";
 import { crearOrdenComo } from "@/lib/nueva-orden-servicio";
 import { DatoInvalido, OrdenDuplicada } from "@/lib/crear-orden";
+import { puede } from "@/lib/permisos";
 
 const query = z.object({
+  estado: z.enum(["new", "running", "cancelled", "to_be_paid", "done"]).default("running"),
   q: z.string().trim().max(20).optional(),
   tipo: z.coerce.number().int().positive().optional(),
   mias: z.enum(["1", "0"]).optional(),
@@ -17,7 +19,9 @@ const query = z.object({
 export const GET = manejar(async (req) => {
   const u = await exigir("ordenes.ver_en_proceso");
   const p = query.parse(Object.fromEntries(new URL(req.url).searchParams));
-  const data = await listarEnProceso({
+  if (p.estado !== "running" && !puede(u.rol, "ordenes.ver_todas")) return errorJson("No tenés permiso para esto", 403);
+  const data = await listarOrdenes({
+    estado: p.estado,
     chapa: p.q || undefined,
     tipoId: p.tipo,
     partnerId: p.mias === "1" ? u.odooPartnerId : undefined,

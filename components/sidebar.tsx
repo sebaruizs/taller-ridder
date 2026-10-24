@@ -14,7 +14,9 @@ export function Sidebar({ nombre, rol }: { nombre: string; rol: Rol }) {
   const router = useRouter();
   const links = [
     ...(rol !== "mecanico" ? [{ href: "/ordenes/nueva", label: "+ Nueva orden" }] : []),
+    ...(rol !== "mecanico" ? [{ href: "/tablero", label: "Tablero" }] : []),
     { href: "/ordenes", label: "Motos en proceso" },
+    ...(rol !== "mecanico" ? [{ href: "/verificar", label: "Para verificar" }] : []),
     ...(rol === "admin" ? [{ href: "/admin/usuarios", label: "Usuarios" }] : []),
     { href: "/cuenta", label: "Mi cuenta" },
   ];

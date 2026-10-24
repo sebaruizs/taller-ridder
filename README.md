@@ -10,7 +10,8 @@ La base propia (Postgres) guarda únicamente usuarios, sesiones, el log y el est
 
 - **Etapa 1 (lista):** ingreso con usuario y contraseña, roles, usuarios vinculados a su contacto de Odoo, lista de órdenes en proceso, finalizar y confirmación.
 - **Nueva orden (jefe y admin):** buscar la moto por chapa contra Odoo, tipo de servicio, qué pide el chofer, mecánico (opcional) y fotos de recepción (opcional). Si la moto ya tiene una orden en proceso, avisa y ofrece abrirla en vez de duplicar.
-- Pendiente de la Etapa 2: kanban y detalle de orden (jefe).
+- **Tablero (jefe y admin):** kanban con Nuevo · En proceso · Listo para verificar · Finalizado. Se mueve con botones: Nuevo → En proceso, Finalizar y Verificar. Finalizado muestra primero las más recientes, de a 30.
+- **Para verificar (jefe y admin):** en las órdenes "Listo para verificar" se cargan o quitan los repuestos usados (líneas de `fleet.vehicle.log.services.product.line`, con el costo del producto en Odoo, sin mover stock) y se aprueba: pasa a "Listo para entrega" con `amount` = total de repuestos.
 - Etapa 3: historial, usuarios y log (admin).
 
 ## Desarrollo local
@@ -89,6 +90,8 @@ Todo lo que se hace desde la app queda registrado en tres lugares:
 |---|---|---|---|
 | Orden nueva | "Orden cargada por X", mecánico asignado y fotos | `orden.crear` | 🆕 Nueva orden |
 | Finalizar | "Trabajo finalizado por X", odómetro, nuevo estado y observación | `orden.finalizar` | ✅ Trabajo finalizado |
+| Nuevo → En proceso (tablero) | "X pasó la orden de Nuevo a En proceso" | `orden.cambiar_estado` | — |
+| Repuestos y aprobación | "Verificado por X" con el detalle de repuestos y el total | `orden.repuesto_agregar`, `orden.repuesto_quitar`, `orden.verificar` | 🔎 Verificado |
 | Ingreso, usuarios, contraseñas | — | `login`, `usuario.*` | — |
 
 En Odoo todas las escrituras figuran hechas por el usuario de la API: la nota es lo que deja constancia de quién lo hizo de verdad.

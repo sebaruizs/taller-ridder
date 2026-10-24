@@ -8,7 +8,8 @@ import {
   chapaDe,
   checkListaEntregaPorDefecto,
   diasEnTaller,
-  dominioOrdenesEnProceso,
+  dominioOrdenes,
+  type EstadoOrden,
   type OrdenOdoo,
   type VehiculoOdoo,
 } from "./taller";
@@ -26,6 +27,7 @@ export type OrdenLista = {
   mecanicoId: number | null;
   chofer: string | null;
   fecha: string | null;
+  fechaFin: string | null;
   dias: number | null;
 };
 
@@ -52,18 +54,20 @@ function aLista(o: OrdenOdoo, v: VehiculoOdoo | undefined): OrdenLista {
     mecanicoId: m2oId(o.vendor_id),
     chofer: o.purchaser_id ? o.purchaser_id[1] : v?.driver_id ? v.driver_id[1] : null,
     fecha: o.date || null,
+    fechaFin: o.service_end_date || null,
     dias: diasEnTaller(o.date),
   };
 }
 
-export async function listarEnProceso(f: { chapa?: string; tipoId?: number; partnerId?: number | null; pagina: number }) {
-  const domain = dominioOrdenesEnProceso(f);
+export async function listarOrdenes(f: { estado?: EstadoOrden; chapa?: string; tipoId?: number; partnerId?: number | null; pagina: number }) {
+  const domain = dominioOrdenes(f);
   const [total, ordenes] = await Promise.all([
     odoo.searchCount(MODELO_ORDEN, domain),
     odoo.searchRead<OrdenOdoo>(MODELO_ORDEN, domain, [...CAMPOS_ORDEN], {
       limit: POR_PAGINA,
       offset: (f.pagina - 1) * POR_PAGINA,
-      order: "date asc, id asc",
+      // Finalizadas: las más recientes primero; el resto, las que llevan más tiempo primero.
+      order: f.estado === "done" ? "service_end_date desc nulls last, date desc, id desc" : "date asc, id asc",
     }),
   ]);
   const vehiculos = await vehiculosPorId([...new Set(ordenes.map((o) => m2oId(o.vehicle_id)).filter((x): x is number => !!x))]);

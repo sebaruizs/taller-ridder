@@ -4,7 +4,7 @@ import {
   chapaDe,
   checkListaEntregaPorDefecto,
   diasEnTaller,
-  dominioOrdenesEnProceso,
+  dominioOrdenes,
   estadoFinal,
   hoyAsuncion,
   mensajeTelegramFinalizado,
@@ -46,11 +46,11 @@ const vehiculo = (v: Partial<VehiculoOdoo> = {}): VehiculoOdoo => ({
 
 describe("dominio de órdenes en proceso", () => {
   it("filtra por estado en Odoo", () => {
-    expect(dominioOrdenesEnProceso({})).toEqual([["state", "=", "running"]]);
+    expect(dominioOrdenes({})).toEqual([["state", "=", "running"]]);
   });
 
   it("busca por chapa normalizada, tipo y mecánico en el dominio", () => {
-    expect(dominioOrdenesEnProceso({ chapa: " 230 abpt ", tipoId: 23, partnerId: 99 })).toEqual([
+    expect(dominioOrdenes({ chapa: " 230 abpt ", tipoId: 23, partnerId: 99 })).toEqual([
       ["state", "=", "running"],
       ["vehicle_id.license_plate", "ilike", "230ABPT"],
       ["service_type_id", "=", 23],
@@ -59,7 +59,7 @@ describe("dominio de órdenes en proceso", () => {
   });
 
   it("'asignadas a mí' sin partner vinculado no devuelve nada en vez de devolver todo", () => {
-    expect(dominioOrdenesEnProceso({ partnerId: null })).toContainEqual(["vendor_id", "=", 0]);
+    expect(dominioOrdenes({ partnerId: null })).toContainEqual(["vendor_id", "=", 0]);
   });
 });
 

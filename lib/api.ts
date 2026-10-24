@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { NoAutorizado } from "./auth";
 import { OdooError } from "./odoo";
 import { ErrorUsuario } from "./usuarios";
+import { NoVerificable } from "./verificar";
 
 export function json<T>(data: T, status = 200) {
   return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -21,6 +22,7 @@ export function manejar<C>(handler: (req: Request, ctx: C) => Promise<Response>)
       if (e instanceof NoAutorizado) return errorJson(e.message, e.status);
       if (e instanceof ZodError) return errorJson(e.issues[0]?.message ?? "Datos inválidos", 400);
       if (e instanceof ErrorUsuario) return errorJson(e.message, 400);
+      if (e instanceof NoVerificable) return errorJson(e.message, 409);
       if (e instanceof OdooError) {
         console.error("[odoo]", e.message, e.detalle);
         return errorJson(`Odoo: ${e.message}`, 502);
