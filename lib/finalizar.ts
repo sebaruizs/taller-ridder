@@ -1,0 +1,215 @@
+// Finalización por pasos. Cada paso se marca al terminar; un reintento sigue desde el que falló.
+import type { Many2one, OdooClient } from "./odoo";
+import {
+  MODELO_ORDEN,
+  MODELO_VEHICULO,
+  cambioVehiculoAlFinalizar,
+  chapaDe,
+  estadoFinal,
+  mensajeTelegramError,
+  mensajeTelegramFinalizado,
+  payloadCamposFinalizar,
+  payloadFotos,
+  payloadObservacion,
+  type EstadoOrden,
+  type OrdenOdoo,
+  type VehiculoOdoo,
+} from "./taller";
+
+export type Paso = "campos" | "fotos" | "nota" | "estado" | "telegram";
+
+export type EstadoFinalizacion = {
+  id: number;
+  ordenId: number;
+  odometro: number;
+  observacion: string;
+  listaEntrega: boolean;
+  camposOk: boolean;
+  fotosOk: boolean;
+  attachmentIds: number[];
+  notaOk: boolean;
+  estadoOk: boolean;
+  telegramOk: boolean;
+};
+
+export type FotoPendiente = { id: number; nombre: string; mimetype: string; datos: Buffer; attachmentId: number | null };
+
+export type Resumen = {
+  ordenId: number;
+  chapa: string;
+  vehiculo: string;
+  tipo: string | null;
+  odometro: number;
+  fotos: number;
+  observacion: string;
+  estado: EstadoOrden;
+  avisoTelegram: boolean;
+};
+
+export type Deps = {
+  odoo: Pick<OdooClient, "read" | "searchRead" | "write" | "create" | "messagePost">;
+  telegram: (chatId: string, texto: string) => Promise<void>;
+  store: {
+    guardar(patch: Partial<EstadoFinalizacion> & { error?: string | null; resumen?: Resumen; terminado?: Date }): Promise<void>;
+    fotos(): Promise<FotoPendiente[]>;
+    marcarFoto(fotoId: number, attachmentId: number): Promise<void>;
+    borrarFotos(): Promise<void>;
+  };
+  mecanico: { nombre: string; partnerId: number | null };
+  config: { estadoParaEntregar: number; chatTaller: string; chatErrores: string; hoy: string };
+};
+
+export class FinalizarError extends Error {
+  constructor(
+    readonly paso: Paso | "lectura" | "validacion",
+    message: string,
+  ) {
+    super(message);
+    this.name = "FinalizarError";
+  }
+}
+
+const NOMBRE_PASO: Record<FinalizarError["paso"], string> = {
+  lectura: "leer la orden",
+  validacion: "validar",
+  campos: "cargar odómetro, mecánico y costo",
+  fotos: "subir las fotos",
+  nota: "publicar la observación",
+  estado: "cambiar el estado",
+  telegram: "avisar por Telegram",
+};
+
+export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps): Promise<Resumen> {
+  const { odoo, store, config } = deps;
+  const f = { ...fin };
+
+  const [orden] = await odoo.read<OrdenOdoo>(MODELO_ORDEN, [f.ordenId], [
+    "id", "vehicle_id", "service_type_id", "description", "state", "purchaser_id", "total_products_cost",
+  ]);
+  if (!orden || !orden.vehicle_id) throw new FinalizarError("lectura", "La orden no existe en Odoo");
+  const [vehiculo] = await odoo.searchRead<VehiculoOdoo>(
+    MODELO_VEHICULO,
+    [["id", "=", orden.vehicle_id[0]], ["active", "in", [true, false]]],
+    ["id", "display_name", "license_plate", "driver_id", "state_id", "odometer"],
+    { limit: 1 },
+  );
+  if (!vehiculo) throw new FinalizarError("lectura", "El vehículo de la orden no existe en Odoo");
+  const chapa = chapaDe(vehiculo);
+
+  if (!f.camposOk && orden.state !== "running") {
+    throw new FinalizarError("validacion", "Esta orden ya no está en proceso. Actualizá la lista.");
+  }
+
+  const paso = async (nombre: Paso, fn: () => Promise<Partial<EstadoFinalizacion>>) => {
+    try {
+      const patch = await fn();
+      Object.assign(f, patch);
+      await store.guardar({ ...patch, error: null });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      await store.guardar({ error: `${NOMBRE_PASO[nombre]}: ${msg}` });
+      if (nombre !== "telegram") {
+        await deps
+          .telegram(config.chatErrores, mensajeTelegramError({ chapa, ordenId: f.ordenId, paso: NOMBRE_PASO[nombre], error: msg }))
+          .catch((te) => console.error("[telegram errores]", te));
+      }
+      throw new FinalizarError(nombre, msg);
+    }
+  };
+
+  if (!f.camposOk) {
+    await paso("campos", async () => {
+      const vals = payloadCamposFinalizar(orden as OrdenOdoo, vehiculo, {
+        odometro: f.odometro,
+        partnerMecanico: deps.mecanico.partnerId,
+        observacion: f.observacion,
+        listaEntrega: f.listaEntrega,
+      }, config.hoy);
+      await odoo.write(MODELO_ORDEN, [f.ordenId], vals);
+      return { camposOk: true };
+    });
+  }
+
+  const fotos = f.fotosOk ? [] : await store.fotos();
+  if (!f.fotosOk) {
+    await paso("fotos", async () => {
+      const ids: number[] = [];
+      for (const foto of fotos) {
+        let attId = foto.attachmentId;
+        if (!attId) {
+          attId = await odoo.create("ir.attachment", {
+            name: foto.nombre,
+            type: "binary",
+            datas: foto.datos.toString("base64"),
+            mimetype: foto.mimetype,
+            res_model: MODELO_ORDEN,
+            res_id: f.ordenId,
+          });
+          await store.marcarFoto(foto.id, attId);
+        }
+        ids.push(attId);
+      }
+      if (ids.length) await odoo.messagePost(MODELO_ORDEN, f.ordenId, payloadFotos(ids));
+      return { fotosOk: true, attachmentIds: ids };
+    });
+    await store.borrarFotos();
+  }
+
+  if (!f.notaOk) {
+    await paso("nota", async () => {
+      if (f.observacion.trim()) {
+        await odoo.messagePost(MODELO_ORDEN, f.ordenId, payloadObservacion(deps.mecanico.nombre, f.observacion.trim()));
+      }
+      return { notaOk: true };
+    });
+  }
+
+  const estado = estadoFinal(f.listaEntrega);
+  if (!f.estadoOk) {
+    await paso("estado", async () => {
+      await odoo.write(MODELO_ORDEN, [f.ordenId], { state: estado });
+      const veh = cambioVehiculoAlFinalizar(f.listaEntrega, config.estadoParaEntregar);
+      if (veh) await odoo.write(MODELO_VEHICULO, [vehiculo.id], veh);
+      return { estadoOk: true };
+    });
+  }
+
+  let avisoTelegram = f.telegramOk;
+  if (!f.telegramOk) {
+    try {
+      await paso("telegram", async () => {
+        await deps.telegram(
+          config.chatTaller,
+          mensajeTelegramFinalizado({
+            mecanico: deps.mecanico.nombre,
+            tipo: orden.service_type_id as Many2one,
+            chapa,
+            odometro: f.odometro,
+            descripcion: orden.description,
+            observacion: f.observacion,
+            estado,
+          }),
+        );
+        return { telegramOk: true };
+      });
+      avisoTelegram = true;
+    } catch {
+      // El trabajo ya quedó en Odoo; un Telegram caído no lo invalida.
+      avisoTelegram = false;
+    }
+  }
+
+  const resumen: Resumen = {
+    ordenId: f.ordenId,
+    chapa,
+    vehiculo: vehiculo.display_name,
+    tipo: orden.service_type_id ? orden.service_type_id[1] : null,
+    odometro: f.odometro,
+    fotos: f.attachmentIds.length,
+    observacion: f.observacion,
+    estado,
+    avisoTelegram,
+  };
+  await store.guardar({ resumen, terminado: new Date() });
+  return resumen;
+}
