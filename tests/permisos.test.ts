@@ -15,6 +15,8 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "inventario.ver",
   "inventario.crear",
   "inventario.editar_precio",
+  "compras.ver",
+  "compras.crear",
 ];
 const SOLO_ADMIN: Accion[] = ["usuarios.gestionar", "log.ver", "config.editar"];
 
@@ -65,7 +67,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar", "inventario", "crear_productos", "editar_precios"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -77,6 +79,6 @@ describe("permisos por usuario", () => {
 
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
-    expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario/nuevo", "/inventario"]);
+    expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
   });
 });

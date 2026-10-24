@@ -17,7 +17,7 @@ function Tarjeta({ href, children }: { href: string | null; children: React.Reac
 
 type Modo = "proceso" | "verificar";
 
-export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean };
+export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean; compras?: boolean };
 
 export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tienePartner: boolean; accesos: Accesos; modo?: Modo }) {
   const router = useRouter();
@@ -77,7 +77,7 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
-      {!verificar && (accesos.crear || accesos.tablero || accesos.verificar || accesos.inventario) && (
+      {!verificar && (accesos.crear || accesos.tablero || accesos.verificar || accesos.inventario || accesos.compras) && (
         <div className="stack solo-movil" style={{ gap: 8 }}>
           {accesos.crear && <Link href="/ordenes/nueva" className="btn btn-primary">+ Nueva orden</Link>}
           {(accesos.tablero || accesos.verificar) && (
@@ -86,7 +86,12 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
               {accesos.verificar && <Link href="/verificar" className="btn" style={{ flex: 1 }}>Para verificar</Link>}
             </div>
           )}
-          {accesos.inventario && <Link href="/inventario" className="btn">Inventario</Link>}
+          {(accesos.inventario || accesos.compras) && (
+            <div className="row" style={{ gap: 8 }}>
+              {accesos.inventario && <Link href="/inventario" className="btn" style={{ flex: 1 }}>Inventario</Link>}
+              {accesos.compras && <Link href="/compras" className="btn" style={{ flex: 1 }}>Compras</Link>}
+            </div>
+          )}
         </div>
       )}
       <div className="filtros">

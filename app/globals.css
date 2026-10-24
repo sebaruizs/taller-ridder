@@ -243,8 +243,6 @@ textarea.input { min-height: 110px; resize: vertical; }
   margin: 0; padding: 0 12px 4px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em;
   text-transform: uppercase; color: var(--brand-ink-3);
 }
-.side-pronto { font-weight: 500; font-style: italic; opacity: 0.6; cursor: default; }
-.side-pronto:hover { background: transparent; color: var(--brand-ink-2); }
 .side-user { margin-top: auto; padding: 14px 8px 0; border-top: 1px solid var(--brand-line); color: #fff; }
 .side-user .sub { font-size: 12px; color: var(--brand-ink-3); }
 .side-user .btn { background: var(--brand-raised); border-color: var(--brand-line); color: #fff; }
@@ -304,3 +302,13 @@ textarea.input { min-height: 110px; resize: vertical; }
 .precio-edit .input { min-height: 40px; font-size: 16px; text-align: right; }
 .precio-edit .btn { min-height: 36px; padding: 0 12px; }
 .precio-edit.celda { min-width: 170px; align-items: flex-end; }
+
+/* Nueva compra */
+.linea-compra { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
+.linea-compra > .stack { grid-column: 1 / -1; }
+.linea-compra .input { min-height: 40px; font-size: 16px; }
+.linea-compra .num-linea { text-align: right; font-variant-numeric: tabular-nums; }
+@media (min-width: 1024px) {
+  .linea-compra { grid-template-columns: minmax(0, 1fr) 90px 140px 130px auto; }
+  .linea-compra > .stack { grid-column: auto; }
+}

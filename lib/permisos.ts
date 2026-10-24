@@ -16,6 +16,8 @@ export const ACCIONES = {
   "inventario.ver": ["jefe", "admin"],
   "inventario.crear": ["jefe", "admin"],
   "inventario.editar_precio": ["jefe", "admin"],
+  "compras.ver": ["jefe", "admin"],
+  "compras.crear": ["jefe", "admin"],
   "usuarios.gestionar": ["admin"],
   "log.ver": ["admin"],
   "config.editar": ["admin"],
@@ -34,6 +36,8 @@ export const PERMISOS = {
   inventario: { nombre: "Inventario", detalle: "Ver productos, stock, costos, precios y compras", acciones: ["inventario.ver"] },
   crear_productos: { nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
   editar_precios: { nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
+  compras: { nombre: "Compras", detalle: "Ver las compras a proveedores", acciones: ["compras.ver"] },
+  cargar_compras: { nombre: "Cargar compras", detalle: "Crear compras en Odoo y recibir la mercadería (entra al stock)", acciones: ["compras.crear"] },
 } as const satisfies Record<string, { nombre: string; detalle: string; acciones: readonly Accion[] }>;
 
 export type Permiso = keyof typeof PERMISOS;
@@ -79,6 +83,8 @@ export const PANTALLAS = [
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Taller", acciones: ["usuarios.gestionar"] },
   { href: "/inventario/nuevo", nombre: "+ Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"] },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
+  { href: "/compras/nueva", nombre: "+ Nueva compra", seccion: "Compras", acciones: ["compras.crear"] },
+  { href: "/compras", nombre: "Compras", seccion: "Compras", acciones: ["compras.ver"] },
 ] as const satisfies readonly { href: string; nombre: string; seccion: Seccion; acciones: readonly Accion[] }[];
 
 export type Pantalla = { href: string; nombre: string; seccion: Seccion };
@@ -89,7 +95,7 @@ export function pantallasDe(u: Sujeto): Pantalla[] {
 
 // Primera pantalla útil para el usuario; "/cuenta" siempre está, así nunca hay bucles de redirección.
 export function inicioDe(u: Sujeto): string {
-  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/inventario", "/admin/usuarios"];
+  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/inventario", "/compras", "/admin/usuarios"];
   const mias = new Set(pantallasDe(u).map((p) => p.href as string));
   return orden.find((h) => mias.has(h)) ?? "/cuenta";
 }

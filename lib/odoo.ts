@@ -100,6 +100,10 @@ export const odoo = {
   create(model: string, vals: Record<string, unknown>) {
     return executeKw<number>(model, "create", [vals]);
   },
+  // Métodos de botón de Odoo (button_confirm, button_validate…). Cuentan como escritura.
+  boton<T = unknown>(model: string, method: string, ids: number[]) {
+    return executeKw<T>(model, method, [ids]);
+  },
   unlink(model: string, ids: number[]) {
     return executeKw<boolean>(model, "unlink", [ids]);
   },

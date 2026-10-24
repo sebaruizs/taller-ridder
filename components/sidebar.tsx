@@ -34,8 +34,7 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
       <nav className="stack" style={{ gap: 14, flex: 1, overflowY: "auto" }} aria-label="Menú">
         {SECCIONES.map((s) => {
           const items = pantallas.filter((p) => p.seccion === s);
-          const pronto = s === "Compras";
-          if (!items.length && !pronto) return null;
+          if (!items.length) return null;
           return (
             <section key={s} className="stack" style={{ gap: 2 }}>
               <h2 className="side-seccion">{s}</h2>
@@ -44,7 +43,6 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
                   {l.nombre}
                 </Link>
               ))}
-              {pronto && !items.length && <span className="side-link side-pronto" aria-disabled="true">Próximamente</span>}
             </section>
           );
         })}
