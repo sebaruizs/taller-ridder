@@ -13,6 +13,7 @@ export const ACCIONES = {
   "finalizaciones.ver_ajenas": ["jefe", "admin"],
   "vehiculos.buscar": ["jefe", "admin"],
   "vehiculos.historial": ["jefe", "admin"],
+  "inventario.ver": ["jefe", "admin"],
   "usuarios.gestionar": ["admin"],
   "log.ver": ["admin"],
   "config.editar": ["admin"],
@@ -28,6 +29,7 @@ export const PERMISOS = {
   tablero: { nombre: "Tablero", detalle: "Ver el kanban y pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.ver_todas", "ordenes.mover_estado"] },
   repuestos: { nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
   aprobar: { nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
+  inventario: { nombre: "Inventario", detalle: "Ver productos, stock, costos, precios y compras", acciones: ["inventario.ver"] },
 } as const satisfies Record<string, { nombre: string; detalle: string; acciones: readonly Accion[] }>;
 
 export type Permiso = keyof typeof PERMISOS;
@@ -62,21 +64,27 @@ export function limpiarPermisosOff(rol: Rol, off: readonly string[]): Permiso[] 
 }
 
 // Pantallas según permisos: alimenta el menú y la pantalla de inicio.
-export const PANTALLAS = [
-  { href: "/ordenes/nueva", nombre: "+ Nueva orden", acciones: ["ordenes.crear"] },
-  { href: "/tablero", nombre: "Tablero", acciones: ["ordenes.ver_todas"] },
-  { href: "/ordenes", nombre: "Motos en proceso", acciones: ["ordenes.ver_en_proceso"] },
-  { href: "/verificar", nombre: "Para verificar", acciones: ["ordenes.aprobar", "ordenes.editar"] },
-  { href: "/admin/usuarios", nombre: "Usuarios", acciones: ["usuarios.gestionar"] },
-] as const satisfies readonly { href: string; nombre: string; acciones: readonly Accion[] }[];
+export const SECCIONES = ["Taller", "Inventario", "Compras"] as const;
+export type Seccion = (typeof SECCIONES)[number];
 
-export function pantallasDe(u: Sujeto) {
-  return PANTALLAS.filter((p) => puedeAlguna(u, p.acciones)).map(({ href, nombre }) => ({ href, nombre }));
+export const PANTALLAS = [
+  { href: "/ordenes/nueva", nombre: "+ Nueva orden", seccion: "Taller", acciones: ["ordenes.crear"] },
+  { href: "/tablero", nombre: "Tablero", seccion: "Taller", acciones: ["ordenes.ver_todas"] },
+  { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
+  { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
+  { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Taller", acciones: ["usuarios.gestionar"] },
+  { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
+] as const satisfies readonly { href: string; nombre: string; seccion: Seccion; acciones: readonly Accion[] }[];
+
+export type Pantalla = { href: string; nombre: string; seccion: Seccion };
+
+export function pantallasDe(u: Sujeto): Pantalla[] {
+  return PANTALLAS.filter((p) => puedeAlguna(u, p.acciones)).map(({ href, nombre, seccion }) => ({ href, nombre, seccion }));
 }
 
 // Primera pantalla útil para el usuario; "/cuenta" siempre está, así nunca hay bucles de redirección.
 export function inicioDe(u: Sujeto): string {
-  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/admin/usuarios"];
+  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/inventario", "/admin/usuarios"];
   const mias = new Set(pantallasDe(u).map((p) => p.href as string));
   return orden.find((h) => mias.has(h)) ?? "/cuenta";
 }

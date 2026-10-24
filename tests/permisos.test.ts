@@ -12,6 +12,7 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "finalizaciones.ver_ajenas",
   "vehiculos.buscar",
   "vehiculos.historial",
+  "inventario.ver",
 ];
 const SOLO_ADMIN: Accion[] = ["usuarios.gestionar", "log.ver", "config.editar"];
 
@@ -62,7 +63,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar", "inventario"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -74,6 +75,6 @@ describe("permisos por usuario", () => {
 
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
-    expect(hrefs).toEqual(["/ordenes", "/verificar"]);
+    expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario"]);
   });
 });

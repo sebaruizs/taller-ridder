@@ -187,6 +187,28 @@ textarea.input { min-height: 110px; resize: vertical; }
   background: var(--ridder); color: #fff; font-weight: 700; font-size: 14px;
 }
 
+/* Inventario */
+.kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.kpi { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; }
+.kpi strong { font-size: 20px; letter-spacing: -0.01em; }
+.filtros-inv { display: flex; flex-direction: column; gap: 8px; }
+.tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.tabs .chip { display: inline-flex; align-items: center; text-decoration: none; }
+.tabs .chip[aria-current="page"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.tabla { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tabla th { text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tabla td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.tabla .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tabla tbody tr:hover { background: var(--surface-2); }
+.tabla-scroll { overflow-x: auto; margin: 0 -14px; padding: 0 14px; }
+.tabla-link { font-weight: 600; text-decoration: none; color: var(--ink); }
+.tabla-link:hover { color: var(--ridder); text-decoration: underline; }
+.rojo { color: var(--danger); }
+.ambar { color: var(--warn); }
+.badge-ok { background: var(--ok-soft); color: var(--ok); }
+.solo-pc { display: none; }
+.solo-movil-flex { display: flex; }
+
 /* Tablero: en el celular una columna por pestaña; en PC las 4 lado a lado. */
 .tablero-tabs { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
 .tablero-n { margin-left: 6px; font-weight: 700; opacity: 0.7; }
@@ -256,6 +278,13 @@ textarea.input { min-height: 110px; resize: vertical; }
   .grid-usuarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 
   .contenido .wrap.tablero-wrap { max-width: none; }
+  .kpis { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+  .kpi strong { font-size: 24px; }
+  .filtros-inv { flex-direction: row; align-items: center; }
+  .filtros-inv .input[type="search"] { max-width: 320px; }
+  .filtros-inv select.input { max-width: 260px; }
+  .solo-pc { display: table; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+  .solo-movil-flex { display: none; }
   .tablero-buscar { max-width: 300px; }
   .tablero-tabs { display: none; }
   .tablero { display: grid; grid-template-columns: repeat(4, minmax(240px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }

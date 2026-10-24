@@ -85,6 +85,9 @@ export const odoo = {
   searchRead<T>(model: string, domain: Domain, fields: string[], opts: { limit: number; offset?: number; order?: string; context?: Record<string, unknown> }) {
     return executeKw<T[]>(model, "search_read", [domain], { fields, ...opts });
   },
+  readGroup<T>(model: string, domain: Domain, fields: string[], groupby: string[]) {
+    return executeKw<T[]>(model, "read_group", [domain, fields, groupby], { lazy: true });
+  },
   searchCount(model: string, domain: Domain) {
     return executeKw<number>(model, "search_count", [domain]);
   },

@@ -15,6 +15,7 @@ export default async function Ordenes() {
           tablero: puedeU(u, "ordenes.ver_todas"),
           verificar: puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]),
           finalizar: puedeU(u, "ordenes.finalizar"),
+          inventario: puedeU(u, "inventario.ver"),
         }}
       />
     </>
