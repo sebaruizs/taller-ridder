@@ -27,12 +27,12 @@ export function Sidebar({ nombre, rol }: { nombre: string; rol: Rol }) {
 
   return (
     <aside className="sidebar">
-      <div className="row" style={{ gap: 10, padding: "4px 8px 20px" }}>
+      <div className="side-brand">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/icon.svg" alt="" width={32} height={32} style={{ borderRadius: 8 }} />
-        <strong style={{ fontSize: 18, letterSpacing: "-0.02em" }}>Taller Ridder</strong>
+        <img className="side-logo" src="/brand/ridder-logo.svg" alt="Ridder" />
+        <span>Taller</span>
       </div>
-      <nav className="stack" style={{ gap: 2 }}>
+      <nav className="stack" style={{ gap: 2, flex: 1 }}>
         {links.map((l) => (
           <Link key={l.href} href={l.href} className="side-link" aria-current={activo(pathname, l.href) ? "page" : undefined}>
             {l.label}
@@ -41,7 +41,7 @@ export function Sidebar({ nombre, rol }: { nombre: string; rol: Rol }) {
       </nav>
       <div className="side-user">
         <div style={{ fontWeight: 600 }}>{nombre}</div>
-        <div className="small muted">{ROL_NOMBRE[rol]}</div>
+        <div className="sub">{ROL_NOMBRE[rol]}</div>
         <button className="btn btn-block" style={{ marginTop: 10 }} onClick={salir}>Salir</button>
       </div>
     </aside>

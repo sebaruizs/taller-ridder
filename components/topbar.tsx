@@ -12,15 +12,16 @@ export function Topbar({ titulo, nombre, rol, volver }: { titulo: string; nombre
   }
   return (
     <header className="topbar">
-      <div className="row" style={{ gap: 4, minWidth: 0 }}>
-        {volver && (
-          <button className="btn btn-ghost" style={{ padding: "0 10px 0 0" }} onClick={() => router.push(volver)} aria-label="Volver">
-            ←
-          </button>
+      <div className="row" style={{ gap: 12, minWidth: 0 }}>
+        {volver ? (
+          <button className="btn volver" onClick={() => router.push(volver)} aria-label="Volver">←</button>
+        ) : (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="logo" src="/brand/ridder-logo.svg" alt="Ridder" />
         )}
         <div style={{ minWidth: 0 }}>
           <h1>{titulo}</h1>
-          {nombre && <div className="small muted">{nombre}</div>}
+          {nombre && <div className="sub">{nombre}</div>}
         </div>
       </div>
       {nombre && (

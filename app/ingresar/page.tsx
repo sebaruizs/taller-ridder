@@ -37,10 +37,13 @@ export default function Ingresar() {
   }
 
   return (
-    <main className="wrap stack login" style={{ paddingTop: 48, gap: 20 }}>
+    <main className="login-pantalla">
+      <div className="login-caja">
       <div>
-        <h1 style={{ fontSize: 28, margin: "0 0 4px", letterSpacing: "-0.02em" }}>Taller Ridder</h1>
-        <p className="muted" style={{ margin: 0 }}>Ingresá con tu usuario.</p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className="login-logo" src="/brand/ridder-logo.svg" alt="Ridder" />
+        <h1>Taller</h1>
+        <p className="sub">Ingresá con tu usuario y contraseña.</p>
       </div>
       <form className="stack" style={{ gap: 14 }} onSubmit={enviar}>
         <div className="field">
@@ -79,6 +82,7 @@ export default function Ingresar() {
           {enviando ? "Ingresando…" : "Ingresar"}
         </button>
       </form>
+      </div>
     </main>
   );
 }

@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Órdenes de taller de Ridder",
     start_url: "/ordenes",
     display: "standalone",
-    background_color: "#F4F3EF",
-    theme_color: "#F4F3EF",
+    background_color: "#f3f6fc",
+    theme_color: "#0a1a3a",
     lang: "es-PY",
     icons: [
       { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
