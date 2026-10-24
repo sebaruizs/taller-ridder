@@ -18,6 +18,7 @@ export const ACCIONES = {
   "inventario.editar_precio": ["jefe", "admin"],
   "compras.ver": ["jefe", "admin"],
   "compras.crear": ["jefe", "admin"],
+  "finanzas.ver": ["jefe", "admin"],
   "usuarios.gestionar": ["admin"],
   "log.ver": ["admin"],
   "config.editar": ["admin"],
@@ -30,6 +31,7 @@ export const MODULOS = {
   taller: { nombre: "Taller", detalle: "Órdenes, tablero, verificación y motos" },
   inventario: { nombre: "Inventario", detalle: "Productos, stock, costos y precios" },
   compras: { nombre: "Compras", detalle: "Compras a proveedores y recepción de mercadería" },
+  finanzas: { nombre: "Finanzas", detalle: "Cobros y gastos de taller por empresa, para los cierres" },
 } as const;
 
 export type Modulo = keyof typeof MODULOS;
@@ -43,6 +45,7 @@ export function moduloDeAccion(a: Accion): Modulo | null {
   if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.")) return "taller";
   if (a.startsWith("inventario.")) return "inventario";
   if (a.startsWith("compras.")) return "compras";
+  if (a.startsWith("finanzas.")) return "finanzas";
   return null;
 }
 
@@ -59,6 +62,7 @@ export const PERMISOS = {
   editar_precios: { modulo: "inventario", nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
   compras: { modulo: "compras", nombre: "Ver compras", detalle: "Lista y detalle de las compras a proveedores", acciones: ["compras.ver"] },
   cargar_compras: { modulo: "compras", nombre: "Cargar compras", detalle: "Crear compras en Odoo y recibir la mercadería (entra al stock)", acciones: ["compras.crear"] },
+  ver_finanzas: { modulo: "finanzas", nombre: "Ver cierres por empresa", detalle: "Cobrado, gasto de taller y resultado por empresa y por moto", acciones: ["finanzas.ver"] },
 } as const satisfies Record<string, { modulo: Modulo; nombre: string; detalle: string; acciones: readonly Accion[] }>;
 
 export type Permiso = keyof typeof PERMISOS;
@@ -112,7 +116,7 @@ export function resumenPermisosOff(off: readonly string[]): string[] {
 }
 
 // Pantallas según permisos: alimenta el menú y la pantalla de inicio.
-export const SECCIONES = ["Taller", "Inventario", "Compras"] as const;
+export const SECCIONES = ["Taller", "Inventario", "Compras", "Finanzas"] as const;
 // "Configuración" no va en el menú principal: se abre con el engranaje junto al nombre.
 export type Seccion = (typeof SECCIONES)[number] | "Configuración";
 
@@ -126,6 +130,7 @@ export const PANTALLAS = [
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
   { href: "/compras/nueva", nombre: "Nueva compra", seccion: "Compras", acciones: ["compras.crear"], alta: true },
   { href: "/compras", nombre: "Compras", seccion: "Compras", acciones: ["compras.ver"] },
+  { href: "/finanzas", nombre: "Cierres", seccion: "Finanzas", acciones: ["finanzas.ver"] },
 ] as const satisfies readonly { href: string; nombre: string; seccion: Seccion; acciones: readonly Accion[]; alta?: boolean }[];
 
 // alta: pantalla de "nuevo"; en el menú no aparece, se entra con el botón de cada módulo.
@@ -137,7 +142,7 @@ export function pantallasDe(u: Sujeto): Pantalla[] {
 
 // Primera pantalla útil para el usuario; "/cuenta" siempre está, así nunca hay bucles de redirección.
 export function inicioDe(u: Sujeto): string {
-  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/inventario", "/compras", "/admin/usuarios"];
+  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/inventario", "/compras", "/finanzas", "/admin/usuarios"];
   const mias = new Set(pantallasDe(u).map((p) => p.href as string));
   return orden.find((h) => mias.has(h)) ?? "/cuenta";
 }

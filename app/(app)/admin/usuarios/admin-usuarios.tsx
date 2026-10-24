@@ -18,7 +18,8 @@ type Form = {
   permisosOff: string[];
 };
 
-const VACIO: Form = { id: null, usuario: "", nombre: "", rol: "mecanico", odooPartnerId: null, password: "", activo: true, permisosOff: [] };
+// Finanzas arranca apagado: el admin lo prende solo a quien deba ver cobros.
+const VACIO: Form = { id: null, usuario: "", nombre: "", rol: "mecanico", odooPartnerId: null, password: "", activo: true, permisosOff: ["modulo.finanzas"] };
 
 export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: number }) {
   const router = useRouter();

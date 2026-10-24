@@ -345,3 +345,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .interruptor:checked { background: var(--accent); }
 .interruptor:checked::after { transform: translateX(18px); }
 .interruptor:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
+
+/* Finanzas: una tarjeta por empresa. */
+.grid-finanzas { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.grid-finanzas > a { text-decoration: none; }

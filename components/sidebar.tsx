@@ -111,6 +111,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   "/ordenes": <path d="M14.7 6.3a4 4 0 0 0-5.4 5.2L3.6 17.2a1.9 1.9 0 0 0 2.7 2.7l5.7-5.7a4 4 0 0 0 5.2-5.4l-2.4 2.4-2.3-.5-.5-2.3z" />,
   "/verificar": <><circle cx="12" cy="12" r="9" /><path d="m8.5 12 2.5 2.5 4.5-5" /></>,
   "/inventario": <><path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="m3 8 9 5 9-5M12 13v8" /></>,
+  "/finanzas": <><path d="M3 20h18" /><path d="M6 16v-5M11 16V8M16 16v-3M21 16V5" /></>,
   "/compras": <><circle cx="9" cy="20" r="1.3" /><circle cx="18" cy="20" r="1.3" /><path d="M2.5 3h2.6l2.3 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6" /></>,
 };
 
