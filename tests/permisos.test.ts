@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, pantallasDe, permisosDelRol, puede, puedeU, type Accion } from "@/lib/permisos";
+import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, modulosDelRol, moduloDeAccion, pantallasDe, permisosDelRol, puede, puedeU, resumenPermisosOff, type Accion } from "@/lib/permisos";
 import { ROLES } from "@/lib/db/schema";
 
 const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar"];
@@ -80,5 +80,41 @@ describe("permisos por usuario", () => {
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
     expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
+  });
+});
+
+describe("permisos por módulo", () => {
+  it("apagar un módulo quita todas sus acciones y deja las de otros módulos", () => {
+    const jefe = { rol: "jefe" as const, permisosOff: ["modulo.inventario"] };
+    expect(puedeU(jefe, "inventario.ver")).toBe(false);
+    expect(puedeU(jefe, "inventario.editar_precio")).toBe(false);
+    expect(puedeU(jefe, "compras.crear")).toBe(true);
+    expect(puedeU(jefe, "ordenes.aprobar")).toBe(true);
+    expect(pantallasDe(jefe).some((p) => p.seccion === "Inventario")).toBe(false);
+  });
+
+  it("sin el módulo Taller, el jefe entra directo a Inventario", () => {
+    expect(inicioDe({ rol: "jefe", permisosOff: ["modulo.taller"] })).toBe("/inventario");
+  });
+
+  it("al admin no se le apaga ningún módulo", () => {
+    expect(puedeU({ rol: "admin", permisosOff: ["modulo.taller"] }, "ordenes.crear")).toBe(true);
+  });
+
+  it("cada acción de órdenes, inventario y compras pertenece a su módulo", () => {
+    for (const a of Object.keys(ACCIONES) as Accion[]) {
+      if (SOLO_ADMIN.includes(a)) expect(moduloDeAccion(a), a).toBeNull();
+      else expect(moduloDeAccion(a), a).not.toBeNull();
+    }
+  });
+
+  it("el mecánico solo tiene el módulo Taller; el jefe los tres", () => {
+    expect(modulosDelRol("mecanico")).toEqual(["taller"]);
+    expect(modulosDelRol("jefe")).toEqual(["taller", "inventario", "compras"]);
+    expect(limpiarPermisosOff("mecanico", ["modulo.compras", "modulo.taller"])).toEqual(["modulo.taller"]);
+  });
+
+  it("el resumen muestra el módulo apagado sin repetir sus permisos", () => {
+    expect(resumenPermisosOff(["modulo.compras", "cargar_compras", "repuestos"])).toEqual(["módulo Compras", "Cargar repuestos"]);
   });
 });

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { UsuarioAdmin, ContactoOdoo } from "@/lib/usuarios";
 import type { Rol } from "@/lib/db/schema";
-import { PERMISOS, permisosDelRol, type Permiso } from "@/lib/permisos";
+import { MODULOS, PERMISOS, claveModulo, modulosDelRol, permisosDelRol, resumenPermisosOff, type Modulo } from "@/lib/permisos";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
 
@@ -136,20 +136,12 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
             <label htmlFor="f-nombre">Nombre visible</label>
             <input id="f-nombre" className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
           </div>
-          {permisosDelRol(form.rol).length > 0 && (
-            <fieldset className="card stack" style={{ gap: 10, border: 0, margin: 0 }}>
-              <legend className="label" style={{ padding: 0, marginBottom: 4 }}>Permisos</legend>
-              <span className="small muted">Destildá lo que esta persona no debe poder hacer.</span>
-              {permisosDelRol(form.rol).map((p) => (
-                <label key={p} className="row" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-                  <input
-                    type="checkbox"
-                    style={{ width: 22, height: 22, flex: "none", accentColor: "var(--accent)" }}
-                    checked={!form.permisosOff.includes(p)}
-                    onChange={(e) => setForm({ ...form, permisosOff: e.target.checked ? form.permisosOff.filter((x) => x !== p) : [...form.permisosOff, p] })}
-                  />
-                  <span><strong>{PERMISOS[p as Permiso].nombre}</strong><br /><span className="small muted">{PERMISOS[p as Permiso].detalle}</span></span>
-                </label>
+          {modulosDelRol(form.rol).length > 0 && (
+            <fieldset className="stack" style={{ gap: 10, border: 0, margin: 0, padding: 0 }}>
+              <legend className="label" style={{ padding: 0, marginBottom: 4 }}>Permisos por módulo</legend>
+              <span className="small muted">Apagá un módulo entero o destildá lo que esta persona no debe poder hacer.</span>
+              {modulosDelRol(form.rol).map((m) => (
+                <PermisosModulo key={m} modulo={m} rol={form.rol} off={form.permisosOff} onChange={(permisosOff) => setForm({ ...form, permisosOff })} />
               ))}
             </fieldset>
           )}
@@ -191,7 +183,7 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
           <div className="small muted">Odoo: {contactoNombre(u) ?? "sin contacto"}</div>
           {u.rol !== "admin" && (u.permisosOff?.length ?? 0) > 0 && (
             <div className="small" style={{ color: "var(--warn)" }}>
-              Sin: {u.permisosOff.map((p) => PERMISOS[p as Permiso]?.nombre ?? p).join(", ")}
+              Sin: {resumenPermisosOff(u.permisosOff).join(", ")}
             </div>
           )}
         </button>
@@ -205,5 +197,39 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
         </div>
       </div>
     </main>
+  );
+}
+
+// Un módulo con su interruptor y, adentro, sus permisos. Apagar el módulo conserva lo tildado
+// adentro, así al volver a prenderlo queda como estaba.
+function PermisosModulo({ modulo, rol, off, onChange }: { modulo: Modulo; rol: Rol; off: string[]; onChange: (off: string[]) => void }) {
+  const clave = claveModulo(modulo);
+  const prendido = !off.includes(clave);
+  const permisos = permisosDelRol(rol).filter((p) => PERMISOS[p].modulo === modulo);
+  const alternar = (k: string, on: boolean) => onChange(on ? off.filter((x) => x !== k) : [...off, k]);
+  return (
+    <section className="card stack modulo-permisos" style={{ gap: 10 }} data-apagado={!prendido || undefined}>
+      <label className="row between" style={{ gap: 10, cursor: "pointer" }}>
+        <span><strong>{MODULOS[modulo].nombre}</strong><br /><span className="small muted">{MODULOS[modulo].detalle}</span></span>
+        <input type="checkbox" role="switch" className="interruptor" aria-label={`Módulo ${MODULOS[modulo].nombre}`} checked={prendido} onChange={(e) => alternar(clave, e.target.checked)} />
+      </label>
+      {prendido ? (
+        <div className="stack" style={{ gap: 10, borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+          {permisos.map((p) => (
+            <label key={p} className="row" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+              <input
+                type="checkbox"
+                style={{ width: 22, height: 22, flex: "none", accentColor: "var(--accent)" }}
+                checked={!off.includes(p)}
+                onChange={(e) => alternar(p, e.target.checked)}
+              />
+              <span><strong>{PERMISOS[p].nombre}</strong><br /><span className="small muted">{PERMISOS[p].detalle}</span></span>
+            </label>
+          ))}
+        </div>
+      ) : (
+        <span className="small muted">Sin acceso a {MODULOS[modulo].nombre}: no lo ve en el menú.</span>
+      )}
+    </section>
   );
 }

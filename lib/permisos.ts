@@ -25,20 +25,41 @@ export const ACCIONES = {
 
 export type Accion = keyof typeof ACCIONES;
 
+// Módulos: el admin puede apagar uno entero a un usuario; adentro se ajusta cada permiso.
+export const MODULOS = {
+  taller: { nombre: "Taller", detalle: "Órdenes, tablero, verificación y motos" },
+  inventario: { nombre: "Inventario", detalle: "Productos, stock, costos y precios" },
+  compras: { nombre: "Compras", detalle: "Compras a proveedores y recepción de mercadería" },
+} as const;
+
+export type Modulo = keyof typeof MODULOS;
+export const LISTA_MODULOS = Object.keys(MODULOS) as Modulo[];
+
+// En permisosOff un módulo apagado se guarda como "modulo.<id>".
+export const claveModulo = (m: Modulo) => `modulo.${m}` as const;
+
+// A qué módulo pertenece cada acción (las de administración no son de ningún módulo).
+export function moduloDeAccion(a: Accion): Modulo | null {
+  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.")) return "taller";
+  if (a.startsWith("inventario.")) return "inventario";
+  if (a.startsWith("compras.")) return "compras";
+  return null;
+}
+
 // Permisos que el admin puede quitarle a un usuario puntual. Cada uno agrupa acciones internas.
 export const PERMISOS = {
-  ver_ordenes: { nombre: "Ver motos en proceso", detalle: "Lista de órdenes en proceso y su detalle", acciones: ["ordenes.ver_en_proceso", "ordenes.ver_detalle"] },
-  finalizar: { nombre: "Finalizar trabajos", detalle: "Cargar odómetro, fotos y observación y cerrar el trabajo", acciones: ["ordenes.finalizar"] },
-  crear: { nombre: "Cargar órdenes nuevas", detalle: "Buscar la moto y crear la orden", acciones: ["ordenes.crear", "vehiculos.buscar"] },
-  tablero: { nombre: "Tablero", detalle: "Ver el kanban y pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.ver_todas", "ordenes.mover_estado"] },
-  repuestos: { nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
-  aprobar: { nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
-  inventario: { nombre: "Inventario", detalle: "Ver productos, stock, costos, precios y compras", acciones: ["inventario.ver"] },
-  crear_productos: { nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
-  editar_precios: { nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
-  compras: { nombre: "Compras", detalle: "Ver las compras a proveedores", acciones: ["compras.ver"] },
-  cargar_compras: { nombre: "Cargar compras", detalle: "Crear compras en Odoo y recibir la mercadería (entra al stock)", acciones: ["compras.crear"] },
-} as const satisfies Record<string, { nombre: string; detalle: string; acciones: readonly Accion[] }>;
+  ver_ordenes: { modulo: "taller", nombre: "Ver motos en proceso", detalle: "Lista de órdenes en proceso y su detalle", acciones: ["ordenes.ver_en_proceso", "ordenes.ver_detalle"] },
+  finalizar: { modulo: "taller", nombre: "Finalizar trabajos", detalle: "Cargar odómetro, fotos y observación y cerrar el trabajo", acciones: ["ordenes.finalizar"] },
+  crear: { modulo: "taller", nombre: "Cargar órdenes nuevas", detalle: "Buscar la moto y crear la orden", acciones: ["ordenes.crear", "vehiculos.buscar"] },
+  tablero: { modulo: "taller", nombre: "Tablero", detalle: "Ver el kanban y pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.ver_todas", "ordenes.mover_estado"] },
+  repuestos: { modulo: "taller", nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
+  aprobar: { modulo: "taller", nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
+  inventario: { modulo: "inventario", nombre: "Ver productos", detalle: "Productos, stock, costos, precios y sus compras", acciones: ["inventario.ver"] },
+  crear_productos: { modulo: "inventario", nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
+  editar_precios: { modulo: "inventario", nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
+  compras: { modulo: "compras", nombre: "Ver compras", detalle: "Lista y detalle de las compras a proveedores", acciones: ["compras.ver"] },
+  cargar_compras: { modulo: "compras", nombre: "Cargar compras", detalle: "Crear compras en Odoo y recibir la mercadería (entra al stock)", acciones: ["compras.crear"] },
+} as const satisfies Record<string, { modulo: Modulo; nombre: string; detalle: string; acciones: readonly Accion[] }>;
 
 export type Permiso = keyof typeof PERMISOS;
 export const LISTA_PERMISOS = Object.keys(PERMISOS) as Permiso[];
@@ -53,6 +74,8 @@ export function puede(rol: Rol, accion: Accion): boolean {
 export function puedeU(u: Sujeto, accion: Accion): boolean {
   if (!puede(u.rol, accion)) return false;
   if (u.rol === "admin" || !u.permisosOff?.length) return true;
+  const modulo = moduloDeAccion(accion);
+  if (modulo && u.permisosOff.includes(claveModulo(modulo))) return false;
   return !u.permisosOff.some((p) => (PERMISOS[p as Permiso]?.acciones as readonly Accion[] | undefined)?.includes(accion));
 }
 
@@ -66,9 +89,26 @@ export function permisosDelRol(rol: Rol): Permiso[] {
   return LISTA_PERMISOS.filter((p) => (PERMISOS[p].acciones as readonly Accion[]).every((a) => puede(rol, a)));
 }
 
-export function limpiarPermisosOff(rol: Rol, off: readonly string[]): Permiso[] {
-  const validos = new Set(permisosDelRol(rol));
-  return [...new Set(off)].filter((p): p is Permiso => validos.has(p as Permiso));
+// Módulos que tiene sentido mostrar para un rol: los que tienen algún permiso para ese rol.
+export function modulosDelRol(rol: Rol): Modulo[] {
+  const permisos = permisosDelRol(rol);
+  return LISTA_MODULOS.filter((m) => permisos.some((p) => PERMISOS[p].modulo === m));
+}
+
+export function limpiarPermisosOff(rol: Rol, off: readonly string[]): string[] {
+  const validos = new Set<string>([...permisosDelRol(rol), ...modulosDelRol(rol).map(claveModulo)]);
+  return [...new Set(off)].filter((p) => validos.has(p));
+}
+
+// Texto corto de lo que tiene apagado un usuario, para la lista de Usuarios.
+export function resumenPermisosOff(off: readonly string[]): string[] {
+  const modulosOff = new Set(LISTA_MODULOS.filter((m) => off.includes(claveModulo(m))));
+  const res = [...modulosOff].map((m) => `módulo ${MODULOS[m].nombre}`);
+  for (const p of off) {
+    const permiso = PERMISOS[p as Permiso];
+    if (permiso && !modulosOff.has(permiso.modulo)) res.push(permiso.nombre);
+  }
+  return res;
 }
 
 // Pantallas según permisos: alimenta el menú y la pantalla de inicio.
