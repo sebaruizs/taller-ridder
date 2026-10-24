@@ -17,7 +17,6 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "inventario.editar_precio",
   "compras.ver",
   "compras.crear",
-  "finanzas.ver",
 ];
 const SOLO_ADMIN: Accion[] = ["usuarios.gestionar", "log.ver", "config.editar"];
 
@@ -68,7 +67,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras", "ver_finanzas"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -80,7 +79,7 @@ describe("permisos por usuario", () => {
 
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
-    expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras", "/finanzas"]);
+    expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
   });
 });
 
@@ -109,9 +108,9 @@ describe("permisos por módulo", () => {
     }
   });
 
-  it("el mecánico solo tiene el módulo Taller; el jefe todos", () => {
+  it("el mecánico solo tiene el módulo Taller; el jefe los tres", () => {
     expect(modulosDelRol("mecanico")).toEqual(["taller"]);
-    expect(modulosDelRol("jefe")).toEqual(["taller", "inventario", "compras", "finanzas"]);
+    expect(modulosDelRol("jefe")).toEqual(["taller", "inventario", "compras"]);
     expect(limpiarPermisosOff("mecanico", ["modulo.compras", "modulo.taller"])).toEqual(["modulo.taller"]);
   });
 
@@ -123,7 +122,7 @@ describe("permisos por módulo", () => {
 describe("menú lateral", () => {
   it("las pantallas de alta no van en el menú: se entra desde cada módulo", () => {
     const hrefs = menuDe(pantallasDe({ rol: "jefe", permisosOff: [] })).map((p) => p.href);
-    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/inventario", "/compras", "/finanzas"]);
+    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/inventario", "/compras"]);
   });
 
   it("si cargar es lo único que tiene en el módulo, el alta sí aparece", () => {

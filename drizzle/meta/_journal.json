@@ -36,13 +36,6 @@
       "when": 1792868715969,
       "tag": "0004_sin_check_entrega",
       "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1792880991536,
-      "tag": "0005_finanzas_apagado_jefes",
-      "breakpoints": true
     }
   ]
 }
