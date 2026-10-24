@@ -3,7 +3,7 @@ import { z } from "zod";
 import { exigirPagina } from "@/lib/auth";
 import { puedeU } from "@/lib/permisos";
 import { categoriasInventario, listarProductos, resumenInventario } from "@/lib/inventario";
-import { cantidad, fecha, gs, gsCorto } from "@/lib/formato";
+import { cantidad, fecha, gs } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
 import { PrecioEditable } from "@/components/precio-editable";
 
@@ -42,11 +42,6 @@ export default async function Inventario(props: PageProps<"/inventario">) {
       <main className="wrap stack inventario-wrap">
         {puedeU(u, "inventario.crear") && <Link href="/inventario/nuevo" className="btn btn-primary solo-movil">+ Nuevo producto</Link>}
         <section className="kpis">
-          <div className="card kpi">
-            <span className="small muted">Valor del stock</span>
-            <strong>{gsCorto(resumen.valor)}</strong>
-            <span className="tiny muted">Con costo de última compra · Odoo: {gsCorto(resumen.valorOdoo)}</span>
-          </div>
           <div className="card kpi"><span className="small muted">Unidades en depósito</span><strong>{cantidad(resumen.unidades)}</strong></div>
           <div className="card kpi"><span className="small muted">Productos con stock</span><strong>{resumen.conStock}</strong></div>
           <div className="card kpi"><span className="small muted">Productos sin stock</span><strong>{resumen.sinStock}</strong></div>
@@ -82,7 +77,6 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                   <th className="num" title="Precio de la última compra (no se escribe en Odoo)">Costo</th>
                   <th className="num">Costo Odoo</th>
                   <th className="num">Precio</th>
-                  <th className="num">Valor en stock</th>
                 </tr>
               </thead>
               <tbody>
@@ -100,7 +94,6 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                     </td>
                     <td className="num muted">{gs(p.costoOdoo)}</td>
                     <td className="num"><PrecioEditable productoId={p.id} precio={p.precio} costo={p.costo} puedeEditar={puedePrecio} variante="celda" /></td>
-                    <td className="num">{gs(p.valor)}</td>
                   </tr>
                 ))}
               </tbody>

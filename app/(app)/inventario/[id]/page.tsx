@@ -57,7 +57,6 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
             <span className="tiny muted">La app no lo modifica</span>
           </div>
           <div className="card kpi"><span className="small muted">Precio de venta</span><PrecioEditable productoId={p.id} precio={p.precio} costo={p.costo} puedeEditar={puedeU(u, "inventario.editar_precio")} variante="kpi" /></div>
-          <div className="card kpi"><span className="small muted">Valor en stock</span><strong>{gs(p.valor)}</strong></div>
         </section>
 
         <nav className="tabs" aria-label="Pestañas del producto">

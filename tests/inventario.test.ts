@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { costoApp, dominioProductos, tipoMovimiento, ultimasCompras, valorStock } from "@/lib/inventario-dominio";
+import { costoApp, dominioProductos, tipoMovimiento, ultimasCompras } from "@/lib/inventario-dominio";
 import { gsCorto } from "@/lib/formato";
 import { inicioDe, puedeU } from "@/lib/permisos";
 
@@ -23,11 +23,6 @@ describe("inventario", () => {
     expect(tipoMovimiento(false, true)).toBe("entrada");
     expect(tipoMovimiento(true, false)).toBe("salida");
     expect(tipoMovimiento(true, true)).toBe("interno");
-  });
-
-  it("el valor en stock no cuenta cantidades negativas", () => {
-    expect(valorStock(3, 20000)).toBe(60000);
-    expect(valorStock(-2, 20000)).toBe(0);
   });
 
   it("el costo de la app es el precio de la última compra, separado del de Odoo", () => {

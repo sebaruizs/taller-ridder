@@ -23,10 +23,6 @@ export function tipoMovimiento(origenInterno: boolean, destinoInterno: boolean):
   return "interno";
 }
 
-export function valorStock(cantidad: number, costo: number): number {
-  return cantidad > 0 ? cantidad * costo : 0;
-}
-
 // Costo de la app: el precio unitario de la última compra confirmada. Es una variable propia,
 // no se escribe en Odoo; el costo de Odoo (standard_price) se muestra aparte.
 export type UltimaCompra = { precio: number; fecha: string | null; proveedor: string | null };
