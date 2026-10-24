@@ -23,7 +23,7 @@ export async function buscarVehiculos(q: string) {
     activo: (v as VehiculoOdoo & { active: boolean }).active,
     ordenesEnProceso: enProceso
       .filter((o) => o.vehicle_id && o.vehicle_id[0] === v.id)
-      .map((o) => ({ id: o.id, tipo: o.service_type_id ? o.service_type_id[1] : null, fecha: o.date || null })),
+      .map((o) => ({ id: o.id, tipo: o.service_type_id ? o.service_type_id[1] : null, fecha: o.date || null, estado: o.state })),
   }));
 }
 
@@ -41,6 +41,7 @@ export async function crearOrdenComo(e: EntradaNuevaOrden, autor: Usuario) {
       odoo,
       telegram: enviarTelegram,
       autor: autor.nombre,
+      autorPartnerId: autor.odooPartnerId,
       config: { chatTaller: cfg.TELEGRAM_CHAT_TALLER, chatErrores: cfg.TELEGRAM_CHAT_ERRORES, hoy: hoyAsuncion() },
     });
     await registrar(autor.id, "orden.crear", {

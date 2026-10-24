@@ -9,9 +9,17 @@ type Tipo = { id: number; name: string };
 
 const DIAS_ALERTA = 7;
 
+// Sin permiso para abrirla, la tarjeta se muestra pero no es un enlace.
+function Tarjeta({ href, children }: { href: string | null; children: React.ReactNode }) {
+  if (!href) return <div className="card stack" style={{ gap: 8 }}>{children}</div>;
+  return <Link href={href} className="card stack" style={{ gap: 8 }}>{children}</Link>;
+}
+
 type Modo = "proceso" | "verificar";
 
-export function ListaOrdenes({ tienePartner, puedeCrear, modo = "proceso" }: { tienePartner: boolean; puedeCrear: boolean; modo?: Modo }) {
+export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean };
+
+export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tienePartner: boolean; accesos: Accesos; modo?: Modo }) {
   const router = useRouter();
   const verificar = modo === "verificar";
   const [q, setQ] = useState("");
@@ -69,13 +77,15 @@ export function ListaOrdenes({ tienePartner, puedeCrear, modo = "proceso" }: { t
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
-      {puedeCrear && !verificar && (
+      {!verificar && (accesos.crear || accesos.tablero || accesos.verificar) && (
         <div className="stack solo-movil" style={{ gap: 8 }}>
-          <Link href="/ordenes/nueva" className="btn btn-primary">+ Nueva orden</Link>
-          <div className="row" style={{ gap: 8 }}>
-            <Link href="/tablero" className="btn" style={{ flex: 1 }}>Tablero</Link>
-            <Link href="/verificar" className="btn" style={{ flex: 1 }}>Para verificar</Link>
-          </div>
+          {accesos.crear && <Link href="/ordenes/nueva" className="btn btn-primary">+ Nueva orden</Link>}
+          {(accesos.tablero || accesos.verificar) && (
+            <div className="row" style={{ gap: 8 }}>
+              {accesos.tablero && <Link href="/tablero" className="btn" style={{ flex: 1 }}>Tablero</Link>}
+              {accesos.verificar && <Link href="/verificar" className="btn" style={{ flex: 1 }}>Para verificar</Link>}
+            </div>
+          )}
         </div>
       )}
       <div className="filtros">
@@ -123,7 +133,7 @@ export function ListaOrdenes({ tienePartner, puedeCrear, modo = "proceso" }: { t
       )}
 
       {!!data?.ordenes.length && <div className="grid-ordenes">{data.ordenes.map((o) => (
-        <Link key={o.id} href={verificar ? `/verificar/${o.id}` : `/ordenes/${o.id}/finalizar`} className="card stack" style={{ gap: 8 }}>
+        <Tarjeta key={o.id} href={verificar ? `/verificar/${o.id}` : accesos.finalizar ? `/ordenes/${o.id}/finalizar` : null}>
           <div className="row between">
             <span className="placa">{o.chapa}</span>
             {o.dias !== null && (
@@ -138,7 +148,7 @@ export function ListaOrdenes({ tienePartner, puedeCrear, modo = "proceso" }: { t
             <span>{o.vehiculo.split("/").slice(0, 2).join(" ")}</span>
             <span>{o.mecanico ?? "Sin asignar"}</span>
           </div>
-        </Link>
+        </Tarjeta>
       ))}</div>}
 
       {paginas > 1 && (

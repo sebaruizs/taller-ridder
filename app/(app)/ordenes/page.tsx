@@ -1,5 +1,5 @@
 import { exigirPagina } from "@/lib/auth";
-import { puede } from "@/lib/permisos";
+import { puedeAlguna, puedeU } from "@/lib/permisos";
 import { Topbar } from "@/components/topbar";
 import { ListaOrdenes } from "./lista";
 
@@ -8,7 +8,15 @@ export default async function Ordenes() {
   return (
     <>
       <Topbar titulo="Motos en proceso" nombre={u.nombre} rol={u.rol} />
-      <ListaOrdenes tienePartner={Boolean(u.odooPartnerId)} puedeCrear={puede(u.rol, "ordenes.crear")} />
+      <ListaOrdenes
+        tienePartner={Boolean(u.odooPartnerId)}
+        accesos={{
+          crear: puedeU(u, "ordenes.crear"),
+          tablero: puedeU(u, "ordenes.ver_todas"),
+          verificar: puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]),
+          finalizar: puedeU(u, "ordenes.finalizar"),
+        }}
+      />
     </>
   );
 }

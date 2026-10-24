@@ -17,6 +17,7 @@ export const datosUsuarioSchema = z.object({
   rol: z.enum(ROLES, { error: "Rol inválido" }),
   odooPartnerId: z.number().int().positive().nullable(),
   activo: z.boolean().default(true),
+  permisosOff: z.array(z.string().max(40)).max(20).default([]),
 });
 
 export type EstadoBloqueo = { intentosFallidos: number; bloqueadoHasta: Date | null };

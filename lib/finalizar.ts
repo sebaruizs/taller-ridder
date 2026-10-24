@@ -3,14 +3,16 @@ import type { Many2one, OdooClient } from "./odoo";
 import {
   MODELO_ORDEN,
   MODELO_VEHICULO,
+  ESTADO_AL_REPORTAR,
   cambioVehiculoAlFinalizar,
+  conAutor,
   chapaDe,
-  estadoFinal,
   mensajeTelegramError,
   mensajeTelegramFinalizado,
   payloadCamposFinalizar,
   payloadFotos,
   payloadNotaFinalizacion,
+  tieneChofer,
   type EstadoOrden,
   type OrdenOdoo,
   type VehiculoOdoo,
@@ -23,7 +25,6 @@ export type EstadoFinalizacion = {
   ordenId: number;
   odometro: number;
   observacion: string;
-  listaEntrega: boolean;
   camposOk: boolean;
   fotosOk: boolean;
   attachmentIds: number[];
@@ -123,7 +124,6 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
         odometro: f.odometro,
         partnerMecanico: deps.mecanico.partnerId,
         observacion: f.observacion,
-        listaEntrega: f.listaEntrega,
       }, config.hoy);
       await odoo.write(MODELO_ORDEN, [f.ordenId], vals);
       return { camposOk: true };
@@ -149,19 +149,19 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
         }
         ids.push(attId);
       }
-      if (ids.length) await odoo.messagePost(MODELO_ORDEN, f.ordenId, payloadFotos(ids));
+      if (ids.length) await odoo.messagePost(MODELO_ORDEN, f.ordenId, conAutor(payloadFotos(ids), deps.mecanico.partnerId));
       return { fotosOk: true, attachmentIds: ids };
     });
     await store.borrarFotos();
   }
 
-  const estado = estadoFinal(f.listaEntrega);
+  const estado = ESTADO_AL_REPORTAR;
   if (!f.notaOk) {
     await paso("nota", async () => {
       await odoo.messagePost(
         MODELO_ORDEN,
         f.ordenId,
-        payloadNotaFinalizacion({ mecanico: deps.mecanico.nombre, observacion: f.observacion, odometro: f.odometro, estado }),
+        conAutor(payloadNotaFinalizacion({ mecanico: deps.mecanico.nombre, observacion: f.observacion, odometro: f.odometro, estado }), deps.mecanico.partnerId),
       );
       return { notaOk: true };
     });
@@ -170,7 +170,7 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
   if (!f.estadoOk) {
     await paso("estado", async () => {
       await odoo.write(MODELO_ORDEN, [f.ordenId], { state: estado });
-      const veh = cambioVehiculoAlFinalizar(f.listaEntrega, config.estadoParaEntregar);
+      const veh = cambioVehiculoAlFinalizar(tieneChofer(orden as OrdenOdoo, vehiculo), config.estadoParaEntregar);
       if (veh) await odoo.write(MODELO_VEHICULO, [vehiculo.id], veh);
       return { estadoOk: true };
     });

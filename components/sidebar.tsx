@@ -9,17 +9,10 @@ const activo = (pathname: string, href: string) =>
   href === "/ordenes" ? pathname.startsWith("/ordenes") && !pathname.startsWith("/ordenes/nueva") : pathname.startsWith(href);
 
 // Solo visible en pantallas anchas; en el celular la navegación está en la barra de arriba.
-export function Sidebar({ nombre, rol }: { nombre: string; rol: Rol }) {
+export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; pantallas: { href: string; nombre: string }[] }) {
   const pathname = usePathname();
   const router = useRouter();
-  const links = [
-    ...(rol !== "mecanico" ? [{ href: "/ordenes/nueva", label: "+ Nueva orden" }] : []),
-    ...(rol !== "mecanico" ? [{ href: "/tablero", label: "Tablero" }] : []),
-    { href: "/ordenes", label: "Motos en proceso" },
-    ...(rol !== "mecanico" ? [{ href: "/verificar", label: "Para verificar" }] : []),
-    ...(rol === "admin" ? [{ href: "/admin/usuarios", label: "Usuarios" }] : []),
-    { href: "/cuenta", label: "Mi cuenta" },
-  ];
+  const links = [...pantallas.map((p) => ({ href: p.href, label: p.nombre })), { href: "/cuenta", label: "Mi cuenta" }];
 
   async function salir() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});

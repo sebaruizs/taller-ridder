@@ -1,5 +1,6 @@
 import type { Rol } from "./db/schema";
 
+// Qué puede hacer cada rol por defecto.
 export const ACCIONES = {
   "ordenes.ver_en_proceso": ["mecanico", "jefe", "admin"],
   "ordenes.ver_detalle": ["mecanico", "jefe", "admin"],
@@ -19,8 +20,65 @@ export const ACCIONES = {
 
 export type Accion = keyof typeof ACCIONES;
 
+// Permisos que el admin puede quitarle a un usuario puntual. Cada uno agrupa acciones internas.
+export const PERMISOS = {
+  ver_ordenes: { nombre: "Ver motos en proceso", detalle: "Lista de órdenes en proceso y su detalle", acciones: ["ordenes.ver_en_proceso", "ordenes.ver_detalle"] },
+  finalizar: { nombre: "Finalizar trabajos", detalle: "Cargar odómetro, fotos y observación y cerrar el trabajo", acciones: ["ordenes.finalizar"] },
+  crear: { nombre: "Cargar órdenes nuevas", detalle: "Buscar la moto y crear la orden", acciones: ["ordenes.crear", "vehiculos.buscar"] },
+  tablero: { nombre: "Tablero", detalle: "Ver el kanban y pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.ver_todas", "ordenes.mover_estado"] },
+  repuestos: { nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
+  aprobar: { nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
+} as const satisfies Record<string, { nombre: string; detalle: string; acciones: readonly Accion[] }>;
+
+export type Permiso = keyof typeof PERMISOS;
+export const LISTA_PERMISOS = Object.keys(PERMISOS) as Permiso[];
+
+export type Sujeto = { rol: Rol; permisosOff?: readonly string[] | null };
+
 export function puede(rol: Rol, accion: Accion): boolean {
   return (ACCIONES[accion] as readonly Rol[]).includes(rol);
+}
+
+// El admin siempre puede todo: así nunca queda nadie afuera de la administración.
+export function puedeU(u: Sujeto, accion: Accion): boolean {
+  if (!puede(u.rol, accion)) return false;
+  if (u.rol === "admin" || !u.permisosOff?.length) return true;
+  return !u.permisosOff.some((p) => (PERMISOS[p as Permiso]?.acciones as readonly Accion[] | undefined)?.includes(accion));
+}
+
+export function puedeAlguna(u: Sujeto, acciones: readonly Accion[]): boolean {
+  return acciones.some((a) => puedeU(u, a));
+}
+
+// Permisos que tiene sentido mostrar para un rol (los que ese rol tiene por defecto).
+export function permisosDelRol(rol: Rol): Permiso[] {
+  if (rol === "admin") return [];
+  return LISTA_PERMISOS.filter((p) => (PERMISOS[p].acciones as readonly Accion[]).every((a) => puede(rol, a)));
+}
+
+export function limpiarPermisosOff(rol: Rol, off: readonly string[]): Permiso[] {
+  const validos = new Set(permisosDelRol(rol));
+  return [...new Set(off)].filter((p): p is Permiso => validos.has(p as Permiso));
+}
+
+// Pantallas según permisos: alimenta el menú y la pantalla de inicio.
+export const PANTALLAS = [
+  { href: "/ordenes/nueva", nombre: "+ Nueva orden", acciones: ["ordenes.crear"] },
+  { href: "/tablero", nombre: "Tablero", acciones: ["ordenes.ver_todas"] },
+  { href: "/ordenes", nombre: "Motos en proceso", acciones: ["ordenes.ver_en_proceso"] },
+  { href: "/verificar", nombre: "Para verificar", acciones: ["ordenes.aprobar", "ordenes.editar"] },
+  { href: "/admin/usuarios", nombre: "Usuarios", acciones: ["usuarios.gestionar"] },
+] as const satisfies readonly { href: string; nombre: string; acciones: readonly Accion[] }[];
+
+export function pantallasDe(u: Sujeto) {
+  return PANTALLAS.filter((p) => puedeAlguna(u, p.acciones)).map(({ href, nombre }) => ({ href, nombre }));
+}
+
+// Primera pantalla útil para el usuario; "/cuenta" siempre está, así nunca hay bucles de redirección.
+export function inicioDe(u: Sujeto): string {
+  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/admin/usuarios"];
+  const mias = new Set(pantallasDe(u).map((p) => p.href as string));
+  return orden.find((h) => mias.has(h)) ?? "/cuenta";
 }
 
 export const DURACION_SESION_DIAS: Record<Rol, number> = {

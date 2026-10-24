@@ -6,13 +6,13 @@ import { hash, verify } from "@node-rs/argon2";
 import { and, eq, gt, ne } from "drizzle-orm";
 import { getDb, schema } from "./db";
 import { env } from "./env";
-import { DURACION_SESION_DIAS, puede, type Accion } from "./permisos";
+import { DURACION_SESION_DIAS, inicioDe, puedeAlguna, type Accion } from "./permisos";
 import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido } from "./credenciales";
 import type { Rol } from "./db/schema";
 
 export const COOKIE = "taller_sesion";
 
-export type Usuario = { id: number; usuario: string; nombre: string; rol: Rol; odooPartnerId: number | null };
+export type Usuario = { id: number; usuario: string; nombre: string; rol: Rol; odooPartnerId: number | null; permisosOff: string[] };
 
 export class NoAutorizado extends Error {
   constructor(readonly status: 401 | 403) {
@@ -74,7 +74,7 @@ export async function login(usuario: string, password: string): Promise<Resultad
     expires: expira,
   });
   await registrar(u.id, "login");
-  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId } };
+  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff } };
 }
 
 export async function cambiarPassword(usuarioId: number, actual: string, nueva: string): Promise<string | null> {
@@ -111,28 +111,30 @@ export async function usuarioActual(): Promise<Usuario | null> {
       nombre: schema.usuarios.nombre,
       rol: schema.usuarios.rol,
       odooPartnerId: schema.usuarios.odooPartnerId,
+      permisosOff: schema.usuarios.permisosOff,
       activo: schema.usuarios.activo,
     })
     .from(schema.sesiones)
     .innerJoin(schema.usuarios, eq(schema.sesiones.usuarioId, schema.usuarios.id))
     .where(and(eq(schema.sesiones.id, hashToken(token)), gt(schema.sesiones.expira, new Date())));
   if (!fila || !fila.activo) return null;
-  return { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId };
+  return { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId, permisosOff: fila.permisosOff ?? [] };
 }
 
 // Para Route Handlers: tira NoAutorizado (401/403).
-export async function exigir(accion: Accion): Promise<Usuario> {
+// Con varias acciones alcanza con tener alguna.
+export async function exigir(accion: Accion | Accion[]): Promise<Usuario> {
   const u = await usuarioActual();
   if (!u) throw new NoAutorizado(401);
-  if (!puede(u.rol, accion)) throw new NoAutorizado(403);
+  if (!puedeAlguna(u, ([] as Accion[]).concat(accion))) throw new NoAutorizado(403);
   return u;
 }
 
 // Para páginas: redirige en vez de tirar.
-export async function exigirPagina(accion: Accion): Promise<Usuario> {
+export async function exigirPagina(accion: Accion | Accion[]): Promise<Usuario> {
   const u = await usuarioActual();
   if (!u) redirect("/ingresar");
-  if (!puede(u.rol, accion)) redirect("/ordenes");
+  if (!puedeAlguna(u, ([] as Accion[]).concat(accion))) redirect(inicioDe(u));
   return u;
 }
 

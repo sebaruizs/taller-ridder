@@ -44,16 +44,16 @@ describe("crear orden", () => {
       "messagePost:fleet.vehicle.log.services",
       "telegram:TALLER",
     ]);
-    expect(t.escrituras()[0].args[0]).toMatchObject({ vehicle_id: 82, state: "running", purchaser_id: 2560, vendor_id: 1685, date: "2026-10-24" });
+    expect(t.escrituras()[0].args[0]).toMatchObject({ vehicle_id: 82, state: "new", purchaser_id: 2560, vendor_id: 1685, date: "2026-10-24" });
     expect((t.escrituras()[1].args[1] as { body: string }).body).toContain("Orden cargada por Ramón");
     expect(t.escrituras()[2].args[0]).toContain("🆕 Nueva orden de taller #501");
   });
 
-  it("si la moto ya tiene una orden en proceso no crea nada", async () => {
-    const t = armar({ enProceso: [{ id: 4132, vehicle_id: [82, "x"], service_type_id: [23, "Mantenimiento"], date: "2026-10-13" }] });
+  it("si la moto ya tiene una orden abierta no crea nada", async () => {
+    const t = armar({ enProceso: [{ id: 4132, vehicle_id: [82, "x"], service_type_id: [23, "Mantenimiento"], date: "2026-10-13", state: "cancelled" }] });
     const err = await crearOrden(entrada(), t.deps).catch((e) => e);
     expect(err).toBeInstanceOf(OrdenDuplicada);
-    expect(err.existentes).toEqual([{ id: 4132, tipo: "Mantenimiento", fecha: "2026-10-13" }]);
+    expect(err.existentes).toEqual([{ id: 4132, tipo: "Mantenimiento", fecha: "2026-10-13", estado: "cancelled" }]);
     expect(t.escrituras()).toHaveLength(0);
   });
 
@@ -61,7 +61,7 @@ describe("crear orden", () => {
     const t = armar();
     await crearOrden(entrada(), t.deps);
     const busqueda = t.llamadas.find((l) => l.method === "searchRead" && l.model === "fleet.vehicle.log.services")!;
-    expect(busqueda.args[0]).toEqual([["vehicle_id", "in", [82]], ["state", "=", "running"]]);
+    expect(busqueda.args[0]).toEqual([["vehicle_id", "in", [82]], ["state", "in", ["new", "running", "cancelled"]]]);
   });
 
   it("rechaza moto o tipo inexistentes sin escribir", async () => {

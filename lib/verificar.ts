@@ -1,9 +1,11 @@
 // Verificación del jefe de taller: repuestos de una orden "Listo para verificar" y aprobación.
 import type { Many2one, OdooClient } from "./odoo";
 import {
+  ESTADO_AL_APROBAR,
   MODELO_LINEA,
   MODELO_ORDEN,
   chapaDe,
+  conAutor,
   mensajeTelegramError,
   mensajeTelegramVerificado,
   payloadLineaRepuesto,
@@ -81,6 +83,7 @@ export type DepsAprobar = {
   odoo: OdooVerificar;
   telegram: (chatId: string, texto: string) => Promise<void>;
   autor: string;
+  autorPartnerId?: number | null;
   config: { chatTaller: string; chatErrores: string };
 };
 
@@ -91,13 +94,13 @@ export async function aprobarOrden(deps: DepsAprobar, ordenId: number, confirmaS
   if (!lineas.length && !confirmaSinRepuestos) throw new NoVerificable("Cargá los repuestos o confirmá que no se usó ninguno");
 
   const [actual] = await odoo.read<{ total_products_cost: number }>(MODELO_ORDEN, [ordenId], ["total_products_cost"]);
-  await odoo.write(MODELO_ORDEN, [ordenId], { amount: actual?.total_products_cost || 0, state: "to_be_paid" });
+  await odoo.write(MODELO_ORDEN, [ordenId], { amount: actual?.total_products_cost || 0, state: ESTADO_AL_APROBAR });
 
   const chapa = orden.vehicle_id ? chapaDe({ license_plate: false, display_name: orden.vehicle_id[1] }) : `#${ordenId}`;
   const tipo = orden.service_type_id ? orden.service_type_id[1] : null;
   const avisos: string[] = [];
   try {
-    await odoo.messagePost(MODELO_ORDEN, ordenId, payloadNotaVerificacion({ autor: deps.autor, lineas }));
+    await odoo.messagePost(MODELO_ORDEN, ordenId, conAutor(payloadNotaVerificacion({ autor: deps.autor, lineas }), deps.autorPartnerId));
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     avisos.push(`No se pudo publicar la nota de seguimiento: ${msg}`);

@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { usuarioActual } from "@/lib/auth";
+import { pantallasDe } from "@/lib/permisos";
 import { Sidebar } from "@/components/sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -7,7 +8,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (!u) redirect("/ingresar");
   return (
     <div className="shell">
-      <Sidebar nombre={u.nombre} rol={u.rol} />
+      <Sidebar nombre={u.nombre} rol={u.rol} pantallas={pantallasDe(u)} />
       <div className="contenido">{children}</div>
     </div>
   );

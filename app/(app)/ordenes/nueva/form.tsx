@@ -7,16 +7,18 @@ import type { OrdenExistente } from "@/lib/crear-orden";
 import { SelectorFotos, useFotos } from "@/components/selector-fotos";
 
 type Opcion = { id: number; nombre: string };
+
+const ESTADO_NOMBRE: Record<string, string> = { new: "Nuevo", running: "En proceso", cancelled: "Listo para verificar" };
 type Creada = { ordenId: number; chapa: string; avisos: string[] };
 
 function AvisoEnProceso({ ordenes }: { ordenes: OrdenExistente[] }) {
   return (
     <div className="alert alert-warn stack" style={{ gap: 8 }} role="alert">
-      <strong>Esta moto ya tiene {ordenes.length === 1 ? "una orden" : `${ordenes.length} órdenes`} en proceso.</strong>
+      <strong>Esta moto ya tiene {ordenes.length === 1 ? "una orden abierta" : `${ordenes.length} órdenes abiertas`}.</strong>
       <span className="small">Para no duplicar, abrí la existente en vez de crear otra.</span>
       {ordenes.map((o) => (
-        <Link key={o.id} className="btn" href={`/ordenes/${o.id}/finalizar`}>
-          Abrir orden #{o.id}{o.tipo ? ` · ${o.tipo}` : ""}{o.fecha ? ` · ${o.fecha.split("-").reverse().join("/")}` : ""}
+        <Link key={o.id} className="btn" href={o.estado === "running" ? `/ordenes/${o.id}/finalizar` : o.estado === "cancelled" ? `/verificar/${o.id}` : "/tablero"}>
+          Abrir orden #{o.id} · {ESTADO_NOMBRE[o.estado] ?? o.estado}{o.tipo ? ` · ${o.tipo}` : ""}{o.fecha ? ` · ${o.fecha.split("-").reverse().join("/")}` : ""}
         </Link>
       ))}
     </div>
@@ -112,9 +114,9 @@ export function FormNuevaOrden({ autor }: { autor: string }) {
           <div className="success-mark" aria-hidden>✓</div>
           <h2 className="center" style={{ margin: 0 }}>Orden #{creada.ordenId} creada</h2>
           <div className="center"><span className="placa placa-lg">{creada.chapa}</span></div>
-          <p className="center muted" style={{ margin: 0 }}>Quedó en proceso en Odoo, con una nota de quién la cargó.</p>
+          <p className="center muted" style={{ margin: 0 }}>Quedó en «Nuevo» en Odoo, con una nota de quién la cargó. Pasala a En proceso desde el tablero cuando el mecánico la tome.</p>
           {creada.avisos.map((a) => <div key={a} className="alert alert-warn small">{a}</div>)}
-          <Link className="btn btn-primary btn-lg" href="/ordenes">Ver motos en proceso</Link>
+          <Link className="btn btn-primary btn-lg" href="/tablero">Ver tablero</Link>
           <button className="btn" onClick={() => window.location.reload()}>Cargar otra orden</button>
         </div>
       </main>

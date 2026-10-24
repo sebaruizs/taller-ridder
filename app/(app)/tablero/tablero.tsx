@@ -17,7 +17,7 @@ type Columna = { ordenes: OrdenLista[]; total: number; pagina: number; porPagina
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
 const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
 
-export function Tablero() {
+export function Tablero({ acciones }: { acciones: { iniciar: boolean; finalizar: boolean; verificar: boolean } }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
@@ -86,15 +86,15 @@ export function Tablero() {
   }
 
   function accion(estado: Estado, o: OrdenLista) {
-    if (estado === "new") {
+    if (estado === "new" && acciones.iniciar) {
       return (
         <button className="btn btn-primary btn-block" disabled={moviendo !== null} onClick={() => iniciar(o)}>
           {moviendo === o.id ? "Moviendo…" : "Pasar a En proceso"}
         </button>
       );
     }
-    if (estado === "running") return <Link className="btn btn-block" href={`/ordenes/${o.id}/finalizar`}>Finalizar</Link>;
-    if (estado === "cancelled") return <Link className="btn btn-primary btn-block" href={`/verificar/${o.id}`}>Verificar</Link>;
+    if (estado === "running" && acciones.finalizar) return <Link className="btn btn-block" href={`/ordenes/${o.id}/finalizar`}>Finalizar</Link>;
+    if (estado === "cancelled" && acciones.verificar) return <Link className="btn btn-primary btn-block" href={`/verificar/${o.id}`}>Verificar</Link>;
     return null;
   }
 

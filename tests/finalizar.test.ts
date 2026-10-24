@@ -12,9 +12,9 @@ const ORDEN = {
 };
 const VEHICULO = { id: 82, display_name: "Buler/Faiter/230ABPT", license_plate: "230ABPT", driver_id: [2560, "Elias"], state_id: [2, "En taller"], odometer: 15000 };
 
-function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, string]; fallar?: (method: string, model: string, args: unknown[]) => boolean } = {}) {
+function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, string]; sinChofer?: boolean; fallar?: (method: string, model: string, args: unknown[]) => boolean } = {}) {
   let estado: EstadoFinalizacion = {
-    id: 1, ordenId: 4358, odometro: 15230, observacion: "cambié cadena", listaEntrega: true,
+    id: 1, ordenId: 4358, odometro: 15230, observacion: "cambié cadena",
     camposOk: false, fotosOk: false, attachmentIds: [], notaOk: false, estadoOk: false, telegramOk: false,
   };
   let fotos: FotoPendiente[] = Array.from({ length: opts.fotos ?? 0 }, (_, i) => ({
@@ -27,8 +27,8 @@ function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, s
     if (opts.fallar?.(method, model, args)) throw new Error("Odoo caído");
   };
   const odoo: Deps["odoo"] = {
-    read: vi.fn(async (model: string, ids: number[]) => { registrar("read", model, ids); return [{ ...ORDEN, state: opts.estadoOrden ?? "running", vendor_id: opts.vendor ?? false }]; }) as never,
-    searchRead: vi.fn(async (model: string) => { registrar("searchRead", model); return [VEHICULO]; }) as never,
+    read: vi.fn(async (model: string, ids: number[]) => { registrar("read", model, ids); return [{ ...ORDEN, state: opts.estadoOrden ?? "running", vendor_id: opts.vendor ?? false, ...(opts.sinChofer ? { purchaser_id: false } : {}) }]; }) as never,
+    searchRead: vi.fn(async (model: string) => { registrar("searchRead", model); return [opts.sinChofer ? { ...VEHICULO, driver_id: false } : VEHICULO]; }) as never,
     write: vi.fn(async (model: string, ids: number[], vals: Record<string, unknown>) => { registrar("write", model, ids, vals); return true; }),
     create: vi.fn(async (model: string, vals: Record<string, unknown>) => { registrar("create", model, vals); return ++sigAtt; }),
     messagePost: vi.fn(async (model: string, id: number, kw: Record<string, unknown>) => { registrar("messagePost", model, id, kw); return 1; }),
@@ -66,8 +66,8 @@ describe("finalizar", () => {
     ]);
     expect(t.escrituras()[0].args[1]).toEqual({ odometer: 15230, amount: 160000, service_end_date: "2026-10-24", vendor_id: 77 });
     expect(t.escrituras()[3].args[1]).toMatchObject({ attachment_ids: [901, 902], subtype_xmlid: "mail.mt_note" });
-    expect(t.escrituras()[5].args[1]).toEqual({ state: "to_be_paid" });
-    expect(r).toMatchObject({ chapa: "230ABPT", fotos: 2, estado: "to_be_paid", avisoTelegram: true });
+    expect(t.escrituras()[5].args[1]).toEqual({ state: "cancelled" });
+    expect(r).toMatchObject({ chapa: "230ABPT", fotos: 2, estado: "cancelled", avisoTelegram: true });
   });
 
   it("si la orden ya tiene mecánico asignado, no lo reemplaza por el que reporta", async () => {
@@ -95,15 +95,21 @@ describe("finalizar", () => {
     expect(body).toContain("Trabajo finalizado por Juan");
     expect(body).toContain("15.230 km");
     expect(body).not.toContain("Observación");
-    expect(r.estado).toBe("to_be_paid");
+    expect(r.estado).toBe("cancelled");
   });
 
-  it("sin el check pasa a verificar y el vehículo a Para entregar", async () => {
-    const t = armar();
-    await ejecutarFinalizacion({ ...t.estado, listaEntrega: false }, t.deps);
+  it("moto sin chofer: pasa a Listo para verificar y el vehículo a Para entregar", async () => {
+    const t = armar({ sinChofer: true });
+    await ejecutarFinalizacion(t.estado, t.deps);
     const w = t.escrituras().filter((l) => l.method === "write");
     expect(w[1]).toMatchObject({ model: "fleet.vehicle.log.services", args: [[4358], { state: "cancelled" }] });
     expect(w[2]).toMatchObject({ model: "fleet.vehicle", args: [[82], { state_id: 1 }] });
+  });
+
+  it("moto con chofer: pasa a Listo para verificar sin tocar el vehículo", async () => {
+    const t = armar();
+    await ejecutarFinalizacion(t.estado, t.deps);
+    expect(t.escrituras().some((l) => l.model === "fleet.vehicle")).toBe(false);
   });
 
   it("si falla a la mitad, el reintento no duplica fotos ni campos", async () => {

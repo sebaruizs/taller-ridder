@@ -2,10 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   cambioVehiculoAlFinalizar,
   chapaDe,
-  checkListaEntregaPorDefecto,
+  tieneChofer,
   diasEnTaller,
   dominioOrdenes,
-  estadoFinal,
+  ESTADO_AL_APROBAR,
+  ESTADO_AL_REPORTAR,
   hoyAsuncion,
   mensajeTelegramFinalizado,
   payloadCamposFinalizar,
@@ -66,60 +67,60 @@ describe("dominio de órdenes en proceso", () => {
 describe("payload de campos al finalizar", () => {
   it("escribe odómetro, mecánico, costo = repuestos y fecha de fin", () => {
     expect(
-      payloadCamposFinalizar(orden(), vehiculo(), { odometro: 15230, partnerMecanico: 77, observacion: "", listaEntrega: true }, "2026-10-24"),
+      payloadCamposFinalizar(orden(), vehiculo(), { odometro: 15230, partnerMecanico: 77, observacion: "" }, "2026-10-24"),
     ).toEqual({ odometer: 15230, amount: 327500, service_end_date: "2026-10-24", vendor_id: 77 });
   });
 
   it("completa el chofer desde el vehículo si la orden no lo tenía", () => {
-    const vals = payloadCamposFinalizar(orden(), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: null, observacion: "", listaEntrega: true }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden(), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: null, observacion: "" }, "2026-10-24");
     expect(vals.purchaser_id).toBe(2560);
     expect(vals).not.toHaveProperty("vendor_id");
   });
 
   it("si la orden no tenía mecánico, queda asignada al que reporta", () => {
-    const vals = payloadCamposFinalizar(orden({ vendor_id: false }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "", listaEntrega: true }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden({ vendor_id: false }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "" }, "2026-10-24");
     expect(vals.vendor_id).toBe(1685);
   });
 
   it("si la orden ya tenía mecánico asignado, no lo cambia", () => {
-    const vals = payloadCamposFinalizar(orden({ vendor_id: [2068, "Kevin"] }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "", listaEntrega: true }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden({ vendor_id: [2068, "Kevin"] }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "" }, "2026-10-24");
     expect(vals).not.toHaveProperty("vendor_id");
   });
 
   it("no pisa el chofer que ya tenía la orden", () => {
-    const vals = payloadCamposFinalizar(orden({ purchaser_id: [1, "Otro"] }), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: 5, observacion: "", listaEntrega: true }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden({ purchaser_id: [1, "Otro"] }), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: 5, observacion: "" }, "2026-10-24");
     expect(vals).not.toHaveProperty("purchaser_id");
   });
 
   it("costo 0 cuando no hay repuestos", () => {
-    expect(payloadCamposFinalizar(orden({ total_products_cost: 0 }), vehiculo(), { odometro: 1, partnerMecanico: 5, observacion: "", listaEntrega: true }, "x").amount).toBe(0);
+    expect(payloadCamposFinalizar(orden({ total_products_cost: 0 }), vehiculo(), { odometro: 1, partnerMecanico: 5, observacion: "" }, "x").amount).toBe(0);
   });
 });
 
-describe("estado al finalizar", () => {
-  it("con el check pasa a Listo para entrega y no toca el vehículo", () => {
-    expect(estadoFinal(true)).toBe("to_be_paid");
-    expect(cambioVehiculoAlFinalizar(true, 1)).toBeNull();
+describe("flujo de estados", () => {
+  it("el mecánico reporta a Listo para verificar y el jefe aprueba a Finalizado", () => {
+    expect(ESTADO_AL_REPORTAR).toBe("cancelled");
+    expect(ESTADO_AL_APROBAR).toBe("done");
   });
 
-  it("sin el check pasa a Listo para verificar y el vehículo a Para entregar", () => {
-    expect(estadoFinal(false)).toBe("cancelled");
+  it("moto con chofer: no se toca el vehículo; sin chofer: pasa a Para entregar", () => {
+    expect(cambioVehiculoAlFinalizar(true, 1)).toBeNull();
     expect(cambioVehiculoAlFinalizar(false, 1)).toEqual({ state_id: 1 });
   });
 
-  it("el check viene marcado si hay chofer en la orden o en el vehículo", () => {
-    expect(checkListaEntregaPorDefecto(orden(), vehiculo())).toBe(false);
-    expect(checkListaEntregaPorDefecto(orden({ purchaser_id: [1, "x"] }), vehiculo())).toBe(true);
-    expect(checkListaEntregaPorDefecto(orden(), vehiculo({ driver_id: [1, "x"] }))).toBe(true);
+  it("tiene chofer si lo tiene la orden o el vehículo", () => {
+    expect(tieneChofer(orden(), vehiculo())).toBe(false);
+    expect(tieneChofer(orden({ purchaser_id: [1, "x"] }), vehiculo())).toBe(true);
+    expect(tieneChofer(orden(), vehiculo({ driver_id: [1, "x"] }))).toBe(true);
   });
 });
 
 describe("nota de seguimiento al finalizar", () => {
   it("dice quién finalizó, el odómetro y el estado, es nota interna y escapa HTML", () => {
-    const p = payloadNotaFinalizacion({ mecanico: "Juan", observacion: "cambié <b>freno</b>\ny cadena", odometro: 15230, estado: "to_be_paid" });
+    const p = payloadNotaFinalizacion({ mecanico: "Juan", observacion: "cambié <b>freno</b>\ny cadena", odometro: 15230, estado: "cancelled" });
     expect(p.subtype_xmlid).toBe("mail.mt_note");
     expect(p.body).toContain("<b>Trabajo finalizado por Juan</b>");
-    expect(p.body).toContain("Odómetro: 15.230 km · Nuevo estado: Listo para entrega");
+    expect(p.body).toContain("Odómetro: 15.230 km · Nuevo estado: Listo para verificar");
     expect(p.body).toContain("Observación: cambié &lt;b&gt;freno&lt;/b&gt;<br>y cadena");
   });
 
@@ -134,7 +135,7 @@ describe("nueva orden", () => {
   it("crea en proceso, con fecha de hoy y el chofer del vehículo", () => {
     expect(
       payloadNuevaOrden(vehiculo({ driver_id: [2560, "Elias"] }), { tipoId: 11, descripcion: "  ruido en el motor ", mecanicoPartnerId: 1685 }, "2026-10-24"),
-    ).toEqual({ vehicle_id: 82, service_type_id: 11, description: "ruido en el motor", date: "2026-10-24", state: "running", purchaser_id: 2560, vendor_id: 1685 });
+    ).toEqual({ vehicle_id: 82, service_type_id: 11, description: "ruido en el motor", date: "2026-10-24", state: "new", purchaser_id: 2560, vendor_id: 1685 });
   });
 
   it("sin chofer ni mecánico no manda esos campos", () => {

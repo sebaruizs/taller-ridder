@@ -6,6 +6,7 @@ import { env } from "./env";
 import { odoo } from "./odoo";
 import { hashPassword, registrar, type Usuario } from "./auth";
 import { datosUsuarioSchema, passwordSchema, usuarioSchema } from "./credenciales";
+import { limpiarPermisosOff } from "./permisos";
 
 export type ContactoOdoo = { id: number; nombre: string };
 
@@ -52,6 +53,7 @@ export async function listarUsuarios() {
       odooPartnerId: schema.usuarios.odooPartnerId,
       odooPartnerNombre: schema.usuarios.odooPartnerNombre,
       activo: schema.usuarios.activo,
+      permisosOff: schema.usuarios.permisosOff,
     })
     .from(schema.usuarios)
     .orderBy(asc(schema.usuarios.activo), asc(schema.usuarios.nombre));
@@ -73,11 +75,14 @@ export async function crearUsuario(datos: z.infer<typeof crearSchema>, autor: Us
       passwordHash: await hashPassword(datos.password),
       odooPartnerId: datos.odooPartnerId,
       odooPartnerNombre,
+      permisosOff: limpiarPermisosOff(datos.rol, datos.permisosOff),
     })
     .onConflictDoNothing()
     .returning({ id: schema.usuarios.id });
   if (!filas.length) throw new ErrorUsuario("Ese usuario ya existe");
-  await registrar(autor.id, "usuario.crear", { detalle: { usuario: datos.usuario, rol: datos.rol, odooPartnerId: datos.odooPartnerId } });
+  await registrar(autor.id, "usuario.crear", {
+    detalle: { usuario: datos.usuario, rol: datos.rol, odooPartnerId: datos.odooPartnerId, permisosOff: limpiarPermisosOff(datos.rol, datos.permisosOff) },
+  });
   return filas[0].id;
 }
 
@@ -99,6 +104,7 @@ export async function editarUsuario(id: number, datos: z.infer<typeof editarSche
       activo: datos.activo,
       odooPartnerId: datos.odooPartnerId,
       odooPartnerNombre,
+      permisosOff: limpiarPermisosOff(datos.rol, datos.permisosOff),
       ...(datos.password ? { passwordHash: await hashPassword(datos.password), intentosFallidos: 0, bloqueadoHasta: null } : {}),
     })
     .where(eq(schema.usuarios.id, id));
@@ -106,6 +112,13 @@ export async function editarUsuario(id: number, datos: z.infer<typeof editarSche
     await db.delete(schema.sesiones).where(eq(schema.sesiones.usuarioId, id));
   }
   await registrar(autor.id, "usuario.editar", {
-    detalle: { usuario: actual.usuario, rol: datos.rol, activo: datos.activo, odooPartnerId: datos.odooPartnerId, cambioPassword: Boolean(datos.password) },
+    detalle: {
+      usuario: actual.usuario,
+      rol: datos.rol,
+      activo: datos.activo,
+      odooPartnerId: datos.odooPartnerId,
+      permisosOff: limpiarPermisosOff(datos.rol, datos.permisosOff),
+      cambioPassword: Boolean(datos.password),
+    },
   });
 }

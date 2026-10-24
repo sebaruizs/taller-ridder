@@ -5,14 +5,14 @@ import { exigirPagina } from "@/lib/auth";
 import { buscarFinalizacion } from "@/lib/finalizar-servicio";
 import type { Resumen } from "@/lib/finalizar";
 import { ESTADOS, formatoKm } from "@/lib/taller";
-import { puede } from "@/lib/permisos";
+import { puedeU } from "@/lib/permisos";
 
 export default async function Listo(props: PageProps<"/ordenes/[id]/listo">) {
   const u = await exigirPagina("ordenes.finalizar");
   const clave = z.string().uuid().safeParse((await props.searchParams).clave);
   if (!clave.success) notFound();
   const fin = await buscarFinalizacion(clave.data);
-  if (!fin || !fin.resumen || (fin.usuarioId !== u.id && !puede(u.rol, "finalizaciones.ver_ajenas"))) notFound();
+  if (!fin || !fin.resumen || (fin.usuarioId !== u.id && !puedeU(u, "finalizaciones.ver_ajenas"))) notFound();
   const r = fin.resumen as unknown as Resumen;
 
   return (

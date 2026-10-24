@@ -6,7 +6,16 @@ import { leerFotos } from "@/lib/fotos-form";
 import { mecanicosOdoo } from "@/lib/usuarios";
 import { crearOrdenComo } from "@/lib/nueva-orden-servicio";
 import { DatoInvalido, OrdenDuplicada } from "@/lib/crear-orden";
-import { puede } from "@/lib/permisos";
+import type { Accion } from "@/lib/permisos";
+
+// Cada columna se puede ver con cualquiera de estas acciones (así cada permiso funciona solo).
+const ACCIONES_POR_ESTADO: Record<string, Accion[]> = {
+  running: ["ordenes.ver_en_proceso", "ordenes.ver_todas"],
+  cancelled: ["ordenes.ver_todas", "ordenes.aprobar", "ordenes.editar"],
+  new: ["ordenes.ver_todas"],
+  to_be_paid: ["ordenes.ver_todas"],
+  done: ["ordenes.ver_todas"],
+};
 
 const query = z.object({
   estado: z.enum(["new", "running", "cancelled", "to_be_paid", "done"]).default("running"),
@@ -17,9 +26,8 @@ const query = z.object({
 });
 
 export const GET = manejar(async (req) => {
-  const u = await exigir("ordenes.ver_en_proceso");
   const p = query.parse(Object.fromEntries(new URL(req.url).searchParams));
-  if (p.estado !== "running" && !puede(u.rol, "ordenes.ver_todas")) return errorJson("No tenés permiso para esto", 403);
+  const u = await exigir(ACCIONES_POR_ESTADO[p.estado]);
   const data = await listarOrdenes({
     estado: p.estado,
     chapa: p.q || undefined,

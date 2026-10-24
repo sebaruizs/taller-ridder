@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCIONES, DURACION_SESION_DIAS, puede, type Accion } from "@/lib/permisos";
+import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, pantallasDe, permisosDelRol, puede, puedeU, type Accion } from "@/lib/permisos";
 import { ROLES } from "@/lib/db/schema";
 
 const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar"];
@@ -40,5 +40,40 @@ describe("permisos por rol", () => {
   it("la sesión del mecánico dura 30 días y la del admin es más corta", () => {
     expect(DURACION_SESION_DIAS.mecanico).toBe(30);
     for (const r of ROLES) expect(DURACION_SESION_DIAS.admin).toBeLessThanOrEqual(DURACION_SESION_DIAS[r]);
+  });
+});
+
+describe("permisos por usuario", () => {
+  it("a un jefe se le puede quitar cargar repuestos sin tocar lo demás", () => {
+    const jefe = { rol: "jefe" as const, permisosOff: ["repuestos"] };
+    expect(puedeU(jefe, "ordenes.editar")).toBe(false);
+    expect(puedeU(jefe, "ordenes.aprobar")).toBe(true);
+    expect(puedeU(jefe, "ordenes.crear")).toBe(true);
+  });
+
+  it("quitar un permiso nunca da algo que el rol no tiene", () => {
+    expect(puedeU({ rol: "mecanico", permisosOff: [] }, "ordenes.crear")).toBe(false);
+  });
+
+  it("al admin no se le puede quitar nada", () => {
+    expect(puedeU({ rol: "admin", permisosOff: ["repuestos", "aprobar"] }, "ordenes.editar")).toBe(true);
+    expect(permisosDelRol("admin")).toEqual([]);
+  });
+
+  it("cada rol solo ofrece los permisos que tiene", () => {
+    expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar"]);
+    expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
+  });
+
+  it("la pantalla de inicio siempre es una a la que puede entrar (sin bucles)", () => {
+    expect(inicioDe({ rol: "mecanico", permisosOff: [] })).toBe("/ordenes");
+    expect(inicioDe({ rol: "jefe", permisosOff: ["ver_ordenes"] })).toBe("/tablero");
+    expect(inicioDe({ rol: "mecanico", permisosOff: ["ver_ordenes", "finalizar"] })).toBe("/cuenta");
+  });
+
+  it("el menú muestra solo lo permitido", () => {
+    const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
+    expect(hrefs).toEqual(["/ordenes", "/verificar"]);
   });
 });

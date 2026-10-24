@@ -51,7 +51,7 @@ export function aprobarComo(ordenId: number, confirmaSinRepuestos: boolean, u: U
   return conCandado(ordenId, async () => {
     const cfg = env();
     const r = await aprobarOrden(
-      { odoo, telegram: enviarTelegram, autor: u.nombre, config: { chatTaller: cfg.TELEGRAM_CHAT_TALLER, chatErrores: cfg.TELEGRAM_CHAT_ERRORES } },
+      { odoo, telegram: enviarTelegram, autor: u.nombre, autorPartnerId: u.odooPartnerId, config: { chatTaller: cfg.TELEGRAM_CHAT_TALLER, chatErrores: cfg.TELEGRAM_CHAT_ERRORES } },
       ordenId,
       confirmaSinRepuestos,
     );

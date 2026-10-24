@@ -27,7 +27,7 @@ export default function Ingresar() {
         setPassword("");
         return;
       }
-      router.replace("/ordenes");
+      router.replace("/");
       router.refresh();
     } catch {
       setError("Sin conexión. Probá de nuevo.");

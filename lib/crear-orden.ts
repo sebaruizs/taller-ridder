@@ -1,10 +1,14 @@
 // Alta de una orden por el jefe de taller. Deja seguimiento en Odoo (nota), en Telegram y en el log (lo hace quien llama).
 import type { Many2one, OdooClient } from "./odoo";
+
+// Una moto con orden en alguno de estos estados sigue en el taller: no se le crea otra.
+export const ESTADOS_ABIERTOS = ["new", "running", "cancelled"] as const;
 import {
   CAMPOS_VEHICULO,
   MODELO_ORDEN,
   MODELO_VEHICULO,
   chapaDe,
+  conAutor,
   mensajeTelegramError,
   mensajeTelegramNuevaOrden,
   payloadFotos,
@@ -22,14 +26,15 @@ export type DepsNuevaOrden = {
   odoo: Pick<OdooClient, "searchRead" | "create" | "messagePost">;
   telegram: (chatId: string, texto: string) => Promise<void>;
   autor: string;
+  autorPartnerId?: number | null;
   config: { chatTaller: string; chatErrores: string; hoy: string };
 };
 
-export type OrdenExistente = { id: number; tipo: string | null; fecha: string | null };
+export type OrdenExistente = { id: number; tipo: string | null; fecha: string | null; estado: string };
 
 export class OrdenDuplicada extends Error {
   constructor(readonly existentes: OrdenExistente[]) {
-    super("Esta moto ya tiene una orden en proceso");
+    super("Esta moto ya tiene una orden abierta");
   }
 }
 
@@ -39,10 +44,10 @@ export type ResultadoNuevaOrden = { ordenId: number; chapa: string; avisos: stri
 
 export async function ordenesEnProcesoDe(odoo: DepsNuevaOrden["odoo"], vehiculoIds: number[]) {
   if (!vehiculoIds.length) return [];
-  return odoo.searchRead<{ id: number; vehicle_id: Many2one; service_type_id: Many2one; date: string | false }>(
+  return odoo.searchRead<{ id: number; vehicle_id: Many2one; service_type_id: Many2one; date: string | false; state: string }>(
     MODELO_ORDEN,
-    [["vehicle_id", "in", vehiculoIds], ["state", "=", "running"]],
-    ["id", "vehicle_id", "service_type_id", "date"],
+    [["vehicle_id", "in", vehiculoIds], ["state", "in", [...ESTADOS_ABIERTOS]]],
+    ["id", "vehicle_id", "service_type_id", "date", "state"],
     { limit: 50, order: "date desc" },
   );
 }
@@ -60,7 +65,9 @@ export async function crearOrden(e: EntradaNuevaOrden, deps: DepsNuevaOrden): Pr
 
   const existentes = await ordenesEnProcesoDe(odoo, [vehiculo.id]);
   if (existentes.length) {
-    throw new OrdenDuplicada(existentes.map((o) => ({ id: o.id, tipo: o.service_type_id ? o.service_type_id[1] : null, fecha: o.date || null })));
+    throw new OrdenDuplicada(
+      existentes.map((o) => ({ id: o.id, tipo: o.service_type_id ? o.service_type_id[1] : null, fecha: o.date || null, estado: o.state })),
+    );
   }
 
   const [tipo] = await odoo.searchRead<{ id: number; name: string }>("fleet.service.type", [["id", "=", e.tipoId]], ["id", "name"], { limit: 1 });
@@ -84,7 +91,11 @@ export async function crearOrden(e: EntradaNuevaOrden, deps: DepsNuevaOrden): Pr
   };
 
   await intentar("publicar la nota de seguimiento", () =>
-    odoo.messagePost(MODELO_ORDEN, ordenId, payloadNotaNuevaOrden({ autor: deps.autor, mecanico: e.mecanicoNombre, fotos: e.fotos.length })),
+    odoo.messagePost(
+      MODELO_ORDEN,
+      ordenId,
+      conAutor(payloadNotaNuevaOrden({ autor: deps.autor, mecanico: e.mecanicoNombre, fotos: e.fotos.length }), deps.autorPartnerId),
+    ),
   );
 
   if (e.fotos.length) {
@@ -102,7 +113,7 @@ export async function crearOrden(e: EntradaNuevaOrden, deps: DepsNuevaOrden): Pr
           }),
         );
       }
-      await odoo.messagePost(MODELO_ORDEN, ordenId, payloadFotos(ids, "Fotos de recepción"));
+      await odoo.messagePost(MODELO_ORDEN, ordenId, conAutor(payloadFotos(ids, "Fotos de recepción"), deps.autorPartnerId));
     });
   }
 

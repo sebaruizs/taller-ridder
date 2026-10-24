@@ -57,7 +57,7 @@ describe("repuestos de una orden para verificar", () => {
   });
 
   it("no deja cargar repuestos si la orden ya no está para verificar", async () => {
-    const t = armar({ estado: "to_be_paid" });
+    const t = armar({ estado: "done" });
     await expect(agregarRepuesto(t.odoo, 4132, { productoId: 46, cantidad: 1, costoUnitario: 1 })).rejects.toBeInstanceOf(NoVerificable);
     expect(t.llamadas.some((l) => l.method === "create")).toBe(false);
   });
@@ -72,11 +72,11 @@ describe("repuestos de una orden para verificar", () => {
 });
 
 describe("aprobar", () => {
-  it("pasa a Listo para entrega con el costo de repuestos, deja nota y avisa", async () => {
+  it("pasa a Finalizado con el costo de repuestos, deja nota y avisa", async () => {
     const t = armar({ lineas: [foco] });
     const r = await aprobarOrden(t.deps, 4132, false);
     const write = t.llamadas.find((l) => l.method === "write")!;
-    expect(write.args[1]).toEqual({ amount: 40000, state: "to_be_paid" });
+    expect(write.args[1]).toEqual({ amount: 40000, state: "done" });
     const nota = t.llamadas.find((l) => l.method === "messagePost")!.args[1] as { body: string };
     expect(nota.body).toContain("Verificado por Derlis");
     expect(nota.body).toContain("2 × Foco H4 - Narva — Gs. 40.000");
@@ -89,7 +89,7 @@ describe("aprobar", () => {
     await expect(aprobarOrden(t.deps, 4132, false)).rejects.toBeInstanceOf(NoVerificable);
     expect(t.llamadas.some((l) => l.method === "write")).toBe(false);
     await aprobarOrden(t.deps, 4132, true);
-    expect(t.llamadas.find((l) => l.method === "write")!.args[1]).toEqual({ amount: 0, state: "to_be_paid" });
+    expect(t.llamadas.find((l) => l.method === "write")!.args[1]).toEqual({ amount: 0, state: "done" });
   });
 
   it("si falla la nota, el cambio de estado queda y se avisa al grupo de errores", async () => {

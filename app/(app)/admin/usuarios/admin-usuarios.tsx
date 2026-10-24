@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { UsuarioAdmin, ContactoOdoo } from "@/lib/usuarios";
 import type { Rol } from "@/lib/db/schema";
+import { PERMISOS, permisosDelRol, type Permiso } from "@/lib/permisos";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
 
@@ -14,9 +15,10 @@ type Form = {
   odooPartnerId: number | null;
   password: string;
   activo: boolean;
+  permisosOff: string[];
 };
 
-const VACIO: Form = { id: null, usuario: "", nombre: "", rol: "mecanico", odooPartnerId: null, password: "", activo: true };
+const VACIO: Form = { id: null, usuario: "", nombre: "", rol: "mecanico", odooPartnerId: null, password: "", activo: true, permisosOff: [] };
 
 export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: number }) {
   const router = useRouter();
@@ -53,7 +55,7 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
   function editar(u: UsuarioAdmin) {
     setAviso(null);
     setError(null);
-    setForm({ id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, password: "", activo: u.activo });
+    setForm({ id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, password: "", activo: u.activo, permisosOff: u.permisosOff ?? [] });
   }
 
   function elegirContacto(id: number | null) {
@@ -67,7 +69,7 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
     if (!form || guardando) return;
     setGuardando(true);
     setError(null);
-    const body = { nombre: form.nombre, rol: form.rol, odooPartnerId: form.odooPartnerId, activo: form.activo, password: form.password };
+    const body = { nombre: form.nombre, rol: form.rol, odooPartnerId: form.odooPartnerId, activo: form.activo, password: form.password, permisosOff: form.permisosOff };
     try {
       const r = form.id
         ? await fetch(`/api/admin/usuarios/${form.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
@@ -134,6 +136,24 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
             <label htmlFor="f-nombre">Nombre visible</label>
             <input id="f-nombre" className="input" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} required />
           </div>
+          {permisosDelRol(form.rol).length > 0 && (
+            <fieldset className="card stack" style={{ gap: 10, border: 0, margin: 0 }}>
+              <legend className="label" style={{ padding: 0, marginBottom: 4 }}>Permisos</legend>
+              <span className="small muted">Destildá lo que esta persona no debe poder hacer.</span>
+              {permisosDelRol(form.rol).map((p) => (
+                <label key={p} className="row" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    style={{ width: 22, height: 22, flex: "none", accentColor: "var(--accent)" }}
+                    checked={!form.permisosOff.includes(p)}
+                    onChange={(e) => setForm({ ...form, permisosOff: e.target.checked ? form.permisosOff.filter((x) => x !== p) : [...form.permisosOff, p] })}
+                  />
+                  <span><strong>{PERMISOS[p as Permiso].nombre}</strong><br /><span className="small muted">{PERMISOS[p as Permiso].detalle}</span></span>
+                </label>
+              ))}
+            </fieldset>
+          )}
+          {form.rol === "admin" && <div className="small muted">El admin tiene siempre todos los permisos.</div>}
           <div className="field">
             <label htmlFor="f-pass">{nuevo ? "Contraseña" : "Nueva contraseña"}</label>
             <input id="f-pass" className="input" type="text" autoComplete="new-password" autoCapitalize="none" autoCorrect="off" spellCheck={false}
@@ -169,6 +189,11 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
           </div>
           <div className="small muted">Usuario: {u.usuario}</div>
           <div className="small muted">Odoo: {contactoNombre(u) ?? "sin contacto"}</div>
+          {u.rol !== "admin" && (u.permisosOff?.length ?? 0) > 0 && (
+            <div className="small" style={{ color: "var(--warn)" }}>
+              Sin: {u.permisosOff.map((p) => PERMISOS[p as Permiso]?.nombre ?? p).join(", ")}
+            </div>
+          )}
         </button>
       ))}
       </div>

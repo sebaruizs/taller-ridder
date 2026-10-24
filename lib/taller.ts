@@ -56,6 +56,14 @@ export type VehiculoOdoo = {
 
 export const TZ = "America/Asuncion";
 
+// Nota interna del chatter. body_is_html: sin esto Odoo 17+ guarda las etiquetas como texto ("<p>…</p>" literal).
+export const NOTA_INTERNA = { message_type: "comment", subtype_xmlid: "mail.mt_note", body_is_html: true } as const;
+
+// La nota figura a nombre del contacto de Odoo de quien hizo la acción, no del usuario de la API.
+export function conAutor<T extends Record<string, unknown>>(payload: T, partnerId: number | null | undefined): T & { author_id?: number } {
+  return partnerId ? { ...payload, author_id: partnerId } : payload;
+}
+
 export function hoyAsuncion(ahora = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(ahora);
 }
@@ -92,7 +100,6 @@ export type DatosFinalizar = {
   odometro: number;
   partnerMecanico: number | null;
   observacion: string;
-  listaEntrega: boolean;
 };
 
 // Paso 1: odómetro, costo = repuestos, fecha de fin; mecánico y chofer solo si faltaban.
@@ -110,8 +117,7 @@ export function payloadCamposFinalizar(orden: OrdenOdoo, vehiculo: VehiculoOdoo,
 export function payloadFotos(attachmentIds: number[], titulo = "Fotografías del vehículo") {
   return {
     body: `<p>${escaparHtml(titulo)}</p>`,
-    message_type: "comment",
-    subtype_xmlid: "mail.mt_note",
+    ...NOTA_INTERNA,
     attachment_ids: attachmentIds,
   };
 }
@@ -126,8 +132,7 @@ export function payloadNotaFinalizacion(p: { mecanico: string; observacion: stri
       `<p><b>Trabajo finalizado por ${escaparHtml(p.mecanico)}</b> (app del taller).</p>` +
       `<p>Odómetro: ${formatoKm(p.odometro)} km · Nuevo estado: ${ESTADOS[p.estado]}</p>` +
       (obs ? `<p>Observación: ${parrafos(obs)}</p>` : ""),
-    message_type: "comment",
-    subtype_xmlid: "mail.mt_note",
+    ...NOTA_INTERNA,
   };
 }
 
@@ -138,8 +143,7 @@ export const COLUMNAS_TABLERO = ["new", "running", "cancelled", "done"] as const
 export function payloadNotaCambioEstado(p: { autor: string; de: EstadoOrden; a: EstadoOrden }) {
   return {
     body: `<p><b>${escaparHtml(p.autor)}</b> pasó la orden de «${ESTADOS[p.de]}» a «${ESTADOS[p.a]}» (app del taller).</p>`,
-    message_type: "comment",
-    subtype_xmlid: "mail.mt_note",
+    ...NOTA_INTERNA,
   };
 }
 
@@ -174,9 +178,8 @@ export function payloadNotaVerificacion(p: { autor: string; lineas: LineaRepuest
         .join("")}</ul><p>Total repuestos: <b>${formatoGs(total)}</b></p>`
     : "<p>Sin repuestos.</p>";
   return {
-    body: `<p><b>Verificado por ${escaparHtml(p.autor)}</b> (app del taller). Nuevo estado: ${ESTADOS.to_be_paid}.</p>${detalle}`,
-    message_type: "comment",
-    subtype_xmlid: "mail.mt_note",
+    body: `<p><b>Verificado por ${escaparHtml(p.autor)}</b> (app del taller). Nuevo estado: ${ESTADOS[ESTADO_AL_APROBAR]}.</p>${detalle}`,
+    ...NOTA_INTERNA,
   };
 }
 
@@ -188,7 +191,7 @@ export function mensajeTelegramVerificado(p: { autor: string; chapa: string; tip
     `🔎 Verificado por ${p.autor}`,
     `🚗 Vehículo: ${p.chapa}`,
     `📝 Tarea: ${p.tipo ?? "—"}`,
-    `📌 Estado: ${ESTADOS.to_be_paid}`,
+    `📌 Estado: ${ESTADOS[ESTADO_AL_APROBAR]}`,
     "",
     "Repuestos:",
     lineas,
@@ -210,7 +213,7 @@ export function payloadNuevaOrden(vehiculo: VehiculoOdoo, datos: DatosNuevaOrden
     service_type_id: datos.tipoId,
     description: datos.descripcion.trim(),
     date: hoy,
-    state: "running",
+    state: "new",
   };
   if (vehiculo.driver_id) vals.purchaser_id = vehiculo.driver_id[0];
   if (datos.mecanicoPartnerId) vals.vendor_id = datos.mecanicoPartnerId;
@@ -224,8 +227,7 @@ export function payloadNotaNuevaOrden(p: { autor: string; mecanico: string | nul
       `<p>Mecánico asignado: ${escaparHtml(p.mecanico ?? "sin asignar")}` +
       (p.fotos ? ` · Fotos de recepción: ${p.fotos}` : "") +
       `</p>`,
-    message_type: "comment",
-    subtype_xmlid: "mail.mt_note",
+    ...NOTA_INTERNA,
   };
 }
 
@@ -249,16 +251,18 @@ export function mensajeTelegramNuevaOrden(p: {
   ].join("\n");
 }
 
-export function estadoFinal(listaEntrega: boolean): EstadoOrden {
-  return listaEntrega ? "to_be_paid" : "cancelled";
-}
+// El mecánico reporta y la orden queda para que el jefe cargue los repuestos.
+export const ESTADO_AL_REPORTAR: EstadoOrden = "cancelled";
+// El jefe carga los repuestos y aprueba: la orden queda cerrada.
+export const ESTADO_AL_APROBAR: EstadoOrden = "done";
 
 // Sin el check la moto queda sin chofer asignado: vuelve al stock "Para entregar".
-export function cambioVehiculoAlFinalizar(listaEntrega: boolean, estadoParaEntregar: number) {
-  return listaEntrega ? null : { state_id: estadoParaEntregar };
+// Moto sin chofer: al reportar vuelve al stock "Para entregar" (regla heredada de n8n).
+export function cambioVehiculoAlFinalizar(tieneChofer: boolean, estadoParaEntregar: number) {
+  return tieneChofer ? null : { state_id: estadoParaEntregar };
 }
 
-export function checkListaEntregaPorDefecto(orden: OrdenOdoo, vehiculo: VehiculoOdoo): boolean {
+export function tieneChofer(orden: Pick<OrdenOdoo, "purchaser_id">, vehiculo: Pick<VehiculoOdoo, "driver_id">): boolean {
   return Boolean(orden.purchaser_id || vehiculo.driver_id);
 }
 

@@ -6,8 +6,8 @@ import {
   MODELO_ORDEN,
   MODELO_VEHICULO,
   chapaDe,
-  checkListaEntregaPorDefecto,
   diasEnTaller,
+  tieneChofer,
   dominioOrdenes,
   type EstadoOrden,
   type OrdenOdoo,
@@ -98,7 +98,7 @@ export async function detalleOrden(id: number) {
     ultimoOdometro: vehiculo.odometer,
     repuestos: orden.total_products_cost,
     vehiculoId: vehiculo.id,
-    listaEntregaPorDefecto: checkListaEntregaPorDefecto(orden, vehiculo),
+    tieneChofer: tieneChofer(orden, vehiculo),
   };
 }
 

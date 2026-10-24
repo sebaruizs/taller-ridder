@@ -82,20 +82,35 @@ Cada envío lleva una clave única que genera el celular. El servidor guarda pri
 Si algo falla a la mitad, avisa al grupo de errores y el celular muestra **Reintentar**. El reintento usa la misma clave y sigue desde el paso que falló, sin duplicar fotos ni notas.
 El check viene marcado si la orden o el vehículo tienen chofer, igual que la regla que usaba n8n.
 
+## Flujo de una orden
+
+1. **Nuevo:** el jefe carga la orden (moto, tipo, pedido del chofer, mecánico, fotos de recepción).
+2. **En proceso:** el jefe la pasa desde el Tablero.
+3. **Listo para verificar:** el mecánico reporta el trabajo (odómetro, fotos, observación). Si la moto no tiene chofer, el vehículo pasa a "Para entregar".
+4. **Finalizado:** el jefe carga los repuestos usados y aprueba.
+
 ## Seguimiento
 
-Todo lo que se hace desde la app queda registrado en tres lugares:
+Todo queda en el historial (chatter) de la orden en Odoo, y la app lo muestra igual en las pantallas de finalizar y verificar:
 
-| Acción | Nota en el historial de la orden (Odoo) | Log de la app | Telegram (grupo del taller) |
+| Acción | En Odoo | Log de la app | Telegram |
 |---|---|---|---|
-| Orden nueva | "Orden cargada por X", mecánico asignado y fotos | `orden.crear` | 🆕 Nueva orden |
-| Finalizar | "Trabajo finalizado por X", odómetro, nuevo estado y observación | `orden.finalizar` | ✅ Trabajo finalizado |
-| Nuevo → En proceso (tablero) | "X pasó la orden de Nuevo a En proceso" | `orden.cambiar_estado` | — |
-| Repuestos y aprobación | "Verificado por X" con el detalle de repuestos y el total | `orden.repuesto_agregar`, `orden.repuesto_quitar`, `orden.verificar` | 🔎 Verificado |
-| Ingreso, usuarios, contraseñas | — | `login`, `usuario.*` | — |
+| Orden nueva | Nota "Orden cargada por X", mecánico y fotos de recepción | `orden.crear` | 🆕 Nueva orden |
+| Nuevo → En proceso | Etapa (automático) + nota "X pasó la orden…" | `orden.cambiar_estado` | — |
+| Reporte del mecánico | Etapa, Costo y Odómetro (automático) + nota "Trabajo finalizado por X" y fotos | `orden.finalizar` | ✅ Trabajo finalizado |
+| Repuestos | "Repuestos del servicio actualizados" (automático de Odoo) | `orden.repuesto_agregar` / `orden.repuesto_quitar` | — |
+| Aprobación | Etapa y Costo (automático) + nota "Verificado por X" con el detalle | `orden.verificar` | 🔎 Verificado |
+| Ingreso, usuarios, permisos | — | `login`, `usuario.*` | — |
 
-En Odoo todas las escrituras figuran hechas por el usuario de la API: la nota es lo que deja constancia de quién lo hizo de verdad.
-Cualquier falla al escribir en Odoo se avisa al grupo de errores de Telegram.
+- Las notas de la app se publican **a nombre del contacto de Odoo del usuario** (`author_id`) y como HTML (`body_is_html`), así se ven con formato y con quién lo hizo.
+- Los cambios automáticos de Odoo (Etapa, Costo) figuran a nombre del usuario de la API, porque la app escribe con ese usuario; la nota de al lado dice quién fue.
+- Cualquier falla al escribir en Odoo se avisa al grupo de errores de Telegram.
+
+## Permisos
+
+Cada rol tiene permisos por defecto y el admin puede quitarle permisos puntuales a cada usuario (pantalla Usuarios):
+Ver motos en proceso · Finalizar trabajos · Cargar órdenes nuevas · Tablero · Cargar repuestos · Aprobar verificación.
+El admin siempre tiene todo. Los permisos se controlan en el servidor en cada endpoint.
 
 ## Deploy en Easypanel
 

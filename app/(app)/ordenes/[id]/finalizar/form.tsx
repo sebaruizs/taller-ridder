@@ -25,14 +25,13 @@ function olvidarClave(ordenId: number) {
   } catch {}
 }
 
-export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecanico: string }) {
+export function FormFinalizar({ orden, mecanico, historial }: { orden: DetalleOrden; mecanico: string; historial: React.ReactNode }) {
   const router = useRouter();
   const fotosEstado = useFotos();
   const procesando = fotosEstado.procesando;
   const [odometro, setOdometro] = useState("");
   const [confirmaKm, setConfirmaKm] = useState(false);
   const [observacion, setObservacion] = useState("");
-  const [listaEntrega, setListaEntrega] = useState(orden.listaEntregaPorDefecto);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<{ msg: string; reintentable?: boolean } | null>(null);
 
@@ -53,7 +52,6 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
       fd.set("clave", clave);
       fd.set("odometro", String(km));
       fd.set("observacion", observacion.trim());
-      fd.set("listaEntrega", String(listaEntrega));
       fotosEstado.agregarAlForm(fd);
       const r = await fetch(`/api/ordenes/${orden.id}/finalizar`, { method: "POST", body: fd });
       if (r.status === 401) return router.replace("/ingresar");
@@ -113,6 +111,7 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
           </label>
         )}
       </div>
+      {historial}
       </div>
 
       <div>
@@ -123,16 +122,10 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
         <textarea id="obs" className="input" placeholder="Qué hiciste, qué repuestos cambiaste, qué falta…" value={observacion} onChange={(e) => setObservacion(e.target.value)} maxLength={4000} />
       </div>
 
-      <label className="check">
-        <input type="checkbox" checked={listaEntrega} onChange={(e) => setListaEntrega(e.target.checked)} />
-        <span>
-          <strong>La moto queda lista para entregar al chofer</strong>
-          <br />
-          <span className="small muted">
-            {listaEntrega ? "Pasa a «Listo para entrega»." : "Pasa a «Listo para verificar» y la moto queda «Para entregar»."}
-          </span>
-        </span>
-      </label>
+      <div className="small muted">
+        Al finalizar, la orden pasa a «Listo para verificar» para que el jefe cargue los repuestos.
+        {!orden.tieneChofer && " Como la moto no tiene chofer, queda «Para entregar»."}
+      </div>
 
       {error && (
         <div className="alert alert-danger" role="alert">

@@ -13,7 +13,7 @@ const cant = (s: string) => Number(s.replace(",", "."));
 
 type Aprobada = { chapa: string; lineas: LineaRepuesto[]; avisos: string[] };
 
-export function VerificarOrden({ orden, lineasIniciales }: { orden: DetalleOrden; lineasIniciales: LineaRepuesto[] }) {
+export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAprobar, historial }: { orden: DetalleOrden; lineasIniciales: LineaRepuesto[]; puedeRepuestos: boolean; puedeAprobar: boolean; historial: React.ReactNode }) {
   const router = useRouter();
   const [lineas, setLineas] = useState(lineasIniciales);
   const [q, setQ] = useState("");
@@ -120,7 +120,7 @@ export function VerificarOrden({ orden, lineasIniciales }: { orden: DetalleOrden
           <h2 className="center" style={{ margin: 0 }}>Orden verificada</h2>
           <div className="center"><span className="placa placa-lg">{aprobada.chapa}</span></div>
           <p className="center muted" style={{ margin: 0 }}>
-            Pasó a «Listo para entrega» con {aprobada.lineas.length === 1 ? "1 repuesto" : `${aprobada.lineas.length} repuestos`} ({gs(aprobada.lineas.reduce((s, l) => s + l.total, 0))}).
+            Quedó «Finalizada» con {aprobada.lineas.length === 1 ? "1 repuesto" : `${aprobada.lineas.length} repuestos`} ({gs(aprobada.lineas.reduce((s, l) => s + l.total, 0))}).
           </p>
           {aprobada.avisos.map((a) => <div key={a} className="alert alert-warn small">{a}</div>)}
           <Link className="btn btn-primary btn-lg" href="/verificar">Volver a Para verificar</Link>
@@ -129,7 +129,7 @@ export function VerificarOrden({ orden, lineasIniciales }: { orden: DetalleOrden
     );
   }
 
-  const puedeAprobar = editable && !ocupado && (lineas.length > 0 || sinRepuestos);
+  const listoParaAprobar = puedeAprobar && editable && !ocupado && (lineas.length > 0 || sinRepuestos);
 
   return (
     <main className="wrap">
@@ -161,16 +161,17 @@ export function VerificarOrden({ orden, lineasIniciales }: { orden: DetalleOrden
                   <span style={{ fontWeight: 600 }}>{l.producto}</span>
                   <span className="small muted">{l.cantidad} × {gs(l.costoUnitario)} = {gs(l.total)}</span>
                 </div>
-                {editable && (
+                {editable && puedeRepuestos && (
                   <button type="button" className="btn btn-ghost small" disabled={ocupado} onClick={() => quitar(l)} aria-label={`Quitar ${l.producto}`}>Quitar</button>
                 )}
               </div>
             ))}
           </section>
+          {historial}
         </div>
 
         <div>
-          {editable && (
+          {editable && puedeRepuestos && (
             <form className="card stack" style={{ gap: 12 }} onSubmit={agregar}>
               <strong>Agregar repuesto</strong>
               {producto ? (
@@ -212,7 +213,7 @@ export function VerificarOrden({ orden, lineasIniciales }: { orden: DetalleOrden
             </form>
           )}
 
-          {editable && lineas.length === 0 && (
+          {editable && puedeAprobar && lineas.length === 0 && (
             <label className="check">
               <input type="checkbox" checked={sinRepuestos} onChange={(e) => setSinRepuestos(e.target.checked)} />
               <span><strong>No se usaron repuestos</strong><br /><span className="small muted">Marcalo solo si el trabajo no llevó ningún repuesto.</span></span>
@@ -221,11 +222,11 @@ export function VerificarOrden({ orden, lineasIniciales }: { orden: DetalleOrden
 
           {error && <div className="alert alert-danger" role="alert">{error}</div>}
 
-          {editable && (
+          {editable && puedeAprobar && (
             <div className="bottom-bar">
               <div className="stack" style={{ gap: 6 }}>
-                <button className="btn btn-primary btn-block btn-lg" disabled={!puedeAprobar} onClick={aprobar}>
-                  {ocupado ? "Guardando en Odoo…" : "Aprobar · pasa a Listo para entrega"}
+                <button className="btn btn-primary btn-block btn-lg" disabled={!listoParaAprobar} onClick={aprobar}>
+                  {ocupado ? "Guardando en Odoo…" : "Aprobar · pasa a Finalizado"}
                 </button>
                 <span className="tiny muted center">Total repuestos: {gs(total)}</span>
               </div>

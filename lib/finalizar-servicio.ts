@@ -13,7 +13,6 @@ export type EntradaFinalizar = {
   ordenId: number;
   odometro: number;
   observacion: string;
-  listaEntrega: boolean;
   fotos: { nombre: string; mimetype: string; datos: Buffer }[];
 };
 
@@ -38,7 +37,6 @@ export async function crearYEjecutar(entrada: EntradaFinalizar, usuario: Usuario
           usuarioId: usuario.id,
           odometro: entrada.odometro,
           observacion: entrada.observacion,
-          listaEntrega: entrada.listaEntrega,
         })
         .onConflictDoNothing()
         .returning({ id: schema.finalizaciones.id });
