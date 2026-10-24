@@ -2,10 +2,10 @@ import { leerHistorial } from "@/lib/historial";
 
 const inicial = (n: string) => n.trim().charAt(0).toUpperCase() || "?";
 
-export async function Historial({ ordenId }: { ordenId: number }) {
-  const entradas = await leerHistorial(ordenId).catch(() => null);
+export async function Historial({ ordenId, modelo }: { ordenId: number; modelo?: string }) {
+  const entradas = await leerHistorial(ordenId, modelo).catch(() => null);
   return (
-    <section className="card stack" style={{ gap: 12 }} aria-label="Historial de la orden">
+    <section className="card stack" style={{ gap: 12 }} aria-label="Historial">
       <div className="row between">
         <strong>Historial</strong>
         <span className="tiny muted">Igual que en Odoo</span>

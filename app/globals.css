@@ -295,3 +295,12 @@ textarea.input { min-height: 110px; resize: vertical; }
   .fotos { grid-template-columns: repeat(4, 1fr); }
   .form-angosto { max-width: 600px; }
 }
+
+/* Precio editable */
+.precio-celda { display: inline-flex; align-items: center; gap: 4px; }
+.precio-lapiz { border: 0; background: transparent; color: var(--ridder); cursor: pointer; font-size: 15px; padding: 2px 4px; border-radius: 6px; min-height: 28px; }
+.precio-lapiz:hover { background: var(--surface-2); }
+.precio-edit { display: flex; flex-direction: column; gap: 6px; }
+.precio-edit .input { min-height: 40px; font-size: 16px; text-align: right; }
+.precio-edit .btn { min-height: 36px; padding: 0 12px; }
+.precio-edit.celda { min-width: 170px; align-items: flex-end; }

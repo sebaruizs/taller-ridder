@@ -20,6 +20,8 @@ export type Cambio = { campo: string; de: string; a: string };
 const NOMBRES: Record<string, string> = {
   Stage: "Etapa",
   Cost: "Costo",
+  "Sales Price": "Precio de venta",
+  "Cost Price": "Costo",
   "Odometer Value": "Odómetro",
   Driver: "Chofer",
   "Service Type": "Tipo de servicio",

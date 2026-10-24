@@ -4,13 +4,16 @@ import { z } from "zod";
 import { exigirPagina } from "@/lib/auth";
 import { comprasDeProducto, detalleProducto, movimientosDeProducto, usoEnTaller } from "@/lib/inventario";
 import { cantidad, fecha, gs } from "@/lib/formato";
-import { puedeAlguna } from "@/lib/permisos";
+import { puedeAlguna, puedeU } from "@/lib/permisos";
 import { Topbar } from "@/components/topbar";
+import { PrecioEditable } from "@/components/precio-editable";
+import { Historial } from "@/components/historial";
 
 const PESTANAS = [
   { id: "compras", nombre: "Compras" },
   { id: "movimientos", nombre: "Movimientos" },
   { id: "taller", nombre: "Uso en taller" },
+  { id: "historial", nombre: "Historial" },
 ] as const;
 type Pestana = (typeof PESTANAS)[number]["id"];
 
@@ -18,7 +21,10 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
   const u = await exigirPagina("inventario.ver");
   const id = Number((await props.params).id);
   if (!Number.isInteger(id) || id <= 0) notFound();
-  const tab: Pestana = z.enum(["compras", "movimientos", "taller"]).catch("compras").parse((await props.searchParams).tab);
+  const sp = await props.searchParams;
+  const tab: Pestana = z.enum(["compras", "movimientos", "taller", "historial"]).catch("compras").parse(sp.tab);
+  const creado = sp.creado === "1";
+  const conAvisos = sp.avisos === "1";
   const p = await detalleProducto(id);
   if (!p) notFound();
 
@@ -26,6 +32,11 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
     <>
       <Topbar titulo="Producto" volver="/inventario" />
       <main className="wrap stack inventario-wrap" style={{ gap: 14 }}>
+        {creado && (
+          <div className={`alert ${conAvisos ? "alert-warn" : "alert-ok"}`} role="status">
+            Producto creado en Odoo{conAvisos ? ", pero no se pudo cargar el proveedor o la nota de seguimiento. Revisalo en Odoo." : ", con una nota de quién lo cargó."}
+          </div>
+        )}
         <section className="card stack" style={{ gap: 4 }}>
           <h2 style={{ margin: 0, fontSize: 20 }}>{p.nombre}</h2>
           <span className="small muted">{p.categoria ?? "Sin categoría"}{p.codigo ? ` · Código ${p.codigo}` : ""}{p.unidad ? ` · ${p.unidad === "Units" ? "Unidades" : p.unidad}` : ""}</span>
@@ -33,9 +44,8 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
 
         <section className="kpis">
           <div className="card kpi"><span className="small muted">Disponible</span><strong className={p.disponible <= 0 ? "rojo" : ""}>{cantidad(p.disponible)}</strong></div>
-          <div className="card kpi"><span className="small muted">Previsto</span><strong>{cantidad(p.previsto)}</strong></div>
           <div className="card kpi"><span className="small muted">Costo</span><strong>{gs(p.costo)}</strong></div>
-          <div className="card kpi"><span className="small muted">Precio de venta</span><strong>{gs(p.precio)}</strong></div>
+          <div className="card kpi"><span className="small muted">Precio de venta</span><PrecioEditable productoId={p.id} precio={p.precio} costo={p.costo} puedeEditar={puedeU(u, "inventario.editar_precio")} variante="kpi" /></div>
           <div className="card kpi"><span className="small muted">Valor en stock</span><strong>{gs(p.valor)}</strong></div>
         </section>
 
@@ -49,6 +59,7 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
 
         {tab === "compras" && <Compras id={id} sellerIds={p.sellerIds} />}
         {tab === "movimientos" && <Movimientos id={id} />}
+        {tab === "historial" && (p.tmplId ? <Historial ordenId={p.tmplId} modelo="product.template" /> : <div className="card muted">Sin historial.</div>)}
         {tab === "taller" && <Taller id={id} verOrdenes={puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"])} />}
       </main>
     </>

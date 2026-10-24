@@ -14,6 +14,8 @@ export const ACCIONES = {
   "vehiculos.buscar": ["jefe", "admin"],
   "vehiculos.historial": ["jefe", "admin"],
   "inventario.ver": ["jefe", "admin"],
+  "inventario.crear": ["jefe", "admin"],
+  "inventario.editar_precio": ["jefe", "admin"],
   "usuarios.gestionar": ["admin"],
   "log.ver": ["admin"],
   "config.editar": ["admin"],
@@ -30,6 +32,8 @@ export const PERMISOS = {
   repuestos: { nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
   aprobar: { nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
   inventario: { nombre: "Inventario", detalle: "Ver productos, stock, costos, precios y compras", acciones: ["inventario.ver"] },
+  crear_productos: { nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
+  editar_precios: { nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
 } as const satisfies Record<string, { nombre: string; detalle: string; acciones: readonly Accion[] }>;
 
 export type Permiso = keyof typeof PERMISOS;
@@ -73,6 +77,7 @@ export const PANTALLAS = [
   { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Taller", acciones: ["usuarios.gestionar"] },
+  { href: "/inventario/nuevo", nombre: "+ Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"] },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
 ] as const satisfies readonly { href: string; nombre: string; seccion: Seccion; acciones: readonly Accion[] }[];
 

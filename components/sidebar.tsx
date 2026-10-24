@@ -6,13 +6,17 @@ import { SECCIONES, type Pantalla } from "@/lib/permisos";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
 
-const activo = (pathname: string, href: string) =>
-  href === "/ordenes" ? pathname.startsWith("/ordenes") && !pathname.startsWith("/ordenes/nueva") : pathname.startsWith(href);
+// Marca la opción más específica: en "/inventario/nuevo" se marca "Nuevo producto", no "Productos".
+function hrefActivo(pathname: string, hrefs: string[]): string | null {
+  const coinciden = hrefs.filter((h) => pathname === h || pathname.startsWith(h + "/"));
+  return coinciden.sort((a, b) => b.length - a.length)[0] ?? null;
+}
 
 // Solo visible en pantallas anchas; en el celular la navegación está en la barra de arriba.
 export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; pantallas: Pantalla[] }) {
   const pathname = usePathname();
   const router = useRouter();
+  const actual = hrefActivo(pathname, pantallas.map((p) => p.href));
 
   async function salir() {
     await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
@@ -36,7 +40,7 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
             <section key={s} className="stack" style={{ gap: 2 }}>
               <h2 className="side-seccion">{s}</h2>
               {items.map((l) => (
-                <Link key={l.href} href={l.href} className="side-link" aria-current={activo(pathname, l.href) ? "page" : undefined}>
+                <Link key={l.href} href={l.href} className="side-link" aria-current={actual === l.href ? "page" : undefined}>
                   {l.nombre}
                 </Link>
               ))}

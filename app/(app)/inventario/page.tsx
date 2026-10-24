@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { z } from "zod";
 import { exigirPagina } from "@/lib/auth";
+import { puedeU } from "@/lib/permisos";
 import { categoriasInventario, listarProductos, resumenInventario } from "@/lib/inventario";
 import { cantidad, gs, gsCorto } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
+import { PrecioEditable } from "@/components/precio-editable";
 
 const filtros = z.object({
   q: z.string().trim().max(60).optional().catch(undefined),
@@ -32,11 +34,13 @@ export default async function Inventario(props: PageProps<"/inventario">) {
     listarProductos({ q: f.q, categoriaId: f.cat, stock: f.stock, pagina: f.page }),
   ]);
   const paginas = Math.max(1, Math.ceil(lista.total / lista.porPagina));
+  const puedePrecio = puedeU(u, "inventario.editar_precio");
 
   return (
     <>
       <Topbar titulo="Inventario" nombre={u.nombre} rol={u.rol} />
       <main className="wrap stack inventario-wrap">
+        {puedeU(u, "inventario.crear") && <Link href="/inventario/nuevo" className="btn btn-primary solo-movil">+ Nuevo producto</Link>}
         <section className="kpis">
           <div className="card kpi"><span className="small muted">Valor del stock</span><strong>{gsCorto(resumen.valor)}</strong></div>
           <div className="card kpi"><span className="small muted">Unidades en depósito</span><strong>{cantidad(resumen.unidades)}</strong></div>
@@ -71,7 +75,6 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                   <th>Producto</th>
                   <th>Categoría</th>
                   <th className="num">Disponible</th>
-                  <th className="num">Previsto</th>
                   <th className="num">Costo</th>
                   <th className="num">Precio</th>
                   <th className="num">Valor en stock</th>
@@ -86,9 +89,8 @@ export default async function Inventario(props: PageProps<"/inventario">) {
                     </td>
                     <td className="small muted">{p.categoria ?? "—"}</td>
                     <td className={`num ${p.disponible <= 0 ? "rojo" : ""}`}>{cantidad(p.disponible)}</td>
-                    <td className="num muted">{cantidad(p.previsto)}</td>
                     <td className="num">{gs(p.costo)}</td>
-                    <td className="num">{gs(p.precio)}</td>
+                    <td className="num"><PrecioEditable productoId={p.id} precio={p.precio} costo={p.costo} puedeEditar={puedePrecio} variante="celda" /></td>
                     <td className="num">{gs(p.valor)}</td>
                   </tr>
                 ))}

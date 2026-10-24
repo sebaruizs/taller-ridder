@@ -9,7 +9,6 @@ type ProductoOdoo = {
   default_code: string | false;
   categ_id: Many2one;
   qty_available: number;
-  virtual_available: number;
   standard_price: number;
   list_price: number;
   uom_id: Many2one;
@@ -17,7 +16,7 @@ type ProductoOdoo = {
   seller_ids: number[];
 };
 
-const CAMPOS = ["id", "display_name", "default_code", "categ_id", "qty_available", "virtual_available", "standard_price", "list_price", "uom_id"];
+const CAMPOS = ["id", "display_name", "default_code", "categ_id", "qty_available", "standard_price", "list_price", "uom_id"];
 
 export type ProductoLista = {
   id: number;
@@ -25,7 +24,6 @@ export type ProductoLista = {
   codigo: string | null;
   categoria: string | null;
   disponible: number;
-  previsto: number;
   costo: number;
   precio: number;
   unidad: string | null;
@@ -39,7 +37,6 @@ function aLista(p: ProductoOdoo): ProductoLista {
     codigo: p.default_code || null,
     categoria: p.categ_id ? p.categ_id[1] : null,
     disponible: p.qty_available,
-    previsto: p.virtual_available,
     costo: p.standard_price,
     precio: p.list_price,
     unidad: p.uom_id ? p.uom_id[1] : null,
@@ -107,7 +104,7 @@ export async function detalleProducto(id: number) {
     .searchRead<ProductoOdoo>("product.product", [["id", "=", id], ["active", "in", [true, false]]], [...CAMPOS, "product_tmpl_id", "seller_ids"], { limit: 1 })
     .catch(() => []);
   if (!p) return null;
-  return { ...aLista(p), sellerIds: p.seller_ids };
+  return { ...aLista(p), sellerIds: p.seller_ids, tmplId: p.product_tmpl_id ? p.product_tmpl_id[0] : null };
 }
 
 export async function comprasDeProducto(id: number, sellerIds: number[]) {
@@ -204,4 +201,20 @@ export async function usoEnTaller(id: number): Promise<UsoTaller[]> {
         fecha: l.create_date ? l.create_date.slice(0, 10) : null,
       };
     });
+}
+
+export async function categoriasOdoo(): Promise<{ id: number; nombre: string }[]> {
+  const filas = await odoo.searchRead<{ id: number; complete_name: string }>("product.category", [], ["id", "complete_name"], { limit: 200, order: "complete_name asc" });
+  return filas.map((c) => ({ id: c.id, nombre: c.complete_name }));
+}
+
+// Proveedores: los marcados como tal en Odoo y los que ya tienen órdenes de compra.
+export async function proveedoresOdoo(): Promise<{ id: number; nombre: string }[]> {
+  const [marcados, conCompras] = await Promise.all([
+    odoo.searchRead<{ id: number; name: string }>("res.partner", [["supplier_rank", ">", 0]], ["id", "name"], { limit: 300 }),
+    odoo.readGroup<{ partner_id: Many2one }>("purchase.order", [], ["partner_id"], ["partner_id"]),
+  ]);
+  const mapa = new Map(marcados.map((p) => [p.id, p.name]));
+  for (const g of conCompras) if (g.partner_id) mapa.set(g.partner_id[0], g.partner_id[1]);
+  return [...mapa].map(([id, nombre]) => ({ id, nombre })).sort((a, b) => a.nombre.localeCompare(b.nombre));
 }

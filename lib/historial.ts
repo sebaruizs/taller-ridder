@@ -5,8 +5,8 @@ import { cambioDe, fechaHora, htmlATexto, type Cambio, type ValorTracking } from
 
 export type EntradaHistorial = { id: number; fecha: string; autor: string; texto: string; cambios: Cambio[]; adjuntos: number };
 
-// Lo mismo que muestra el chatter de la orden en Odoo, de lo más nuevo a lo más viejo.
-export async function leerHistorial(ordenId: number, limite = 40): Promise<EntradaHistorial[]> {
+// Lo mismo que muestra el chatter del registro en Odoo, de lo más nuevo a lo más viejo.
+export async function leerHistorial(resId: number, modelo = MODELO_ORDEN, limite = 40): Promise<EntradaHistorial[]> {
   const mensajes = await odoo.searchRead<{
     id: number;
     date: string;
@@ -16,7 +16,7 @@ export async function leerHistorial(ordenId: number, limite = 40): Promise<Entra
     attachment_ids: number[];
   }>(
     "mail.message",
-    [["model", "=", MODELO_ORDEN], ["res_id", "=", ordenId], ["message_type", "in", ["comment", "notification"]]],
+    [["model", "=", modelo], ["res_id", "=", resId], ["message_type", "in", ["comment", "notification"]]],
     ["id", "date", "author_id", "body", "tracking_value_ids", "attachment_ids"],
     { limit: limite, order: "id desc" },
   );
