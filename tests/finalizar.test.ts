@@ -12,7 +12,7 @@ const ORDEN = {
 };
 const VEHICULO = { id: 82, display_name: "Buler/Faiter/230ABPT", license_plate: "230ABPT", driver_id: [2560, "Elias"], state_id: [2, "En taller"], odometer: 15000 };
 
-function armar(opts: { fotos?: number; estadoOrden?: string; fallar?: (method: string, model: string, args: unknown[]) => boolean } = {}) {
+function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, string]; fallar?: (method: string, model: string, args: unknown[]) => boolean } = {}) {
   let estado: EstadoFinalizacion = {
     id: 1, ordenId: 4358, odometro: 15230, observacion: "cambié cadena", listaEntrega: true,
     camposOk: false, fotosOk: false, attachmentIds: [], notaOk: false, estadoOk: false, telegramOk: false,
@@ -27,7 +27,7 @@ function armar(opts: { fotos?: number; estadoOrden?: string; fallar?: (method: s
     if (opts.fallar?.(method, model, args)) throw new Error("Odoo caído");
   };
   const odoo: Deps["odoo"] = {
-    read: vi.fn(async (model: string, ids: number[]) => { registrar("read", model, ids); return [{ ...ORDEN, state: opts.estadoOrden ?? "running" }]; }) as never,
+    read: vi.fn(async (model: string, ids: number[]) => { registrar("read", model, ids); return [{ ...ORDEN, state: opts.estadoOrden ?? "running", vendor_id: opts.vendor ?? false }]; }) as never,
     searchRead: vi.fn(async (model: string) => { registrar("searchRead", model); return [VEHICULO]; }) as never,
     write: vi.fn(async (model: string, ids: number[], vals: Record<string, unknown>) => { registrar("write", model, ids, vals); return true; }),
     create: vi.fn(async (model: string, vals: Record<string, unknown>) => { registrar("create", model, vals); return ++sigAtt; }),
@@ -68,6 +68,14 @@ describe("finalizar", () => {
     expect(t.escrituras()[3].args[1]).toMatchObject({ attachment_ids: [901, 902], subtype_xmlid: "mail.mt_note" });
     expect(t.escrituras()[5].args[1]).toEqual({ state: "to_be_paid" });
     expect(r).toMatchObject({ chapa: "230ABPT", fotos: 2, estado: "to_be_paid", avisoTelegram: true });
+  });
+
+  it("si la orden ya tiene mecánico asignado, no lo reemplaza por el que reporta", async () => {
+    const t = armar({ vendor: [2068, "Kevin"] });
+    await ejecutarFinalizacion(t.estado, t.deps);
+    expect(t.escrituras()[0].args[1]).not.toHaveProperty("vendor_id");
+    const nota = t.llamadas.find((l) => l.method === "messagePost")!.args[1] as { body: string };
+    expect(nota.body).toContain("Trabajo finalizado por Juan");
   });
 
   it("sin fotos no crea adjuntos ni falla", async () => {

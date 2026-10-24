@@ -84,7 +84,7 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
   const f = { ...fin };
 
   const [orden] = await odoo.read<OrdenOdoo>(MODELO_ORDEN, [f.ordenId], [
-    "id", "vehicle_id", "service_type_id", "description", "state", "purchaser_id", "total_products_cost",
+    "id", "vehicle_id", "service_type_id", "description", "state", "purchaser_id", "vendor_id", "total_products_cost",
   ]);
   if (!orden || !orden.vehicle_id) throw new FinalizarError("lectura", "La orden no existe en Odoo");
   const [vehiculo] = await odoo.searchRead<VehiculoOdoo>(

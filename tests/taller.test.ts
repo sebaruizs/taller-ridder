@@ -76,6 +76,16 @@ describe("payload de campos al finalizar", () => {
     expect(vals).not.toHaveProperty("vendor_id");
   });
 
+  it("si la orden no tenía mecánico, queda asignada al que reporta", () => {
+    const vals = payloadCamposFinalizar(orden({ vendor_id: false }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "", listaEntrega: true }, "2026-10-24");
+    expect(vals.vendor_id).toBe(1685);
+  });
+
+  it("si la orden ya tenía mecánico asignado, no lo cambia", () => {
+    const vals = payloadCamposFinalizar(orden({ vendor_id: [2068, "Kevin"] }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "", listaEntrega: true }, "2026-10-24");
+    expect(vals).not.toHaveProperty("vendor_id");
+  });
+
   it("no pisa el chofer que ya tenía la orden", () => {
     const vals = payloadCamposFinalizar(orden({ purchaser_id: [1, "Otro"] }), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: 5, observacion: "", listaEntrega: true }, "2026-10-24");
     expect(vals).not.toHaveProperty("purchaser_id");

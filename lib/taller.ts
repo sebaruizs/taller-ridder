@@ -95,14 +95,14 @@ export type DatosFinalizar = {
   listaEntrega: boolean;
 };
 
-// Paso 1: odómetro, mecánico, costo = repuestos, fecha de fin y chofer si faltaba.
+// Paso 1: odómetro, costo = repuestos, fecha de fin; mecánico y chofer solo si faltaban.
 export function payloadCamposFinalizar(orden: OrdenOdoo, vehiculo: VehiculoOdoo, datos: DatosFinalizar, hoy: string) {
   const vals: Record<string, unknown> = {
     odometer: datos.odometro,
     amount: orden.total_products_cost || 0,
     service_end_date: hoy,
   };
-  if (datos.partnerMecanico) vals.vendor_id = datos.partnerMecanico;
+  if (!orden.vendor_id && datos.partnerMecanico) vals.vendor_id = datos.partnerMecanico;
   if (!orden.purchaser_id && vehiculo.driver_id) vals.purchaser_id = vehiculo.driver_id[0];
   return vals;
 }
