@@ -5,11 +5,15 @@ import type { Rol } from "@/lib/db/schema";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
 
+const activo = (pathname: string, href: string) =>
+  href === "/ordenes" ? pathname.startsWith("/ordenes") && !pathname.startsWith("/ordenes/nueva") : pathname.startsWith(href);
+
 // Solo visible en pantallas anchas; en el celular la navegación está en la barra de arriba.
 export function Sidebar({ nombre, rol }: { nombre: string; rol: Rol }) {
   const pathname = usePathname();
   const router = useRouter();
   const links = [
+    ...(rol !== "mecanico" ? [{ href: "/ordenes/nueva", label: "+ Nueva orden" }] : []),
     { href: "/ordenes", label: "Motos en proceso" },
     ...(rol === "admin" ? [{ href: "/admin/usuarios", label: "Usuarios" }] : []),
     { href: "/cuenta", label: "Mi cuenta" },
@@ -30,7 +34,7 @@ export function Sidebar({ nombre, rol }: { nombre: string; rol: Rol }) {
       </div>
       <nav className="stack" style={{ gap: 2 }}>
         {links.map((l) => (
-          <Link key={l.href} href={l.href} className="side-link" aria-current={pathname.startsWith(l.href) ? "page" : undefined}>
+          <Link key={l.href} href={l.href} className="side-link" aria-current={activo(pathname, l.href) ? "page" : undefined}>
             {l.label}
           </Link>
         ))}

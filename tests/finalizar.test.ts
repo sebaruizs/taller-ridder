@@ -78,10 +78,15 @@ describe("finalizar", () => {
     expect(r.fotos).toBe(0);
   });
 
-  it("sin observación no publica la nota", async () => {
+  it("sin observación igual deja la nota de seguimiento con mecánico, km y estado", async () => {
     const t = armar();
     const r = await ejecutarFinalizacion({ ...t.estado, observacion: "  " }, t.deps);
-    expect(t.llamadas.some((l) => l.method === "messagePost")).toBe(false);
+    const notas = t.llamadas.filter((l) => l.method === "messagePost");
+    expect(notas).toHaveLength(1);
+    const body = (notas[0].args[1] as { body: string }).body;
+    expect(body).toContain("Trabajo finalizado por Juan");
+    expect(body).toContain("15.230 km");
+    expect(body).not.toContain("Observación");
     expect(r.estado).toBe("to_be_paid");
   });
 

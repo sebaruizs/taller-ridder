@@ -1,4 +1,5 @@
 import { exigirPagina } from "@/lib/auth";
+import { puede } from "@/lib/permisos";
 import { Topbar } from "@/components/topbar";
 import { ListaOrdenes } from "./lista";
 
@@ -7,7 +8,7 @@ export default async function Ordenes() {
   return (
     <>
       <Topbar titulo="Motos en proceso" nombre={u.nombre} rol={u.rol} />
-      <ListaOrdenes tienePartner={Boolean(u.odooPartnerId)} />
+      <ListaOrdenes tienePartner={Boolean(u.odooPartnerId)} puedeCrear={puede(u.rol, "ordenes.crear")} />
     </>
   );
 }

@@ -9,7 +9,7 @@ type Tipo = { id: number; name: string };
 
 const DIAS_ALERTA = 7;
 
-export function ListaOrdenes({ tienePartner }: { tienePartner: boolean }) {
+export function ListaOrdenes({ tienePartner, puedeCrear }: { tienePartner: boolean; puedeCrear: boolean }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
@@ -65,6 +65,9 @@ export function ListaOrdenes({ tienePartner }: { tienePartner: boolean }) {
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
+      {puedeCrear && (
+        <Link href="/ordenes/nueva" className="btn btn-primary solo-movil">+ Nueva orden</Link>
+      )}
       <div className="filtros">
         <input
           className="input"

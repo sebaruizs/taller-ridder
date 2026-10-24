@@ -9,7 +9,10 @@ import {
   hoyAsuncion,
   mensajeTelegramFinalizado,
   payloadCamposFinalizar,
-  payloadObservacion,
+  payloadNotaFinalizacion,
+  payloadNuevaOrden,
+  payloadNotaNuevaOrden,
+  mensajeTelegramNuevaOrden,
   type OrdenOdoo,
   type VehiculoOdoo,
 } from "@/lib/taller";
@@ -101,11 +104,47 @@ describe("estado al finalizar", () => {
   });
 });
 
-describe("nota de observación", () => {
-  it("lleva el nombre del mecánico, es nota interna y escapa HTML", () => {
-    const p = payloadObservacion("Juan", "cambié <b>freno</b>\ny cadena");
+describe("nota de seguimiento al finalizar", () => {
+  it("dice quién finalizó, el odómetro y el estado, es nota interna y escapa HTML", () => {
+    const p = payloadNotaFinalizacion({ mecanico: "Juan", observacion: "cambié <b>freno</b>\ny cadena", odometro: 15230, estado: "to_be_paid" });
     expect(p.subtype_xmlid).toBe("mail.mt_note");
-    expect(p.body).toBe("<p><b>Juan</b>: cambié &lt;b&gt;freno&lt;/b&gt;<br>y cadena</p>");
+    expect(p.body).toContain("<b>Trabajo finalizado por Juan</b>");
+    expect(p.body).toContain("Odómetro: 15.230 km · Nuevo estado: Listo para entrega");
+    expect(p.body).toContain("Observación: cambié &lt;b&gt;freno&lt;/b&gt;<br>y cadena");
+  });
+
+  it("sin observación igual deja la nota, sin la línea de observación", () => {
+    const p = payloadNotaFinalizacion({ mecanico: "Juan", observacion: "  ", odometro: 1, estado: "cancelled" });
+    expect(p.body).toContain("Trabajo finalizado por Juan");
+    expect(p.body).not.toContain("Observación");
+  });
+});
+
+describe("nueva orden", () => {
+  it("crea en proceso, con fecha de hoy y el chofer del vehículo", () => {
+    expect(
+      payloadNuevaOrden(vehiculo({ driver_id: [2560, "Elias"] }), { tipoId: 11, descripcion: "  ruido en el motor ", mecanicoPartnerId: 1685 }, "2026-10-24"),
+    ).toEqual({ vehicle_id: 82, service_type_id: 11, description: "ruido en el motor", date: "2026-10-24", state: "running", purchaser_id: 2560, vendor_id: 1685 });
+  });
+
+  it("sin chofer ni mecánico no manda esos campos", () => {
+    const vals = payloadNuevaOrden(vehiculo(), { tipoId: 11, descripcion: "x", mecanicoPartnerId: null }, "2026-10-24");
+    expect(vals).not.toHaveProperty("purchaser_id");
+    expect(vals).not.toHaveProperty("vendor_id");
+  });
+
+  it("la nota dice quién la cargó y a quién se asignó", () => {
+    const p = payloadNotaNuevaOrden({ autor: "Ramón <jefe>", mecanico: null, fotos: 2 });
+    expect(p.body).toContain("Orden cargada por Ramón &lt;jefe&gt;");
+    expect(p.body).toContain("Mecánico asignado: sin asignar · Fotos de recepción: 2");
+  });
+
+  it("el aviso de Telegram nunca muestra false", () => {
+    const m = mensajeTelegramNuevaOrden({ autor: "Ramón", chapa: "230ABPT", tipo: "Reparación", descripcion: "", mecanico: null, chofer: null, ordenId: 9 });
+    expect(m).toContain("🆕 Nueva orden de taller #9");
+    expect(m).toContain("🔧 Pedido: —");
+    expect(m).toContain("Mecánico: Sin asignar");
+    expect(m).not.toContain("false");
   });
 });
 

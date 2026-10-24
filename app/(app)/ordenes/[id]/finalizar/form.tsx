@@ -1,12 +1,9 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DetalleOrden } from "@/lib/ordenes";
-import { comprimirFoto } from "@/lib/comprimir";
+import { SelectorFotos, useFotos } from "@/components/selector-fotos";
 
-type Foto = { id: string; blob: Blob; url: string };
-
-const MAX_FOTOS = 12;
 const fmt = (n: number) => new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
 
 function claveGuardada(ordenId: number): string {
@@ -30,48 +27,20 @@ function olvidarClave(ordenId: number) {
 
 export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecanico: string }) {
   const router = useRouter();
-  const inputFotos = useRef<HTMLInputElement>(null);
+  const fotosEstado = useFotos();
+  const procesando = fotosEstado.procesando;
   const [odometro, setOdometro] = useState("");
   const [confirmaKm, setConfirmaKm] = useState(false);
-  const [fotos, setFotos] = useState<Foto[]>([]);
-  const [procesando, setProcesando] = useState(0);
   const [observacion, setObservacion] = useState("");
   const [listaEntrega, setListaEntrega] = useState(orden.listaEntregaPorDefecto);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<{ msg: string; reintentable?: boolean } | null>(null);
-
-  useEffect(() => () => fotos.forEach((f) => URL.revokeObjectURL(f.url)), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const km = Number(odometro.replace(/\D/g, ""));
   const kmMenor = km > 0 && orden.ultimoOdometro > 0 && km < orden.ultimoOdometro;
   const puedeEnviar = km > 0 && (!kmMenor || confirmaKm) && procesando === 0 && !enviando;
 
   const yaFinalizada = orden.estado !== "running";
-
-  async function agregarFotos(files: FileList | null) {
-    if (!files?.length) return;
-    const lista = Array.from(files).slice(0, MAX_FOTOS - fotos.length);
-    setProcesando((p) => p + lista.length);
-    for (const file of lista) {
-      try {
-        const blob = await comprimirFoto(file);
-        setFotos((fs) => [...fs, { id: crypto.randomUUID(), blob, url: URL.createObjectURL(blob) }]);
-      } catch {
-        setError({ msg: "No se pudo leer una de las fotos. Probá sacarla de nuevo." });
-      } finally {
-        setProcesando((p) => p - 1);
-      }
-    }
-    if (inputFotos.current) inputFotos.current.value = "";
-  }
-
-  function quitarFoto(id: string) {
-    setFotos((fs) => {
-      const f = fs.find((x) => x.id === id);
-      if (f) URL.revokeObjectURL(f.url);
-      return fs.filter((x) => x.id !== id);
-    });
-  }
 
   // Reintentar = mismo envío con la misma clave; el servidor sigue desde el paso que falló.
   async function enviar() {
@@ -85,7 +54,7 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
       fd.set("odometro", String(km));
       fd.set("observacion", observacion.trim());
       fd.set("listaEntrega", String(listaEntrega));
-      fotos.forEach((f, i) => fd.append("fotos", f.blob, `foto-${i + 1}.jpg`));
+      fotosEstado.agregarAlForm(fd);
       const r = await fetch(`/api/ordenes/${orden.id}/finalizar`, { method: "POST", body: fd });
       if (r.status === 401) return router.replace("/ingresar");
       const d = await r.json().catch(() => ({}));
@@ -147,26 +116,7 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
       </div>
 
       <div>
-      <div className="field">
-        <span className="label">Fotos <span className="muted small">(opcional)</span></span>
-        <div className="fotos">
-          {fotos.map((f, i) => (
-            <div key={f.id} className="foto">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={f.url} alt={`Foto ${i + 1}`} />
-              <button type="button" onClick={() => quitarFoto(f.id)} aria-label={`Quitar foto ${i + 1}`}>×</button>
-            </div>
-          ))}
-          {Array.from({ length: procesando }).map((_, i) => <div key={`p${i}`} className="foto skeleton" />)}
-          {fotos.length + procesando < MAX_FOTOS && (
-            <button type="button" className="foto-add" onClick={() => inputFotos.current?.click()}>
-              <span style={{ fontSize: 28 }}>📷</span>
-              Sacá una foto
-            </button>
-          )}
-        </div>
-        <input ref={inputFotos} type="file" accept="image/*" capture="environment" multiple hidden onChange={(e) => agregarFotos(e.target.files)} />
-      </div>
+      <SelectorFotos estado={fotosEstado} />
 
       <div className="field">
         <label htmlFor="obs">Observación <span className="muted small">(opcional)</span></label>

@@ -4,10 +4,7 @@ import { errorJson, json, manejar } from "@/lib/api";
 import { buscarFinalizacion, crearYEjecutar } from "@/lib/finalizar-servicio";
 import { FinalizarError } from "@/lib/finalizar";
 import { puede } from "@/lib/permisos";
-
-const MAX_FOTOS = 12;
-const MAX_BYTES_FOTO = 4 * 1024 * 1024;
-const MIMES = new Set(["image/jpeg", "image/png", "image/webp"]);
+import { leerFotos } from "@/lib/fotos-form";
 
 const campos = z.object({
   clave: z.string().uuid("Clave de envío inválida"),
@@ -32,18 +29,11 @@ export const POST = manejar(async (req, ctx: RouteContext<"/api/ordenes/[id]/fin
     return errorJson("No tenés permiso para esto", 403);
   }
 
-  const archivos = form.getAll("fotos").filter((f): f is File => f instanceof File && f.size > 0);
-  if (archivos.length > MAX_FOTOS) return errorJson(`Máximo ${MAX_FOTOS} fotos`, 400);
-  const fotos = [];
-  for (const [i, f] of archivos.entries()) {
-    if (!MIMES.has(f.type)) return errorJson("Solo se aceptan fotos JPG, PNG o WEBP", 400);
-    if (f.size > MAX_BYTES_FOTO) return errorJson("Una de las fotos es demasiado grande", 400);
-    const ext = f.type === "image/png" ? "png" : f.type === "image/webp" ? "webp" : "jpg";
-    fotos.push({ nombre: `orden-${ordenId}-foto-${i + 1}.${ext}`, mimetype: f.type, datos: Buffer.from(await f.arrayBuffer()) });
-  }
+  const leidas = await leerFotos(form, `orden-${ordenId}`);
+  if ("error" in leidas) return errorJson(leidas.error, 400);
 
   try {
-    const resumen = await crearYEjecutar({ ...datos, ordenId, fotos }, u);
+    const resumen = await crearYEjecutar({ ...datos, ordenId, fotos: leidas.fotos }, u);
     return json({ resumen });
   } catch (e) {
     if (e instanceof FinalizarError) {

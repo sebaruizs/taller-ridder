@@ -107,21 +107,81 @@ export function payloadCamposFinalizar(orden: OrdenOdoo, vehiculo: VehiculoOdoo,
   return vals;
 }
 
-export function payloadFotos(attachmentIds: number[]) {
+export function payloadFotos(attachmentIds: number[], titulo = "Fotografías del vehículo") {
   return {
-    body: "<p>Fotografías del vehículo</p>",
+    body: `<p>${escaparHtml(titulo)}</p>`,
     message_type: "comment",
     subtype_xmlid: "mail.mt_note",
     attachment_ids: attachmentIds,
   };
 }
 
-export function payloadObservacion(mecanico: string, observacion: string) {
+const parrafos = (s: string) => escaparHtml(s).replace(/\r?\n/g, "<br>");
+
+// Siempre se publica, haya o no observación: deja en Odoo quién finalizó y cómo.
+export function payloadNotaFinalizacion(p: { mecanico: string; observacion: string; odometro: number; estado: EstadoOrden }) {
+  const obs = p.observacion.trim();
   return {
-    body: `<p><b>${escaparHtml(mecanico)}</b>: ${escaparHtml(observacion).replace(/\r?\n/g, "<br>")}</p>`,
+    body:
+      `<p><b>Trabajo finalizado por ${escaparHtml(p.mecanico)}</b> (app del taller).</p>` +
+      `<p>Odómetro: ${formatoKm(p.odometro)} km · Nuevo estado: ${ESTADOS[p.estado]}</p>` +
+      (obs ? `<p>Observación: ${parrafos(obs)}</p>` : ""),
     message_type: "comment",
     subtype_xmlid: "mail.mt_note",
   };
+}
+
+// ---------- nueva orden (jefe de taller) ----------
+
+export type DatosNuevaOrden = {
+  tipoId: number;
+  descripcion: string;
+  mecanicoPartnerId: number | null;
+};
+
+export function payloadNuevaOrden(vehiculo: VehiculoOdoo, datos: DatosNuevaOrden, hoy: string) {
+  const vals: Record<string, unknown> = {
+    vehicle_id: vehiculo.id,
+    service_type_id: datos.tipoId,
+    description: datos.descripcion.trim(),
+    date: hoy,
+    state: "running",
+  };
+  if (vehiculo.driver_id) vals.purchaser_id = vehiculo.driver_id[0];
+  if (datos.mecanicoPartnerId) vals.vendor_id = datos.mecanicoPartnerId;
+  return vals;
+}
+
+export function payloadNotaNuevaOrden(p: { autor: string; mecanico: string | null; fotos: number }) {
+  return {
+    body:
+      `<p><b>Orden cargada por ${escaparHtml(p.autor)}</b> (app del taller).</p>` +
+      `<p>Mecánico asignado: ${escaparHtml(p.mecanico ?? "sin asignar")}` +
+      (p.fotos ? ` · Fotos de recepción: ${p.fotos}` : "") +
+      `</p>`,
+    message_type: "comment",
+    subtype_xmlid: "mail.mt_note",
+  };
+}
+
+export function mensajeTelegramNuevaOrden(p: {
+  autor: string;
+  chapa: string;
+  tipo: string;
+  descripcion: string;
+  mecanico: string | null;
+  chofer: string | null;
+  ordenId: number;
+}): string {
+  return [
+    `🆕 Nueva orden de taller #${p.ordenId}`,
+    `🚗 Vehículo: ${p.chapa}`,
+    `📝 Tarea: ${p.tipo}`,
+    `🔧 Pedido: ${textoOVacio(p.descripcion)}`,
+    `👨‍🔧 Mecánico: ${p.mecanico ?? "Sin asignar"}`,
+    `👤 Chofer: ${p.chofer ?? "—"}`,
+    `🧾 Cargada por ${p.autor}`,
+  ].join("\n");
 }
 
 export function estadoFinal(listaEntrega: boolean): EstadoOrden {

@@ -9,7 +9,8 @@ La base propia (Postgres) guarda únicamente usuarios, sesiones, el log y el est
 ## Estado
 
 - **Etapa 1 (lista):** ingreso con usuario y contraseña, roles, usuarios vinculados a su contacto de Odoo, lista de órdenes en proceso, finalizar y confirmación.
-- Etapa 2: nueva orden, kanban y detalle (jefe).
+- **Nueva orden (jefe y admin):** buscar la moto por chapa contra Odoo, tipo de servicio, qué pide el chofer, mecánico (opcional) y fotos de recepción (opcional). Si la moto ya tiene una orden en proceso, avisa y ofrece abrirla en vez de duplicar.
+- Pendiente de la Etapa 2: kanban y detalle de orden (jefe).
 - Etapa 3: historial, usuarios y log (admin).
 
 ## Desarrollo local
@@ -79,6 +80,19 @@ Cada envío lleva una clave única que genera el celular. El servidor guarda pri
 
 Si algo falla a la mitad, avisa al grupo de errores y el celular muestra **Reintentar**. El reintento usa la misma clave y sigue desde el paso que falló, sin duplicar fotos ni notas.
 El check viene marcado si la orden o el vehículo tienen chofer, igual que la regla que usaba n8n.
+
+## Seguimiento
+
+Todo lo que se hace desde la app queda registrado en tres lugares:
+
+| Acción | Nota en el historial de la orden (Odoo) | Log de la app | Telegram (grupo del taller) |
+|---|---|---|---|
+| Orden nueva | "Orden cargada por X", mecánico asignado y fotos | `orden.crear` | 🆕 Nueva orden |
+| Finalizar | "Trabajo finalizado por X", odómetro, nuevo estado y observación | `orden.finalizar` | ✅ Trabajo finalizado |
+| Ingreso, usuarios, contraseñas | — | `login`, `usuario.*` | — |
+
+En Odoo todas las escrituras figuran hechas por el usuario de la API: la nota es lo que deja constancia de quién lo hizo de verdad.
+Cualquier falla al escribir en Odoo se avisa al grupo de errores de Telegram.
 
 ## Deploy en Easypanel
 

@@ -10,7 +10,7 @@ import {
   mensajeTelegramFinalizado,
   payloadCamposFinalizar,
   payloadFotos,
-  payloadObservacion,
+  payloadNotaFinalizacion,
   type EstadoOrden,
   type OrdenOdoo,
   type VehiculoOdoo,
@@ -74,7 +74,7 @@ const NOMBRE_PASO: Record<FinalizarError["paso"], string> = {
   validacion: "validar",
   campos: "cargar odómetro, mecánico y costo",
   fotos: "subir las fotos",
-  nota: "publicar la observación",
+  nota: "publicar la nota de seguimiento",
   estado: "cambiar el estado",
   telegram: "avisar por Telegram",
 };
@@ -155,16 +155,18 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
     await store.borrarFotos();
   }
 
+  const estado = estadoFinal(f.listaEntrega);
   if (!f.notaOk) {
     await paso("nota", async () => {
-      if (f.observacion.trim()) {
-        await odoo.messagePost(MODELO_ORDEN, f.ordenId, payloadObservacion(deps.mecanico.nombre, f.observacion.trim()));
-      }
+      await odoo.messagePost(
+        MODELO_ORDEN,
+        f.ordenId,
+        payloadNotaFinalizacion({ mecanico: deps.mecanico.nombre, observacion: f.observacion, odometro: f.odometro, estado }),
+      );
       return { notaOk: true };
     });
   }
 
-  const estado = estadoFinal(f.listaEntrega);
   if (!f.estadoOk) {
     await paso("estado", async () => {
       await odoo.write(MODELO_ORDEN, [f.ordenId], { state: estado });
