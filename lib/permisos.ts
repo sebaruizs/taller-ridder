@@ -73,14 +73,15 @@ export function limpiarPermisosOff(rol: Rol, off: readonly string[]): Permiso[] 
 
 // Pantallas según permisos: alimenta el menú y la pantalla de inicio.
 export const SECCIONES = ["Taller", "Inventario", "Compras"] as const;
-export type Seccion = (typeof SECCIONES)[number];
+// "Configuración" no va en el menú principal: se abre con el engranaje junto al nombre.
+export type Seccion = (typeof SECCIONES)[number] | "Configuración";
 
 export const PANTALLAS = [
   { href: "/ordenes/nueva", nombre: "+ Nueva orden", seccion: "Taller", acciones: ["ordenes.crear"] },
   { href: "/tablero", nombre: "Tablero", seccion: "Taller", acciones: ["ordenes.ver_todas"] },
   { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
-  { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Taller", acciones: ["usuarios.gestionar"] },
+  { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Configuración", acciones: ["usuarios.gestionar"] },
   { href: "/inventario/nuevo", nombre: "+ Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"] },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
   { href: "/compras/nueva", nombre: "+ Nueva compra", seccion: "Compras", acciones: ["compras.crear"] },
