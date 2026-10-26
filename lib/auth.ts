@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createHash, randomBytes } from "node:crypto";
@@ -8,11 +9,11 @@ import { getDb, schema } from "./db";
 import { env } from "./env";
 import { DURACION_SESION_DIAS, inicioDe, puedeAlguna, type Accion } from "./permisos";
 import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido } from "./credenciales";
-import type { Rol } from "./db/schema";
+import type { Rol, Tema } from "./db/schema";
 
 export const COOKIE = "taller_sesion";
 
-export type Usuario = { id: number; usuario: string; nombre: string; rol: Rol; odooPartnerId: number | null; permisosOff: string[] };
+export type Usuario = { id: number; usuario: string; nombre: string; rol: Rol; odooPartnerId: number | null; permisosOff: string[]; tema: Tema };
 
 export class NoAutorizado extends Error {
   constructor(readonly status: 401 | 403) {
@@ -74,7 +75,7 @@ export async function login(usuario: string, password: string): Promise<Resultad
     expires: expira,
   });
   await registrar(u.id, "login");
-  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff } };
+  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff, tema: u.tema } };
 }
 
 export async function cambiarPassword(usuarioId: number, actual: string, nueva: string): Promise<string | null> {
@@ -100,7 +101,8 @@ export async function logout(): Promise<void> {
   jar.delete(COOKIE);
 }
 
-export async function usuarioActual(): Promise<Usuario | null> {
+// cache: el layout raíz (tema) y cada página lo piden en el mismo request; una sola consulta.
+export const usuarioActual = cache(async (): Promise<Usuario | null> => {
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   const db = await getDb();
@@ -113,13 +115,14 @@ export async function usuarioActual(): Promise<Usuario | null> {
       odooPartnerId: schema.usuarios.odooPartnerId,
       permisosOff: schema.usuarios.permisosOff,
       activo: schema.usuarios.activo,
+      tema: schema.usuarios.tema,
     })
     .from(schema.sesiones)
     .innerJoin(schema.usuarios, eq(schema.sesiones.usuarioId, schema.usuarios.id))
     .where(and(eq(schema.sesiones.id, hashToken(token)), gt(schema.sesiones.expira, new Date())));
   if (!fila || !fila.activo) return null;
-  return { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId, permisosOff: fila.permisosOff ?? [] };
-}
+  return { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId, permisosOff: fila.permisosOff ?? [], tema: fila.tema };
+});
 
 // Para Route Handlers: tira NoAutorizado (401/403).
 // Con varias acciones alcanza con tener alguna.

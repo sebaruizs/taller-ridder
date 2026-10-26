@@ -19,6 +19,10 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
 export const ROLES = ["mecanico", "jefe", "admin"] as const;
 export type Rol = (typeof ROLES)[number];
 
+// Tema de pantalla de cada usuario. "sistema" sigue al celular o la PC.
+export const TEMAS = ["claro", "oscuro", "sistema"] as const;
+export type Tema = (typeof TEMAS)[number];
+
 export const usuarios = pgTable("usuarios", {
   id: serial("id").primaryKey(),
   usuario: text("usuario").notNull().unique(),
@@ -29,6 +33,7 @@ export const usuarios = pgTable("usuarios", {
   odooPartnerNombre: text("odoo_partner_nombre"),
   permisosOff: jsonb("permisos_off").$type<string[]>().notNull().default([]),
   activo: boolean("activo").notNull().default(true),
+  tema: text("tema", { enum: TEMAS }).notNull().default("claro"),
   intentosFallidos: integer("intentos_fallidos").notNull().default(0),
   bloqueadoHasta: timestamp("bloqueado_hasta", { withTimezone: true }),
   creado: timestamp("creado", { withTimezone: true }).notNull().defaultNow(),

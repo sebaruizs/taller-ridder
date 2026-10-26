@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { usuarioActual } from "@/lib/auth";
 import { Topbar } from "@/components/topbar";
 import { CambiarPassword } from "./cambiar-password";
+import { ElegirTema } from "./tema";
 
 export default async function Cuenta() {
   const u = await usuarioActual();
@@ -15,6 +16,7 @@ export default async function Cuenta() {
             <strong>{u.nombre}</strong>
             <span className="small muted">Usuario: {u.usuario}</span>
           </section>
+          <ElegirTema inicial={u.tema} />
           <CambiarPassword />
         </div>
       </main>

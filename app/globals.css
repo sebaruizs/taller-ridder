@@ -26,8 +26,9 @@
   --shadow: 0 1px 2px rgba(18, 22, 26, 0.06), 0 2px 8px rgba(18, 22, 26, 0.05);
   color-scheme: light;
 }
+/* Claro por defecto. Oscuro si el usuario lo elige en Mi cuenta, o "Automático" con el dispositivo en oscuro. */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root[data-theme="system"] {
     --bg: #071022; --surface: #0f1a30; --surface-2: #16243f; --ink: #eaf0fb; --ink-2: #adb9d0; --ink-3: #7c89a4;
     --line: #22314f; --brand: #060d1c; --brand-raised: #112142; --brand-line: #182a4d;
     --danger: #ff6b5c; --danger-soft: #3a1714; --warn: #ffb547; --warn-soft: #352510; --ok: #4ad584; --ok-soft: #112d1d;
@@ -107,7 +108,8 @@ a { color: inherit; }
   background: var(--surface); border: 1px solid transparent; border-radius: var(--radius); box-shadow: var(--shadow);
   padding: 14px; display: block; text-decoration: none; color: inherit;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .card { border-color: var(--line); } }
+@media (prefers-color-scheme: dark) { :root[data-theme="system"] .card { border-color: var(--line); } }
+:root[data-theme="dark"] .card { border-color: var(--line); }
 .stack { display: flex; flex-direction: column; gap: 10px; }
 .row { display: flex; align-items: center; gap: 10px; }
 .between { justify-content: space-between; }
@@ -345,3 +347,16 @@ textarea.input { min-height: 110px; resize: vertical; }
 .interruptor:checked { background: var(--accent); }
 .interruptor:checked::after { transform: translateX(18px); }
 .interruptor:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
+
+/* Mi cuenta: elegir tema. */
+.temas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.tema-opcion {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer;
+}
+.tema-opcion[aria-checked="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.tema-opcion:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
+.tema-muestra { width: 100%; height: 34px; border-radius: 8px; border: 1px solid #c9d3e6; margin-bottom: 4px; }
+.tema-muestra-claro { background: linear-gradient(90deg, #0a1a3a 0 28%, #f3f6fc 28%); }
+.tema-muestra-oscuro { background: linear-gradient(90deg, #060d1c 0 28%, #0f1a30 28%); border-color: #22314f; }
+.tema-muestra-sistema { background: linear-gradient(135deg, #f3f6fc 0 50%, #0f1a30 50%); }
