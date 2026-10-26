@@ -360,3 +360,17 @@ textarea.input { min-height: 110px; resize: vertical; }
 .tema-muestra-claro { background: linear-gradient(90deg, #0a1a3a 0 28%, #f3f6fc 28%); }
 .tema-muestra-oscuro { background: linear-gradient(90deg, #060d1c 0 28%, #0f1a30 28%); border-color: #22314f; }
 .tema-muestra-sistema { background: linear-gradient(135deg, #f3f6fc 0 50%, #0f1a30 50%); }
+
+/* Tablero: arrastrar tarjetas a la columna siguiente (en PC). Tocar la tarjeta hace lo mismo. */
+.tablero-card[data-movible] { cursor: grab; transition: box-shadow 0.15s, border-color 0.15s, opacity 0.15s; }
+.tablero-card[data-movible]:hover { border-color: var(--ridder); }
+.tablero-card[data-movible]:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
+.tablero-card[data-arrastrando] { opacity: 0.45; cursor: grabbing; }
+.tablero-col { transition: box-shadow 0.15s, opacity 0.15s, background 0.15s; }
+.tablero-col[data-destino] { box-shadow: inset 0 0 0 2px var(--accent); }
+.tablero-col[data-encima] { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
+.tablero-col[data-apagada] { opacity: 0.55; }
+.tablero-soltar {
+  padding: 14px 10px; border: 2px dashed var(--accent); border-radius: 12px; text-align: center;
+  font-size: 13.5px; font-weight: 600; color: var(--accent);
+}
