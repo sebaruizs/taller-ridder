@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, menuDe, modulosDelRol, moduloDeAccion, pantallasDe, permisosDelRol, puede, puedeU, resumenPermisosOff, type Accion } from "@/lib/permisos";
 import { ROLES } from "@/lib/db/schema";
 
-const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar", "solicitudes.crear"];
+const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar"];
 const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "ordenes.ver_todas",
   "ordenes.crear",
@@ -13,7 +13,6 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "vehiculos.buscar",
   "vehiculos.historial",
   "reportes.ver",
-  "solicitudes.aprobar",
   "inventario.ver",
   "inventario.crear",
   "inventario.editar_precio",
@@ -68,8 +67,8 @@ describe("permisos por usuario", () => {
   });
 
   it("cada rol solo ofrece los permisos que tiene", () => {
-    expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar", "solicitar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "solicitar", "crear", "tablero", "repuestos", "reportes", "aprobar_solicitudes", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
+    expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "reportes", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -81,7 +80,7 @@ describe("permisos por usuario", () => {
 
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
-    expect(hrefs).toEqual(["/ordenes", "/verificar", "/reportes", "/solicitudes/nueva", "/solicitudes", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
+    expect(hrefs).toEqual(["/ordenes", "/verificar", "/reportes", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
   });
 });
 
@@ -124,11 +123,11 @@ describe("permisos por módulo", () => {
 describe("menú lateral", () => {
   it("las pantallas de alta no van en el menú: se entra desde cada módulo", () => {
     const hrefs = menuDe(pantallasDe({ rol: "jefe", permisosOff: [] })).map((p) => p.href);
-    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/reportes", "/solicitudes", "/inventario", "/compras"]);
+    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/reportes", "/inventario", "/compras"]);
   });
 
   it("si cargar es lo único que tiene en el módulo, el alta sí aparece", () => {
-    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "reportes", "solicitar", "aprobar_solicitudes", "inventario"] };
+    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "reportes", "inventario"] };
     const hrefs = menuDe(pantallasDe(u)).map((p) => p.href);
     expect(hrefs).toContain("/ordenes/nueva");
     expect(hrefs).toContain("/inventario/nuevo");

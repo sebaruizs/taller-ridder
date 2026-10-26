@@ -17,8 +17,6 @@ export default async function Ordenes() {
           finalizar: puedeU(u, "ordenes.finalizar"),
           inventario: puedeU(u, "inventario.ver"),
           compras: puedeU(u, "compras.ver"),
-          solicitar: puedeU(u, "solicitudes.crear"),
-          solicitudes: puedeAlguna(u, ["solicitudes.crear", "solicitudes.aprobar"]),
         }}
       />
     </>
