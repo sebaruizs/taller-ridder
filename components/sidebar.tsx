@@ -9,6 +9,8 @@ const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de 
 
 // Marca la opción más específica; en "/inventario/nuevo" queda marcado "Productos".
 function hrefActivo(pathname: string, hrefs: string[]): string | null {
+  // El detalle de una orden (/ordenes/123) se abre desde el tablero o reportes: no marca "Motos en proceso".
+  if (/^\/ordenes\/\d+$/.test(pathname)) return null;
   const coinciden = hrefs.filter((h) => pathname === h || pathname.startsWith(h + "/"));
   return coinciden.sort((a, b) => b.length - a.length)[0] ?? null;
 }

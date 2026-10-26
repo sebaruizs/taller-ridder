@@ -18,7 +18,7 @@ async function miniatura(datos: Buffer): Promise<Buffer | null> {
 }
 
 export const GET = manejar(async (req, ctx: RouteContext<"/api/fotos/[id]">) => {
-  await exigir(["reportes.ver", "ordenes.aprobar", "ordenes.editar"]);
+  await exigir(["reportes.ver", "ordenes.ver_todas", "ordenes.aprobar", "ordenes.editar"]);
   const id = z.coerce.number().int().positive().parse((await ctx.params).id);
   const mini = new URL(req.url).searchParams.get("tam") === "mini";
   const cache = { "Cache-Control": "private, max-age=31536000, immutable" };

@@ -56,6 +56,17 @@ export async function listarReportes(f: { q?: string; mecanicoId?: number; desde
   return { total, pagina: f.pagina, porPagina: POR_PAGINA_REPORTES, reportes };
 }
 
+// El reporte (observación, fotos, hora) de una sola orden, para su detalle.
+export async function reporteDeOrden(ordenId: number, mecanico: string | null) {
+  const mensajes = await odoo.searchRead<MensajeOrden>(
+    "mail.message",
+    [["model", "=", MODELO_ORDEN], ["res_id", "=", ordenId], ["message_type", "=", "comment"]],
+    ["id", "date", "body", "attachment_ids"],
+    { limit: 200, order: "id desc" },
+  );
+  return leerReporte(mensajes, mecanico);
+}
+
 export type Reporte = Awaited<ReturnType<typeof listarReportes>>["reportes"][number];
 
 // Foto de una orden de taller. Solo sirve adjuntos de órdenes: nunca otros archivos de Odoo.

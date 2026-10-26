@@ -85,7 +85,7 @@ export default async function Reportes(props: PageProps<"/reportes">) {
                   <tr key={r.ordenId}>
                     <td style={{ whiteSpace: "nowrap" }}>{cuando(r)}</td>
                     <td>{r.mecanico ? <span className="badge">{r.mecanico}</span> : <span className="muted">—</span>}</td>
-                    <td><span className="placa placa-sm">{r.chapa}</span></td>
+                    <td><Link href={`/ordenes/${r.ordenId}?de=reportes`} className="placa placa-sm placa-link">{r.chapa}</Link></td>
                     <td className="num">{r.odometro ? cantidad(r.odometro) : "—"}</td>
                     <td><Fotos r={r} /></td>
                     <td className="reporte-obs" title={r.observacion ?? undefined}>
@@ -102,7 +102,7 @@ export default async function Reportes(props: PageProps<"/reportes">) {
               {lista.reportes.map((r) => (
                 <article key={r.ordenId} className="card stack" style={{ gap: 8 }}>
                   <div className="row between">
-                    <span className="placa">{r.chapa}</span>
+                    <Link href={`/ordenes/${r.ordenId}?de=reportes`} className="placa placa-link">{r.chapa}</Link>
                     <span className="small muted">{cuando(r)}</span>
                   </div>
                   <div className="row between small">

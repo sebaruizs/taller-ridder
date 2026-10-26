@@ -176,6 +176,9 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
               {!col.cargando && col.ordenes.length === 0 && !col.error && <div className="small muted center" style={{ padding: 12 }}>Sin órdenes</div>}
               {col.ordenes.map((o) => {
                 const movible = puedeMover(c.estado) && moviendo === null;
+                // Las finalizadas no se mueven: al tocarlas se abre su detalle.
+                const abre = c.estado === "done";
+                const clickeable = movible || abre;
                 return (
                   <article
                     key={o.id}
@@ -184,9 +187,10 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     draggable={movible}
                     data-movible={movible || undefined}
                     data-arrastrando={arrastre?.orden.id === o.id || undefined}
-                    role={movible ? "button" : undefined}
-                    tabIndex={movible ? 0 : undefined}
-                    aria-label={movible ? `${o.chapa}: ${DESTINO[c.estado]?.texto.replace("Soltá para ", "")}` : undefined}
+                    data-abre={abre || undefined}
+                    role={clickeable ? "button" : undefined}
+                    tabIndex={clickeable ? 0 : undefined}
+                    aria-label={movible ? `${o.chapa}: ${DESTINO[c.estado]?.texto.replace("Soltá para ", "")}` : abre ? `${o.chapa}: ver detalle` : undefined}
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", String(o.id));
@@ -197,11 +201,12 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       setArrastre(null);
                       setEncima(null);
                     }}
-                    onClick={() => movible && tocar(c.estado, o)}
+                    onClick={() => (abre ? router.push(`/ordenes/${o.id}`) : movible && tocar(c.estado, o))}
                     onKeyDown={(e) => {
-                      if (movible && (e.key === "Enter" || e.key === " ")) {
+                      if (clickeable && (e.key === "Enter" || e.key === " ")) {
                         e.preventDefault();
-                        tocar(c.estado, o);
+                        if (abre) router.push(`/ordenes/${o.id}`);
+                        else tocar(c.estado, o);
                       }
                     }}
                   >
