@@ -17,7 +17,7 @@ function Tarjeta({ href, children }: { href: string | null; children: React.Reac
 
 type Modo = "proceso" | "verificar";
 
-export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean; compras?: boolean };
+export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean; compras?: boolean; solicitar?: boolean; solicitudes?: boolean };
 
 export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tienePartner: boolean; accesos: Accesos; modo?: Modo }) {
   const router = useRouter();
@@ -77,7 +77,7 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
-      {!verificar && (accesos.crear || accesos.tablero || accesos.verificar || accesos.inventario || accesos.compras) && (
+      {!verificar && (accesos.crear || accesos.tablero || accesos.verificar || accesos.inventario || accesos.compras || accesos.solicitudes) && (
         <div className="stack solo-movil" style={{ gap: 8 }}>
           {accesos.crear && <Link href="/ordenes/nueva" className="btn btn-primary">+ Nueva orden</Link>}
           {(accesos.tablero || accesos.verificar) && (
@@ -86,6 +86,7 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
               {accesos.verificar && <Link href="/verificar" className="btn" style={{ flex: 1 }}>Para verificar</Link>}
             </div>
           )}
+          {accesos.solicitudes && <Link href="/solicitudes" className="btn">Solicitudes de trabajo</Link>}
           {(accesos.inventario || accesos.compras) && (
             <div className="row" style={{ gap: 8 }}>
               {accesos.inventario && <Link href="/inventario" className="btn" style={{ flex: 1 }}>Inventario</Link>}
@@ -128,6 +129,13 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
           {data.total === 1 ? "1 moto" : `${data.total} motos`}
           {cargando ? " · actualizando…" : ""}
         </div>
+      )}
+
+      {!verificar && accesos.solicitar && data && !cargando && (
+        <Link href="/solicitudes/nueva" className="card row between solicitar-link">
+          <span><strong>¿No encontrás tu trabajo?</strong><br /><span className="small muted">Solicitalo y el jefe de taller lo aprueba.</span></span>
+          <span className="btn btn-primary small">Solicitar</span>
+        </Link>
       )}
 
       {data?.ordenes.length === 0 && !cargando && (

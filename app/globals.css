@@ -398,3 +398,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .tablero-card[data-abre]:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
 .placa-link { text-decoration: none; color: inherit; }
 .placa-link:hover { border-color: var(--ridder); color: var(--ridder); }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-danger:disabled { opacity: 0.55; }
+.solicitar-link { text-decoration: none; color: inherit; gap: 12px; }
+.solicitar-link:hover { border-color: var(--ridder); }

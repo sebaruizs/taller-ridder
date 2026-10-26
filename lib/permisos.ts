@@ -14,6 +14,8 @@ export const ACCIONES = {
   "vehiculos.buscar": ["jefe", "admin"],
   "vehiculos.historial": ["jefe", "admin"],
   "reportes.ver": ["jefe", "admin"],
+  "solicitudes.crear": ["mecanico", "jefe", "admin"],
+  "solicitudes.aprobar": ["jefe", "admin"],
   "inventario.ver": ["jefe", "admin"],
   "inventario.crear": ["jefe", "admin"],
   "inventario.editar_precio": ["jefe", "admin"],
@@ -41,7 +43,7 @@ export const claveModulo = (m: Modulo) => `modulo.${m}` as const;
 
 // A qué módulo pertenece cada acción (las de administración no son de ningún módulo).
 export function moduloDeAccion(a: Accion): Modulo | null {
-  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.") || a.startsWith("reportes.")) return "taller";
+  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.") || a.startsWith("reportes.") || a.startsWith("solicitudes.")) return "taller";
   if (a.startsWith("inventario.")) return "inventario";
   if (a.startsWith("compras.")) return "compras";
   return null;
@@ -51,10 +53,12 @@ export function moduloDeAccion(a: Accion): Modulo | null {
 export const PERMISOS = {
   ver_ordenes: { modulo: "taller", nombre: "Ver motos en proceso", detalle: "Lista de órdenes en proceso y su detalle", acciones: ["ordenes.ver_en_proceso", "ordenes.ver_detalle"] },
   finalizar: { modulo: "taller", nombre: "Finalizar trabajos", detalle: "Cargar odómetro, fotos y observación y cerrar el trabajo", acciones: ["ordenes.finalizar"] },
+  solicitar: { modulo: "taller", nombre: "Solicitar trabajos", detalle: "Reportar un trabajo que no está en la lista; el jefe lo aprueba", acciones: ["solicitudes.crear"] },
   crear: { modulo: "taller", nombre: "Cargar órdenes nuevas", detalle: "Buscar la moto y crear la orden", acciones: ["ordenes.crear", "vehiculos.buscar"] },
   tablero: { modulo: "taller", nombre: "Tablero", detalle: "Ver el kanban y pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.ver_todas", "ordenes.mover_estado"] },
   repuestos: { modulo: "taller", nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
   reportes: { modulo: "taller", nombre: "Reportes de mecánicos", detalle: "Lista de todos los trabajos reportados, con fotos y observación", acciones: ["reportes.ver"] },
+  aprobar_solicitudes: { modulo: "taller", nombre: "Aprobar solicitudes", detalle: "Aprobar o rechazar los trabajos que solicitan los mecánicos", acciones: ["solicitudes.aprobar"] },
   aprobar: { modulo: "taller", nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
   inventario: { modulo: "inventario", nombre: "Ver productos", detalle: "Productos, stock, costos, precios y sus compras", acciones: ["inventario.ver"] },
   crear_productos: { modulo: "inventario", nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
@@ -124,6 +128,8 @@ export const PANTALLAS = [
   { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
   { href: "/reportes", nombre: "Reportes", seccion: "Taller", acciones: ["reportes.ver"] },
+  { href: "/solicitudes/nueva", nombre: "Solicitar trabajo", seccion: "Taller", acciones: ["solicitudes.crear"], alta: true },
+  { href: "/solicitudes", nombre: "Solicitudes", seccion: "Taller", acciones: ["solicitudes.crear", "solicitudes.aprobar"] },
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Configuración", acciones: ["usuarios.gestionar"] },
   { href: "/inventario/nuevo", nombre: "Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"], alta: true },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },

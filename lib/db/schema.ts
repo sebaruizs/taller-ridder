@@ -109,3 +109,47 @@ export const config = pgTable("config", {
   clave: text("clave").primaryKey(),
   valor: jsonb("valor").notNull(),
 });
+
+// Solicitudes de trabajo: un mecánico reporta un trabajo que no encuentra en la lista y el jefe lo
+// aprueba. Hasta la aprobación no se toca Odoo; al aprobar se crea (o se usa) la orden y se reporta.
+export const ESTADOS_SOLICITUD = ["pendiente", "aprobada", "rechazada"] as const;
+
+export const solicitudes = pgTable(
+  "solicitudes",
+  {
+    id: serial("id").primaryKey(),
+    clave: text("clave").notNull(),
+    usuarioId: integer("usuario_id")
+      .notNull()
+      .references(() => usuarios.id),
+    vehiculoId: integer("vehiculo_id").notNull(),
+    chapa: text("chapa").notNull(),
+    vehiculo: text("vehiculo").notNull(),
+    tipoId: integer("tipo_id").notNull(),
+    tipo: text("tipo").notNull(),
+    odometro: real("odometro").notNull(),
+    observacion: text("observacion").notNull(),
+    estado: text("estado", { enum: ESTADOS_SOLICITUD }).notNull().default("pendiente"),
+    // Al aprobar: la orden de Odoo y si el reporte ya quedó completo (si falla, se reintenta).
+    ordenId: integer("orden_id"),
+    reportada: boolean("reportada").notNull().default(false),
+    error: text("error"),
+    motivo: text("motivo"),
+    resueltoPor: integer("resuelto_por"),
+    resueltoNombre: text("resuelto_nombre"),
+    resuelto: timestamp("resuelto", { withTimezone: true }),
+    creado: timestamp("creado", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("solicitudes_clave_idx").on(t.clave), index("solicitudes_estado_idx").on(t.estado), index("solicitudes_usuario_idx").on(t.usuarioId)],
+);
+
+export const solicitudFotos = pgTable("solicitud_fotos", {
+  id: serial("id").primaryKey(),
+  solicitudId: integer("solicitud_id")
+    .notNull()
+    .references(() => solicitudes.id, { onDelete: "cascade" }),
+  orden: integer("orden").notNull(),
+  nombre: text("nombre").notNull(),
+  mimetype: text("mimetype").notNull(),
+  datos: bytea("datos").notNull(),
+});
