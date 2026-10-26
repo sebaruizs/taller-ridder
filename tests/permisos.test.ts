@@ -12,6 +12,7 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "finalizaciones.ver_ajenas",
   "vehiculos.buscar",
   "vehiculos.historial",
+  "reportes.ver",
   "inventario.ver",
   "inventario.crear",
   "inventario.editar_precio",
@@ -67,7 +68,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "reportes", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -79,7 +80,7 @@ describe("permisos por usuario", () => {
 
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
-    expect(hrefs).toEqual(["/ordenes", "/verificar", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
+    expect(hrefs).toEqual(["/ordenes", "/verificar", "/reportes", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
   });
 });
 
@@ -122,11 +123,11 @@ describe("permisos por módulo", () => {
 describe("menú lateral", () => {
   it("las pantallas de alta no van en el menú: se entra desde cada módulo", () => {
     const hrefs = menuDe(pantallasDe({ rol: "jefe", permisosOff: [] })).map((p) => p.href);
-    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/inventario", "/compras"]);
+    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/reportes", "/inventario", "/compras"]);
   });
 
   it("si cargar es lo único que tiene en el módulo, el alta sí aparece", () => {
-    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "inventario"] };
+    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "reportes", "inventario"] };
     const hrefs = menuDe(pantallasDe(u)).map((p) => p.href);
     expect(hrefs).toContain("/ordenes/nueva");
     expect(hrefs).toContain("/inventario/nuevo");

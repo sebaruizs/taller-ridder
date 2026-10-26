@@ -47,6 +47,6 @@ describe("inventario", () => {
     expect(puedeU({ rol: "mecanico", permisosOff: [] }, "inventario.ver")).toBe(false);
     expect(puedeU({ rol: "jefe", permisosOff: [] }, "inventario.ver")).toBe(true);
     expect(puedeU({ rol: "jefe", permisosOff: ["inventario"] }, "inventario.ver")).toBe(false);
-    expect(inicioDe({ rol: "jefe", permisosOff: ["ver_ordenes", "tablero", "aprobar", "repuestos", "crear"] })).toBe("/inventario");
+    expect(inicioDe({ rol: "jefe", permisosOff: ["ver_ordenes", "tablero", "aprobar", "repuestos", "crear", "reportes"] })).toBe("/inventario");
   });
 });

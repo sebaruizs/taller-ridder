@@ -13,6 +13,7 @@ export const ACCIONES = {
   "finalizaciones.ver_ajenas": ["jefe", "admin"],
   "vehiculos.buscar": ["jefe", "admin"],
   "vehiculos.historial": ["jefe", "admin"],
+  "reportes.ver": ["jefe", "admin"],
   "inventario.ver": ["jefe", "admin"],
   "inventario.crear": ["jefe", "admin"],
   "inventario.editar_precio": ["jefe", "admin"],
@@ -40,7 +41,7 @@ export const claveModulo = (m: Modulo) => `modulo.${m}` as const;
 
 // A qué módulo pertenece cada acción (las de administración no son de ningún módulo).
 export function moduloDeAccion(a: Accion): Modulo | null {
-  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.")) return "taller";
+  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.") || a.startsWith("reportes.")) return "taller";
   if (a.startsWith("inventario.")) return "inventario";
   if (a.startsWith("compras.")) return "compras";
   return null;
@@ -53,6 +54,7 @@ export const PERMISOS = {
   crear: { modulo: "taller", nombre: "Cargar órdenes nuevas", detalle: "Buscar la moto y crear la orden", acciones: ["ordenes.crear", "vehiculos.buscar"] },
   tablero: { modulo: "taller", nombre: "Tablero", detalle: "Ver el kanban y pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.ver_todas", "ordenes.mover_estado"] },
   repuestos: { modulo: "taller", nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
+  reportes: { modulo: "taller", nombre: "Reportes de mecánicos", detalle: "Lista de todos los trabajos reportados, con fotos y observación", acciones: ["reportes.ver"] },
   aprobar: { modulo: "taller", nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
   inventario: { modulo: "inventario", nombre: "Ver productos", detalle: "Productos, stock, costos, precios y sus compras", acciones: ["inventario.ver"] },
   crear_productos: { modulo: "inventario", nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
@@ -121,6 +123,7 @@ export const PANTALLAS = [
   { href: "/tablero", nombre: "Tablero", seccion: "Taller", acciones: ["ordenes.ver_todas"] },
   { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
+  { href: "/reportes", nombre: "Reportes", seccion: "Taller", acciones: ["reportes.ver"] },
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Configuración", acciones: ["usuarios.gestionar"] },
   { href: "/inventario/nuevo", nombre: "Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"], alta: true },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
@@ -137,7 +140,7 @@ export function pantallasDe(u: Sujeto): Pantalla[] {
 
 // Primera pantalla útil para el usuario; "/cuenta" siempre está, así nunca hay bucles de redirección.
 export function inicioDe(u: Sujeto): string {
-  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/inventario", "/compras", "/admin/usuarios"];
+  const orden = ["/ordenes", "/tablero", "/verificar", "/ordenes/nueva", "/reportes", "/inventario", "/compras", "/admin/usuarios"];
   const mias = new Set(pantallasDe(u).map((p) => p.href as string));
   return orden.find((h) => mias.has(h)) ?? "/cuenta";
 }
