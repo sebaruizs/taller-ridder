@@ -55,8 +55,14 @@ export function FormFinalizar({ orden, mecanico, historial }: { orden: DetalleOr
       fotosEstado.agregarAlForm(fd);
       const r = await fetch(`/api/ordenes/${orden.id}/finalizar`, { method: "POST", body: fd });
       if (r.status === 401) return router.replace("/ingresar");
-      const d = await r.json().catch(() => ({}));
+      const d = await r.json().catch(() => null);
       if (!r.ok) {
+        // Sin JSON = cortó el servidor o el proxy, no la app: se reintenta con la misma clave
+        // para seguir desde el paso que quedó (sin volver a subir las fotos).
+        if (!d) {
+          setError({ msg: `El servidor no respondió bien (error ${r.status}). Tocá Reintentar: sigue desde donde quedó.`, reintentable: true });
+          return;
+        }
         if (!d.reintentable) olvidarClave(orden.id);
         setError({ msg: d.error ?? "No se pudo finalizar", reintentable: d.reintentable });
         return;

@@ -81,6 +81,44 @@ export async function executeKw<T>(
   return rpc<T>("object", "execute_kw", [ODOO_DB, await uid(), ODOO_API_KEY, model, method, args, kwargs]);
 }
 
+// Odoo no publica una nota si el autor no tiene email ("configure la dirección de correo electrónico
+// del remitente"), y casi ningún mecánico lo tiene. En ese caso la nota sigue a nombre de la persona,
+// con el email del usuario de la API como remitente. Si tampoco hay ese, sale a nombre del usuario de la API.
+export function remitenteNota(autor: { name: string; email: string | false } | undefined, emailRespaldo: string | null): { email_from?: string; sinAutor?: true } {
+  if (!autor) return { sinAutor: true };
+  if (autor.email) return {};
+  if (!emailRespaldo) return { sinAutor: true };
+  return { email_from: `"${autor.name.replace(/"/g, "")}" <${emailRespaldo}>` };
+}
+
+const cacheAutores = new Map<number, { name: string; email: string | false }>();
+let emailApi: Promise<string | null> | undefined;
+
+async function conRemitente(kwargs: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const autorId = kwargs.author_id;
+  if (typeof autorId !== "number" || kwargs.email_from) return kwargs;
+  let autor = cacheAutores.get(autorId);
+  if (!autor) {
+    [autor] = await executeKw<{ name: string; email: string | false }[]>("res.partner", "read", [[autorId], ["name", "email"]]);
+    // Solo se guarda si tiene email: si se lo cargan después, se usa sin reiniciar la app.
+    if (autor?.email) cacheAutores.set(autorId, autor);
+  }
+  emailApi ??= uid()
+    .then((u) => executeKw<{ email: string | false }[]>("res.users", "read", [[u], ["email"]]))
+    .then(([u]) => u?.email || null)
+    .catch(() => {
+      emailApi = undefined;
+      return null;
+    });
+  const r = remitenteNota(autor, await emailApi);
+  if (r.sinAutor) {
+    const resto = { ...kwargs };
+    delete resto.author_id;
+    return resto;
+  }
+  return r.email_from ? { ...kwargs, email_from: r.email_from } : kwargs;
+}
+
 export const odoo = {
   searchRead<T>(model: string, domain: Domain, fields: string[], opts: { limit: number; offset?: number; order?: string; context?: Record<string, unknown> }) {
     return executeKw<T[]>(model, "search_read", [domain], { fields, ...opts });
@@ -107,8 +145,9 @@ export const odoo = {
   unlink(model: string, ids: number[]) {
     return executeKw<boolean>(model, "unlink", [ids]);
   },
-  messagePost(model: string, id: number, kwargs: Record<string, unknown>) {
-    return executeKw<number>(model, "message_post", [[id]], kwargs);
+  async messagePost(model: string, id: number, kwargs: Record<string, unknown>) {
+    if (env().ODOO_READONLY) throw new OdooSoloLecturaError(model, "message_post");
+    return executeKw<number>(model, "message_post", [[id]], await conRemitente(kwargs));
   },
 };
 

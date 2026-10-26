@@ -108,6 +108,7 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
       await store.guardar({ ...patch, error: null });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[finalizar] orden ${f.ordenId} paso ${nombre}:`, e);
       await store.guardar({ error: `${NOMBRE_PASO[nombre]}: ${msg}` });
       if (nombre !== "telegram") {
         await deps
