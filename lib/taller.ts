@@ -7,7 +7,7 @@ export const MODELO_VEHICULO = "fleet.vehicle";
 export const ESTADOS = {
   running: "En proceso",
   cancelled: "Listo para verificar",
-  to_be_paid: "Listo para entrega",
+  to_be_paid: "Bloqueado", // en Odoo todavía se llama «Listo para entrega»
   done: "Finalizado",
   new: "Nuevo",
 } as const;
@@ -138,7 +138,7 @@ export function payloadNotaFinalizacion(p: { mecanico: string; observacion: stri
 
 // ---------- tablero ----------
 
-export const COLUMNAS_TABLERO = ["new", "running", "cancelled", "done"] as const satisfies readonly EstadoOrden[];
+export const COLUMNAS_TABLERO = ["new", "to_be_paid", "running", "cancelled", "done"] as const satisfies readonly EstadoOrden[];
 
 export function payloadNotaCambioEstado(p: { autor: string; de: EstadoOrden; a: EstadoOrden }) {
   return {

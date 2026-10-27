@@ -308,7 +308,7 @@ textarea.input { min-height: 110px; resize: vertical; }
   .solo-movil-flex { display: none; }
   .tablero-buscar { max-width: 300px; }
   .tablero-tabs { display: none; }
-  .tablero { display: grid; grid-template-columns: repeat(4, minmax(300px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }
+  .tablero { display: grid; grid-template-columns: repeat(5, minmax(280px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }
   .tablero-col, .tablero-col[data-activa] { display: flex; background: var(--surface-2); border-radius: var(--radius); padding: 10px; }
   .tablero-col-head { display: flex; padding: 4px 4px 2px; }
 

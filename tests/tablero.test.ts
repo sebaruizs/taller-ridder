@@ -21,7 +21,7 @@ function odooCon(estado: string, fallarNota = false) {
 
 describe("tablero", () => {
   it("tiene exactamente las columnas Nuevo, En proceso, Listo para verificar y Finalizado", () => {
-    expect(COLUMNAS_TABLERO).toEqual(["new", "running", "cancelled", "done"]);
+    expect(COLUMNAS_TABLERO).toEqual(["new", "to_be_paid", "running", "cancelled", "done"]);
   });
 
   it("cada columna filtra por su estado en el dominio de Odoo", () => {

@@ -6,6 +6,7 @@ import type { OrdenLista } from "@/lib/ordenes";
 
 const COLUMNAS = [
   { estado: "new", titulo: "Nuevo" },
+  { estado: "to_be_paid", titulo: "Bloqueado" },
   { estado: "running", titulo: "En proceso" },
   { estado: "cancelled", titulo: "Listo para verificar" },
   { estado: "done", titulo: "Finalizado" },
@@ -30,7 +31,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
   const [activa, setActiva] = useState<Estado>("running");
-  const [cols, setCols] = useState<Record<Estado, Columna>>({ new: VACIA, running: VACIA, cancelled: VACIA, done: VACIA });
+  const [cols, setCols] = useState<Record<Estado, Columna>>({ new: VACIA, to_be_paid: VACIA, running: VACIA, cancelled: VACIA, done: VACIA });
   const [moviendo, setMoviendo] = useState<number | null>(null);
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   const [arrastre, setArrastre] = useState<{ orden: OrdenLista; desde: Estado } | null>(null);
@@ -176,8 +177,8 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
               {!col.cargando && col.ordenes.length === 0 && !col.error && <div className="small muted center" style={{ padding: 12 }}>Sin órdenes</div>}
               {col.ordenes.map((o) => {
                 const movible = puedeMover(c.estado) && moviendo === null;
-                // Las finalizadas no se mueven: al tocarlas se abre su detalle.
-                const abre = c.estado === "done";
+                // Las bloqueadas y finalizadas no se mueven: al tocarlas se abre su detalle.
+                const abre = c.estado === "to_be_paid" || c.estado === "done";
                 const clickeable = movible || abre;
                 return (
                   <article

@@ -4,7 +4,7 @@ import { htmlATexto } from "./historial-formato";
 import type { Domain } from "./odoo";
 
 export const POR_PAGINA_REPORTES = 30;
-export const ESTADOS_REPORTADOS = ["cancelled", "to_be_paid", "done"];
+export const ESTADOS_REPORTADOS = ["cancelled", "done"];
 
 export function dominioReportes(f: { q?: string; mecanicoId?: number; desde?: string; hasta?: string }): Domain {
   const d: Domain = [["service_end_date", "!=", false], ["state", "in", ESTADOS_REPORTADOS]];

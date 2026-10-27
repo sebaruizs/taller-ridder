@@ -6,7 +6,7 @@ describe("reportes de mecánicos", () => {
   it("lista órdenes reportadas, filtrando por chapa, mecánico y fechas en Odoo", () => {
     expect(dominioReportes({ q: " 817 abti ", mecanicoId: 2006, desde: "2026-10-01", hasta: "2026-10-26" })).toEqual([
       ["service_end_date", "!=", false],
-      ["state", "in", ["cancelled", "to_be_paid", "done"]],
+      ["state", "in", ["cancelled", "done"]],
       ["vehicle_id.license_plate", "ilike", "817abti"],
       ["vendor_id", "=", 2006],
       ["service_end_date", ">=", "2026-10-01"],

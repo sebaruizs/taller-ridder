@@ -12,7 +12,7 @@ import { cantidad, fecha, gs } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
 import { Historial } from "@/components/historial";
 
-const claseEstado = (e: string) => (e === "done" ? "badge-ok" : e === "cancelled" ? "badge-warn" : "");
+const claseEstado = (e: string) => (e === "done" ? "badge-ok" : e === "cancelled" ? "badge-warn" : e === "to_be_paid" ? "badge-danger" : "");
 
 // Detalle de una orden, solo lectura: sirve para las finalizadas y para revisar cualquier trabajo.
 export default async function Orden(props: PageProps<"/ordenes/[id]">) {
