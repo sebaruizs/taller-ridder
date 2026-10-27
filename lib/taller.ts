@@ -75,6 +75,34 @@ export function diasEnTaller(fecha: string | false, ahora = new Date()): number 
   return Math.max(0, Math.round((hoy - inicio) / 86_400_000));
 }
 
+// Desde cuándo es cliente el chofer: lo más viejo entre su primera factura y su primera moto asignada.
+export function clienteDesde(fechas: (string | false | null | undefined)[]): string | null {
+  const validas = fechas.filter((f): f is string => !!f).map((f) => f.slice(0, 10)).sort();
+  return validas[0] ?? null;
+}
+
+// "1 año y 3 meses", "5 meses", "12 días", "hoy".
+export function tiempoDesde(desde: string, ahora = new Date()): string {
+  const [ay, am, ad] = hoyAsuncion(ahora).split("-").map(Number);
+  const [dy, dm, dd] = desde.split("-").map(Number);
+  let meses = (ay - dy) * 12 + (am - dm) - (ad < dd ? 1 : 0);
+  if (meses < 1) {
+    const dias = Math.max(0, Math.round((Date.UTC(ay, am - 1, ad) - Date.UTC(dy, dm - 1, dd)) / 86_400_000));
+    return dias === 0 ? "hoy" : dias === 1 ? "1 día" : `${dias} días`;
+  }
+  const anios = Math.floor(meses / 12);
+  meses %= 12;
+  const txtAnios = anios === 1 ? "1 año" : `${anios} años`;
+  const txtMeses = meses === 1 ? "1 mes" : `${meses} meses`;
+  return anios && meses ? `${txtAnios} y ${txtMeses}` : anios ? txtAnios : txtMeses;
+}
+
+export function textoCliente(desde: string, ahora = new Date()): string {
+  const t = tiempoDesde(desde, ahora);
+  const fecha = desde.split("-").reverse().join("/");
+  return t === "hoy" ? `Cliente desde hoy (${fecha})` : `Cliente hace ${t} (desde ${fecha})`;
+}
+
 export function normalizarChapa(q: string): string {
   return q.replace(/\s+/g, "").toUpperCase();
 }

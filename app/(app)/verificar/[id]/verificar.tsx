@@ -145,6 +145,7 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
             <div className="small">{orden.descripcion ?? <span className="muted">Sin descripción</span>}</div>
             <div className="small muted">Mecánico: {orden.mecanico ?? "sin asignar"}</div>
             <div className="small muted">Chofer: {orden.chofer ?? "sin chofer asignado"}</div>
+            {orden.cliente && <div className="small muted">{orden.cliente}</div>}
             {orden.odometroOrden > 0 && <div className="small muted">Odómetro al finalizar: {new Intl.NumberFormat("es-PY").format(orden.odometroOrden)} km</div>}
           </section>
           {!editable && <div className="alert alert-warn">Esta orden ya no está en «Listo para verificar».</div>}

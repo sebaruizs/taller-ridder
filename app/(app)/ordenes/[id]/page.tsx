@@ -44,7 +44,7 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
 
         <section className="kpis">
           <div className="card kpi"><span className="small muted">Mecánico</span><strong style={{ fontSize: 16 }}>{orden.mecanico ?? "Sin asignar"}</strong></div>
-          <div className="card kpi"><span className="small muted">Chofer</span><strong style={{ fontSize: 16 }}>{orden.chofer ?? "Sin chofer"}</strong></div>
+          <div className="card kpi"><span className="small muted">Chofer</span><strong style={{ fontSize: 16 }}>{orden.chofer ?? "Sin chofer"}</strong>{orden.cliente && <span className="tiny muted">{orden.cliente}</span>}</div>
           <div className="card kpi"><span className="small muted">Odómetro</span><strong>{orden.odometroOrden ? `${cantidad(orden.odometroOrden)} km` : "—"}</strong></div>
           <div className="card kpi">
             <span className="small muted">Fechas</span>

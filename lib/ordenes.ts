@@ -6,7 +6,9 @@ import {
   MODELO_ORDEN,
   MODELO_VEHICULO,
   chapaDe,
+  clienteDesde,
   diasEnTaller,
+  textoCliente,
   tieneChofer,
   dominioOrdenes,
   type EstadoOrden,
@@ -87,10 +89,29 @@ export async function leerOrden(id: number): Promise<{ orden: OrdenOdoo; vehicul
   return { orden, vehiculo };
 }
 
+// Primera factura y primera moto asignada del chofer. Si Odoo falla, simplemente no se muestra.
+async function choferClienteDesde(partnerId: number | null): Promise<string | null> {
+  if (!partnerId) return null;
+  const [facturas, asignaciones] = await Promise.all([
+    odoo.searchRead<{ invoice_date: string | false }>(
+      "account.move",
+      [["partner_id", "=", partnerId], ["move_type", "=", "out_invoice"], ["state", "=", "posted"]],
+      ["invoice_date"],
+      { limit: 1, order: "invoice_date asc" },
+    ),
+    odoo.searchRead<{ date_start: string | false }>("fleet.vehicle.assignation.log", [["driver_id", "=", partnerId]], ["date_start"], {
+      limit: 1,
+      order: "date_start asc",
+    }),
+  ]).catch(() => [[], []] as const);
+  return clienteDesde([facturas[0]?.invoice_date, asignaciones[0]?.date_start]);
+}
+
 export async function detalleOrden(id: number) {
   const r = await leerOrden(id);
   if (!r) return null;
   const { orden, vehiculo } = r;
+  const desde = await choferClienteDesde(m2oId(orden.purchaser_id) ?? m2oId(vehiculo.driver_id));
   return {
     ...aLista(orden, vehiculo),
     estado: orden.state,
@@ -99,6 +120,8 @@ export async function detalleOrden(id: number) {
     repuestos: orden.total_products_cost,
     vehiculoId: vehiculo.id,
     tieneChofer: tieneChofer(orden, vehiculo),
+    clienteDesde: desde,
+    cliente: desde ? textoCliente(desde) : null,
   };
 }
 

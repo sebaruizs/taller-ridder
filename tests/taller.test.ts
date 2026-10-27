@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   cambioVehiculoAlFinalizar,
+  clienteDesde,
+  textoCliente,
   chapaDe,
   tieneChofer,
   diasEnTaller,
@@ -202,5 +204,21 @@ describe("utilidades", () => {
   it("las fotos se achican a 1600 px del lado mayor", () => {
     expect(medidasEscaladas(4000, 3000)).toEqual({ w: 1600, h: 1200 });
     expect(medidasEscaladas(1200, 900)).toEqual({ w: 1200, h: 900 });
+  });
+});
+
+describe("antigüedad del chofer como cliente", () => {
+  const ahora = new Date("2026-10-27T15:00:00Z");
+  it("toma la fecha más vieja entre factura y asignación", () => {
+    expect(clienteDesde(["2025-08-04", "2025-06-26", false, null])).toBe("2025-06-26");
+    expect(clienteDesde([false, undefined])).toBeNull();
+  });
+  it("arma el texto en años, meses o días", () => {
+    expect(textoCliente("2025-06-26", ahora)).toBe("Cliente hace 1 año y 4 meses (desde 26/06/2025)");
+    expect(textoCliente("2024-10-27", ahora)).toBe("Cliente hace 2 años (desde 27/10/2024)");
+    expect(textoCliente("2026-09-28", ahora)).toBe("Cliente hace 29 días (desde 28/09/2026)");
+    expect(textoCliente("2026-09-27", ahora)).toBe("Cliente hace 1 mes (desde 27/09/2026)");
+    expect(textoCliente("2026-10-26", ahora)).toBe("Cliente hace 1 día (desde 26/10/2026)");
+    expect(textoCliente("2026-10-27", ahora)).toBe("Cliente desde hoy (27/10/2026)");
   });
 });

@@ -91,6 +91,7 @@ export function FormFinalizar({ orden, mecanico, historial }: { orden: DetalleOr
         <div style={{ fontWeight: 600 }}>{orden.tipo ?? "Sin tipo"}</div>
         <div className="small">{orden.descripcion ?? <span className="muted">Sin descripción</span>}</div>
         <div className="small muted">Chofer: {chofer}</div>
+        {orden.cliente && <div className="small muted">{orden.cliente}</div>}
       </section>
 
       {yaFinalizada && <div className="alert alert-warn">Esta orden ya no está en proceso.</div>}
