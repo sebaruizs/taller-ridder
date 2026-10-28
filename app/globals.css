@@ -442,3 +442,10 @@ textarea.input { min-height: 110px; resize: vertical; }
 .gps-boton:hover { border-color: var(--ridder); color: var(--ridder); }
 .gps-cortar:hover { border-color: var(--danger); color: var(--danger); }
 .gps-sin { border-top: 1px solid var(--line); padding-top: 6px; }
+.gps-tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.gps-tarjeta { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; overflow-wrap: anywhere; }
+.gps-tarjeta[data-principal] { border: 2px solid var(--ink); }
+.gps-tarjeta[data-falta] { border-style: dashed; background: transparent; }
+.gps-tarjeta-tipo { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.gps-hora { font-family: var(--font-mono); }
+.gps-tarjeta .gps-acciones { margin-top: 4px; }

@@ -112,77 +112,100 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
       {estado === "cargando" && <span className="small muted">Leyendo Traccar…</span>}
       {estado === "apagado" && <span className="small muted">El GPS no está configurado en el taller.</span>}
       {estado === "error" && <span className="small muted">No se pudo leer Traccar. Probá de nuevo en un rato.</span>}
-      {estado === "listo" && equipos?.length === 0 && <span className="small muted">Esta moto no tiene GPS en Traccar.</span>}
-      {estado === "listo" && equipos && equipos.length > 0 && (
-        <div className="tabla-scroll">
-          <table className="tabla lineas-tabla gps-tabla">
-            <thead>
-              <tr>
-                <th>Equipo</th>
-                <th>Conexión</th>
-                <th>Último dato</th>
-                <th>Encendido</th>
-                <th>Bloqueo</th>
-                <th className="num">Velocidad</th>
-                <th className="num">Batería</th>
-                <th>IMEI · Modelo</th>
-                <th aria-label="Acciones" />
-              </tr>
-            </thead>
-            <tbody>
-              {equipos.map((g) => (
-                <tr key={g.id}>
-                  <td>
-                    <strong>{g.nombre}</strong>
-                    <div className="tiny muted">{NOMBRE_TIPO[g.tipo]}{g.protocolo ? ` · ${g.protocolo}` : ""}</div>
-                  </td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    <span className="gps-punto" data-en-linea={g.enLinea || undefined} aria-hidden /> {g.enLinea ? "En línea" : "Sin señal"}
-                    <div className="tiny muted">{fechaHora(g.ultimaConexion)}</div>
-                  </td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    {fechaHora(g.ultimoDato)}
-                    {g.ubicacion && (
-                      <div className="tiny">
-                        <a href={`https://www.google.com/maps?q=${g.ubicacion.lat},${g.ubicacion.lon}`} target="_blank" rel="noreferrer">Ver en el mapa</a>
-                      </div>
-                    )}
-                  </td>
-                  <td>{g.encendido === null ? "—" : g.encendido ? "Encendida" : "Apagada"}</td>
-                  <td>{g.tipo === "monedas" ? "—" : <span className={g.bloqueado ? "rojo" : ""}>{bloqueo(g)}</span>}</td>
-                  <td className="num">{g.kmh === null ? "—" : `${g.kmh} km/h`}</td>
-                  <td className="num">{g.bateria === null ? "—" : `${g.bateria}%`}</td>
-                  <td className="small">
-                    {g.imei ?? "—"}
-                    {g.modelo && <div className="tiny muted">{g.modelo}</div>}
-                    {g.telefono && <div className="tiny muted">{g.telefono}</div>}
-                  </td>
-                  <td className="num" style={{ whiteSpace: "nowrap" }}>
-                    {g.corta && puedeBloquear && (
-                      <span className="gps-acciones">
-                        {g.bloqueado !== true && (
-                          <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => tocar("bloquear")}>
-                            Bloquear
-                          </button>
-                        )}
-                        {g.bloqueado !== false && (
-                          <button type="button" className="gps-boton" disabled={enviando} onClick={() => tocar("desbloquear")}>
-                            Desbloquear
-                          </button>
-                        )}
-                      </span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {estado === "listo" && equipos && (
+        <div className="gps-tarjetas">
+          {/* Siempre las tres: Chapa, TC y Moneda; si falta un equipo, «No encontrado». Los demás, al final. */}
+          {(["gps", "tc", "monedas"] as const).map((tipo) => {
+            const g = equipos.find((e) => e.tipo === tipo);
+            const esperado = tipo === "gps" ? clave : tipo === "tc" ? `${clave}-TC` : `${clave} - Monedas`;
+            return g ? (
+              <TarjetaEquipo key={tipo} g={g} puedeBloquear={puedeBloquear} enviando={enviando} alTocar={tocar} />
+            ) : (
+              <div key={tipo} className="gps-tarjeta" data-falta>
+                <span className="gps-tarjeta-tipo">{ETIQUETA[tipo]}</span>
+                <strong>{esperado}</strong>
+                <span className="tiny muted" style={{ fontWeight: 600 }}>No encontrado</span>
+              </div>
+            );
+          })}
+          {equipos
+            .filter((e) => e.tipo === "otro")
+            .map((g) => (
+              <TarjetaEquipo key={g.id} g={g} puedeBloquear={false} enviando={enviando} alTocar={tocar} />
+            ))}
         </div>
       )}
       {aviso && <div className={`alert small ${aviso.ok ? "alert-ok" : "alert-warn"}`} role="status" style={{ marginTop: 10 }}>{aviso.msg}</div>}
-      {estado === "listo" && puedeBloquear && equipos && equipos.length > 0 && !equipos.some((g) => g.corta) && (
+      {estado === "listo" && puedeBloquear && equipos && !equipos.some((g) => g.corta) && (
         <span className="tiny muted" style={{ marginTop: 8 }}>Ningún equipo se llama exactamente {chapa}: no se puede bloquear desde acá.</span>
       )}
     </section>
+  );
+}
+
+const ETIQUETA: Record<EquipoGps["tipo"], string> = { gps: "Chapa", tc: "TC", monedas: "Moneda", otro: "Otro" };
+
+function TarjetaEquipo({
+  g,
+  puedeBloquear,
+  enviando,
+  alTocar,
+}: {
+  g: EquipoGps;
+  puedeBloquear: boolean;
+  enviando: boolean;
+  alTocar: (accion: AccionEncendido) => void;
+}) {
+  return (
+    <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.nombre}>
+      <span className="gps-tarjeta-tipo">
+        <span className="gps-punto" data-en-linea={g.enLinea || undefined} aria-hidden /> {ETIQUETA[g.tipo]}
+      </span>
+      <strong>{g.nombre}</strong>
+      {g.enLinea ? (
+        <span className="small">
+          Último reporte: <span className="gps-hora">{fechaHora(g.ultimoDato ?? g.ultimaConexion)}</span> <span className="muted">{hace(g.ultimoDato ?? g.ultimaConexion)}</span>
+        </span>
+      ) : (
+        <span className="small rojo" style={{ fontWeight: 600 }}>
+          Fuera de línea{g.ultimaConexion ? ` · ${hace(g.ultimaConexion)}` : ""}
+        </span>
+      )}
+      <span className="tiny muted">
+        {[
+          g.encendido === null ? null : g.encendido ? "Encendida" : "Apagada",
+          g.tipo === "monedas" ? null : bloqueo(g),
+          g.kmh ? `${g.kmh} km/h` : null,
+          g.bateria === null ? null : `Batería ${g.bateria}%`,
+        ]
+          .filter(Boolean)
+          .join(" · ") || "Sin datos de estado"}
+      </span>
+      <span className="tiny muted">
+        {[g.imei && `IMEI ${g.imei}`, g.modelo, g.protocolo, g.telefono].filter(Boolean).join(" · ")}
+        {g.ubicacion && (
+          <>
+            {" · "}
+            <a href={`https://www.google.com/maps?q=${g.ubicacion.lat},${g.ubicacion.lon}`} target="_blank" rel="noreferrer">
+              Ver en el mapa
+            </a>
+          </>
+        )}
+      </span>
+      {g.corta && puedeBloquear && (
+        <span className="gps-acciones">
+          {g.bloqueado !== true && (
+            <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>
+              Bloquear
+            </button>
+          )}
+          {g.bloqueado !== false && (
+            <button type="button" className="gps-boton" disabled={enviando} onClick={() => alTocar("desbloquear")}>
+              Desbloquear
+            </button>
+          )}
+        </span>
+      )}
+    </div>
   );
 }
