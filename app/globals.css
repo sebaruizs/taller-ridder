@@ -386,12 +386,10 @@ textarea.input { min-height: 110px; resize: vertical; }
 /* Detalle de orden. */
 .detalle-fotos { display: flex; gap: 8px; flex-wrap: wrap; }
 .detalle-fotos img { width: 120px; height: 120px; object-fit: cover; border-radius: 10px; display: block; background: var(--surface-2); }
-.tablero-card[data-abre] { cursor: pointer; }
-.tablero-card[data-abre]:hover { border-color: var(--ridder); }
-.tablero-card[data-abre]:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
+.tablero-card { cursor: pointer; }
+.tablero-card:hover { border-color: var(--ridder); }
 .placa-link { text-decoration: none; color: inherit; }
 .placa-link:hover { border-color: var(--ridder); color: var(--ridder); }
-.tablero-bloquear { align-self: flex-start; padding: 4px 10px; min-height: 0; }
 /* Usuarios: lista por rol. En el celular cada fila apila sus datos; en la PC son columnas. */
 .lista-usuarios { padding: 0; overflow: hidden; }
 .lista-usuarios-titulo { padding: 12px 14px; background: var(--surface-2); }
@@ -449,3 +447,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .gps-tarjeta-tipo { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 .gps-hora { font-family: var(--font-mono); }
 .gps-tarjeta .gps-acciones { margin-top: 4px; }
+/* Acciones con nombre en cada tarjeta del tablero (la principal de la columna y, si hay, una secundaria). */
+.tablero-acciones { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; cursor: default; }
+.tablero-acciones .btn { min-height: 40px; padding: 0 14px; font-size: 14px; flex: 1 1 auto; }
+.placa-link:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }

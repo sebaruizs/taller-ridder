@@ -45,7 +45,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const [gps, setGps] = useState<Record<string, EquipoGps[]> | null>(null);
   const [arrastre, setArrastre] = useState<{ orden: OrdenLista; desde: Estado } | null>(null);
   const [encima, setEncima] = useState<Estado | null>(null);
-  const [confirmar, setConfirmar] = useState<number | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q.trim()), 300);
@@ -89,7 +88,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
 
   // Cambio directo de estado. Se ve en la columna nueva al instante; si falla, cargar() la devuelve a su lugar.
   async function mover(o: OrdenLista, de: Estado, a: Estado) {
-    setConfirmar(null);
     setMoviendo(o.id);
     setAviso(null);
     setCols((c) => ({
@@ -136,22 +134,20 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
     else void mover(o, de, a);
   }
 
-  // Al tocar la tarjeta: Nuevo pide confirmar; En proceso abre el reporte y Listo para verificar la verificación
-  // (si tiene ese permiso); lo demás abre el detalle de la orden.
-  function alTocar(estado: Estado): "confirmar" | "running" | "cancelled" | "detalle" {
-    if (estado === "new" && permitido("new", "running")) return "confirmar";
-    if (estado === "running" && acciones.finalizar) return "running";
-    if (estado === "cancelled" && acciones.verificar) return "cancelled";
-    return "detalle";
+  // Lo que se puede hacer desde la tarjeta, con nombre: la principal de la columna y, si hay, una secundaria.
+  // Tocar la tarjeta (o la placa) abre siempre el detalle de la orden.
+  function accionesDe(estado: Estado): { a: Estado; texto: string; principal: boolean }[] {
+    const lista: { a: Estado; texto: string; principal: boolean }[] = [];
+    if (estado === "new") lista.push({ a: "running", texto: "Pasar a En proceso", principal: true });
+    if (estado === "running") {
+      lista.push({ a: "cancelled", texto: "Cargar reporte", principal: true });
+      lista.push({ a: "to_be_paid", texto: "Pasar a Bloqueado", principal: false });
+    }
+    if (estado === "to_be_paid") lista.push({ a: "running", texto: "Volver a En proceso", principal: true });
+    if (estado === "cancelled") lista.push({ a: "done", texto: "Verificar", principal: true });
+    return lista.filter((x) => permitido(estado, x.a));
   }
-
-  function tocar(estado: Estado, o: OrdenLista) {
-    const t = alTocar(estado);
-    if (t === "confirmar") setConfirmar((id) => (id === o.id ? null : o.id));
-    else if (t === "running") llevar("running", "cancelled", o);
-    else if (t === "cancelled") llevar("cancelled", "done", o);
-    else router.push(`/ordenes/${o.id}`);
-  }
+  const abrir = (o: OrdenLista) => router.push(`/ordenes/${o.id}`);
 
   const destinoArrastre = (hacia: Estado) => (arrastre ? destinosDe(arrastre.desde).find((d) => d.a === hacia) : undefined);
   const aceptaSoltar = (hacia: Estado) => destinoArrastre(hacia) !== undefined;
@@ -210,10 +206,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
               {!col.cargando && col.ordenes.length === 0 && !col.error && <div className="small muted center" style={{ padding: 12 }}>Sin órdenes</div>}
               {col.ordenes.map((o) => {
                 const movible = puedeMover(c.estado) && moviendo === null;
-                const toque = alTocar(c.estado);
-                const abre = toque === "detalle";
-                // Bloquear / desbloquear con un botón: en el celular no se puede arrastrar.
-                const cambio = c.estado === "running" ? "to_be_paid" : c.estado === "to_be_paid" ? "running" : null;
+                const botones = accionesDe(c.estado);
                 return (
                   <article
                     key={o.id}
@@ -222,30 +215,28 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     draggable={movible}
                     data-movible={movible || undefined}
                     data-arrastrando={arrastre?.orden.id === o.id || undefined}
-                    data-abre={abre || undefined}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${o.chapa}: ${toque === "confirmar" ? "pasar a En proceso" : toque === "running" ? "cargar el reporte del trabajo" : toque === "cancelled" ? "verificar y cargar repuestos" : "ver detalle"}`}
+                    // El mouse puede tocar toda la tarjeta; el teclado y el lector de pantalla usan la placa (un enlace).
+                    onClick={() => moviendo === null && abrir(o)}
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", String(o.id));
                       setArrastre({ orden: o, desde: c.estado });
-                      setConfirmar(null);
                     }}
                     onDragEnd={() => {
                       setArrastre(null);
                       setEncima(null);
                     }}
-                    onClick={() => moviendo === null && tocar(c.estado, o)}
-                    onKeyDown={(e) => {
-                      if (moviendo === null && (e.key === "Enter" || e.key === " ")) {
-                        e.preventDefault();
-                        tocar(c.estado, o);
-                      }
-                    }}
                   >
                     <div className="row between">
-                      <span className="placa">{o.chapa}</span>
+                      <Link
+                        href={`/ordenes/${o.id}`}
+                        className="placa placa-link"
+                        draggable={false}
+                        onClick={(e) => e.stopPropagation()}
+                        aria-label={`Ver la orden de ${o.chapa}`}
+                      >
+                        {o.chapa}
+                      </Link>
                       {c.estado === "done" ? (
                         <span className="badge" title={o.fechaFin ? "Fecha de fin" : "Sin fecha de fin: fecha de inicio"}>{fecha(o.fechaFin ?? o.fecha)}</span>
                       ) : (
@@ -258,29 +249,23 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       {o.totalRepuestos > 0 && <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>Repuestos · {new Intl.NumberFormat("es-PY").format(Math.round(o.totalRepuestos))}</span>}
                     </div>
                     {conGps(c.estado) && <GpsTarjeta equipos={gps?.[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? []} />}
-                    {cambio && permitido(c.estado, cambio) && (
-                      <button
-                        type="button"
-                        className="btn btn-ghost small tablero-bloquear"
-                        disabled={moviendo !== null}
-                        draggable={false}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (cambio === "to_be_paid" && !confirm(`¿Bloquear ${o.chapa}?`)) return;
-                          llevar(c.estado, cambio, o);
-                        }}
-                        onKeyDown={(e) => e.stopPropagation()}
-                      >
-                        {cambio === "to_be_paid" ? "Bloquear" : "Volver a En proceso"}
-                      </button>
-                    )}
-                    {moviendo === o.id && <div className="small muted">Moviendo…</div>}
-                    {confirmar === o.id && (
-                      <div className="row" style={{ gap: 8 }} onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={() => llevar("new", "running", o)}>Pasar a En proceso</button>
-                        <button type="button" className="btn" onClick={() => setConfirmar(null)}>Cancelar</button>
+                    {botones.length > 0 && (
+                      <div className="tablero-acciones" onClick={(e) => e.stopPropagation()}>
+                        {botones.map((b) => (
+                          <button
+                            key={b.a}
+                            type="button"
+                            className={`btn ${b.principal ? "btn-primary" : ""}`}
+                            disabled={moviendo !== null}
+                            draggable={false}
+                            onClick={() => llevar(c.estado, b.a, o)}
+                          >
+                            {b.texto}
+                          </button>
+                        ))}
                       </div>
                     )}
+                    {moviendo === o.id && <div className="small muted">Moviendo…</div>}
                   </article>
                 );
               })}
