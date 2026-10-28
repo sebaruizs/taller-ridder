@@ -107,11 +107,27 @@ export function normalizarChapa(q: string): string {
   return q.replace(/\s+/g, "").toUpperCase();
 }
 
-export function dominioOrdenes(f: { estado?: EstadoOrden; chapa?: string; tipoId?: number; partnerId?: number | null }): Domain {
-  const d: Domain = [["state", "=", f.estado ?? "running"]];
+export type FiltroOrdenes = {
+  estado?: EstadoOrden | "todos";
+  chapa?: string;
+  tipoId?: number;
+  partnerId?: number | null;
+  vehiculoId?: number;
+  choferId?: number;
+  desde?: string;
+  hasta?: string;
+};
+
+export function dominioOrdenes(f: FiltroOrdenes): Domain {
+  const d: Domain = f.estado === "todos" ? [] : [["state", "=", f.estado ?? "running"]];
   if (f.chapa) d.push(["vehicle_id.license_plate", "ilike", normalizarChapa(f.chapa)]);
   if (f.tipoId) d.push(["service_type_id", "=", f.tipoId]);
   if (f.partnerId !== undefined) d.push(["vendor_id", "=", f.partnerId ?? 0]);
+  if (f.vehiculoId) d.push(["vehicle_id", "=", f.vehiculoId]);
+  // El chofer de la orden, o el de la moto si la orden todavía no lo tiene.
+  if (f.choferId) d.push("|", ["purchaser_id", "=", f.choferId], "&", ["purchaser_id", "=", false], ["vehicle_id.driver_id", "=", f.choferId]);
+  if (f.desde) d.push(["date", ">=", f.desde]);
+  if (f.hasta) d.push(["date", "<=", f.hasta]);
   return d;
 }
 

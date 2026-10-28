@@ -53,3 +53,17 @@ describe("tablero", () => {
     expect(payloadNotaCambioEstado({ autor: "<x>", de: "new", a: "running" }).body).toContain("&lt;x&gt;");
   });
 });
+
+describe("filtros de órdenes para Cobranzas", () => {
+  it("todas las columnas, por moto, chofer y fechas", () => {
+    expect(dominioOrdenes({ estado: "todos", vehiculoId: 66, desde: "2026-10-01", hasta: "2026-10-31" })).toEqual([
+      ["vehicle_id", "=", 66],
+      ["date", ">=", "2026-10-01"],
+      ["date", "<=", "2026-10-31"],
+    ]);
+    expect(dominioOrdenes({ estado: "done", choferId: 2615 })).toEqual([
+      ["state", "=", "done"],
+      "|", ["purchaser_id", "=", 2615], "&", ["purchaser_id", "=", false], ["vehicle_id.driver_id", "=", 2615],
+    ]);
+  });
+});

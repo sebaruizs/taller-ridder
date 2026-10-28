@@ -32,6 +32,8 @@ const schema = z.object({
   APP_URL: z.string().url().optional(),
   // Secreto compartido con Cobranzas para crear usuarios cobradores por webhook. Vacío = webhook apagado.
   WEBHOOK_USUARIOS_SECRET: limpio,
+  // Secreto de la API para Cobranzas: con él, cada ruta /api actúa como el usuario de X-Ridder-Usuario. Vacío = apagada.
+  API_COBRANZAS_SECRET: limpio,
 });
 
 export type Env = z.infer<typeof schema>;

@@ -15,12 +15,19 @@ const ACCIONES_POR_ESTADO: Record<string, Accion[]> = {
   new: ["ordenes.ver_todas"],
   to_be_paid: ["ordenes.ver_todas"],
   done: ["ordenes.ver_todas"],
+  todos: ["ordenes.ver_todas"],
 };
 
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
+
 const query = z.object({
-  estado: z.enum(["new", "running", "cancelled", "to_be_paid", "done"]).default("running"),
+  estado: z.enum(["new", "running", "cancelled", "to_be_paid", "done", "todos"]).default("running"),
   q: z.string().trim().max(20).optional(),
   tipo: z.coerce.number().int().positive().optional(),
+  vehiculo: z.coerce.number().int().positive().optional(),
+  chofer: z.coerce.number().int().positive().optional(),
+  desde: z.string().regex(FECHA, "desde: AAAA-MM-DD").optional(),
+  hasta: z.string().regex(FECHA, "hasta: AAAA-MM-DD").optional(),
   mias: z.enum(["1", "0"]).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
 });
@@ -32,6 +39,10 @@ export const GET = manejar(async (req) => {
     estado: p.estado,
     chapa: p.q || undefined,
     tipoId: p.tipo,
+    vehiculoId: p.vehiculo,
+    choferId: p.chofer,
+    desde: p.desde,
+    hasta: p.hasta,
     partnerId: p.mias === "1" ? u.odooPartnerId : undefined,
     pagina: p.page,
   });

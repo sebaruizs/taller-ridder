@@ -54,6 +54,15 @@ Los usuarios nuevos de Cobranzas (salvo los de Finanzas) se crean solos acá com
 - `PATCH /api/webhooks/usuarios/<usuario>` `{ password?, activo? }`: solo cuentas con origen Cobranzas (si no, 409). Cambiar la contraseña o desactivar cierra sus sesiones.
 - Errores: `{ error }` con 400 (datos), 401 (secreto), 404 (no existe / API apagada), 409 (cuenta del taller).
 
+### API para Cobranzas
+
+Cobranzas puede hacer todo lo que se hace en la web, con las mismas rutas `/api/...` (o con el alias `/api/integraciones/cobranzas/...`) y la misma lógica:
+
+- Encabezados: `Authorization: Bearer <API_COBRANZAS_SECRET>` y `X-Ridder-Usuario: <login del taller, URL-encoded>`. La llamada actúa **como ese usuario**: su rol, sus permisos y su contacto de Odoo en las notas. En el log queda `origen: "cobranzas"` y `por`.
+- `X-Ridder-Usuario: automatico` es un jefe de **solo lectura** (todo lo que escribe le da 403).
+- Usuario inexistente o inactivo: 403. Secreto incorrecto o vacío: 401 (se comporta como un pedido sin sesión).
+- Para Cobranzas se sumaron: `GET /api/tablero` (columnas con su primera página), filtros de `GET /api/ordenes` (`estado=todos`, `vehiculo`, `chofer`, `desde`, `hasta`) y el detalle completo en `GET /api/ordenes/<id>` (reporte, repuestos e historial).
+
 Para emergencias (por ejemplo, recuperar el admin) se puede crear un usuario desde la terminal:
 
 ```bash
@@ -76,6 +85,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `TELEGRAM_CHAT_ERRORES` | Grupo de errores (fallas al escribir en Odoo) |
 | `ODOO_TAG_MECANICO` | id de la etiqueta de contactos "mecanico" (20) |
 | `WEBHOOK_USUARIOS_SECRET` | Secreto del webhook de altas desde Cobranzas (vacío = apagado) |
+| `API_COBRANZAS_SECRET` | Secreto de la API para Cobranzas (vacío = apagada) |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"

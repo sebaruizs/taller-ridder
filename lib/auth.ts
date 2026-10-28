@@ -2,13 +2,14 @@ import "server-only";
 import { cache } from "react";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
 import { and, eq, gt, ne } from "drizzle-orm";
 import { getDb, schema } from "./db";
 import { env } from "./env";
 import { DURACION_SESION_DIAS, inicioDe, puedeAlguna, type Accion } from "./permisos";
-import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido } from "./credenciales";
+import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido, usuarioSchema } from "./credenciales";
+import { quienHizo } from "./webhook-cobranzas";
 import type { Rol, Tema } from "./db/schema";
 
 export const COOKIE = "taller_sesion";
@@ -16,8 +17,8 @@ export const COOKIE = "taller_sesion";
 export type Usuario = { id: number; usuario: string; nombre: string; rol: Rol; odooPartnerId: number | null; permisosOff: string[]; tema: Tema };
 
 export class NoAutorizado extends Error {
-  constructor(readonly status: 401 | 403) {
-    super(status === 401 ? "Tenés que ingresar de nuevo" : "No tenés permiso para esto");
+  constructor(readonly status: 401 | 403, mensaje?: string) {
+    super(mensaje ?? (status === 401 ? "Tenés que ingresar de nuevo" : "No tenés permiso para esto"));
   }
 }
 
@@ -101,8 +102,39 @@ export async function logout(): Promise<void> {
   jar.delete(COOKIE);
 }
 
+// ---------- llamadas de Cobranzas ----------
+// Servidor a servidor: "Authorization: Bearer <API_COBRANZAS_SECRET>" y "X-Ridder-Usuario: <login>".
+// La llamada actúa como ese usuario del taller, con su rol y sus permisos, igual que desde la web.
+// "automatico" (procesos sin persona) es un jefe de solo lectura: todo lo que escribe está apagado.
+const ESCRITURA_OFF = ["finalizar", "crear", "mover_tablero", "repuestos", "aprobar", "crear_productos", "editar_precios", "cargar_compras"];
+const AUTOMATICO: Usuario = { id: 0, usuario: "automatico", nombre: "Cobranzas (automático)", rol: "jefe", odooPartnerId: null, permisosOff: ESCRITURA_OFF, tema: "claro" };
+
+const resumen = (v: string) => createHash("sha256").update(v).digest();
+
+// null: no es una llamada de Cobranzas (o el secreto no coincide: sigue como cualquier request sin sesión).
+export const llamadaCobranzas = cache(async (): Promise<{ por: string } | null> => {
+  const secreto = env().API_COBRANZAS_SECRET;
+  if (!secreto) return null;
+  const h = await headers();
+  const auth = h.get("authorization");
+  if (!auth?.startsWith("Bearer ")) return null;
+  if (!timingSafeEqual(resumen(auth.slice(7).trim()), resumen(secreto))) return null;
+  return { por: quienHizo(h.get("x-ridder-usuario")) };
+});
+
+async function usuarioDeCobranzas(por: string): Promise<Usuario> {
+  if (por === "automatico") return AUTOMATICO;
+  const login = usuarioSchema.safeParse(por);
+  const db = await getDb();
+  const [u] = login.success ? await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, login.data)) : [];
+  if (!u || !u.activo) throw new NoAutorizado(403, `«${por}» no es un usuario activo del taller`);
+  return { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff ?? [], tema: u.tema };
+}
+
 // cache: el layout raíz (tema) y cada página lo piden en el mismo request; una sola consulta.
 export const usuarioActual = cache(async (): Promise<Usuario | null> => {
+  const cobranzas = await llamadaCobranzas();
+  if (cobranzas) return usuarioDeCobranzas(cobranzas.por);
   const token = (await cookies()).get(COOKIE)?.value;
   if (!token) return null;
   const db = await getDb();
@@ -147,5 +179,8 @@ export async function registrar(
   extra: { ordenId?: number; vehiculoId?: number; detalle?: Record<string, unknown> } = {},
 ): Promise<void> {
   const db = await getDb();
-  await db.insert(schema.logAcciones).values({ usuarioId, accion, ...extra });
+  // Lo que llega desde Cobranzas queda marcado con quién lo hizo allá.
+  const cobranzas = await llamadaCobranzas().catch(() => null);
+  const detalle = cobranzas ? { ...extra.detalle, origen: "cobranzas", por: cobranzas.por } : extra.detalle;
+  await db.insert(schema.logAcciones).values({ usuarioId: usuarioId || null, accion, ...extra, detalle });
 }

@@ -11,7 +11,7 @@ import {
   textoCliente,
   tieneChofer,
   dominioOrdenes,
-  type EstadoOrden,
+  type FiltroOrdenes,
   type OrdenOdoo,
   type VehiculoOdoo,
 } from "./taller";
@@ -28,6 +28,12 @@ export type OrdenLista = {
   mecanico: string | null;
   mecanicoId: number | null;
   chofer: string | null;
+  choferId: number | null;
+  vehiculoId: number | null;
+  estado: string;
+  odometro: number;
+  monto: number;
+  totalRepuestos: number;
   fecha: string | null;
   fechaFin: string | null;
   dias: number | null;
@@ -55,13 +61,19 @@ function aLista(o: OrdenOdoo, v: VehiculoOdoo | undefined): OrdenLista {
     mecanico: o.vendor_id ? o.vendor_id[1] : null,
     mecanicoId: m2oId(o.vendor_id),
     chofer: o.purchaser_id ? o.purchaser_id[1] : v?.driver_id ? v.driver_id[1] : null,
+    choferId: m2oId(o.purchaser_id) ?? m2oId(v?.driver_id ?? false),
+    vehiculoId: m2oId(o.vehicle_id),
+    estado: o.state,
+    odometro: o.odometer,
+    monto: o.amount,
+    totalRepuestos: o.total_products_cost,
     fecha: o.date || null,
     fechaFin: o.service_end_date || null,
     dias: diasEnTaller(o.date),
   };
 }
 
-export async function listarOrdenes(f: { estado?: EstadoOrden; chapa?: string; tipoId?: number; partnerId?: number | null; pagina: number }) {
+export async function listarOrdenes(f: FiltroOrdenes & { pagina: number }) {
   const domain = dominioOrdenes(f);
   const [total, ordenes] = await Promise.all([
     odoo.searchCount(MODELO_ORDEN, domain),
@@ -69,7 +81,9 @@ export async function listarOrdenes(f: { estado?: EstadoOrden; chapa?: string; t
       limit: POR_PAGINA,
       offset: (f.pagina - 1) * POR_PAGINA,
       // Finalizadas: las más recientes primero; el resto, las que llevan más tiempo primero.
-      order: f.estado === "done" ? "service_end_date desc nulls last, date desc, id desc" : "date asc, id asc",
+      // Todas (búsquedas de Cobranzas): de la más reciente a la más vieja.
+      order:
+        f.estado === "done" ? "service_end_date desc nulls last, date desc, id desc" : f.estado === "todos" ? "date desc, id desc" : "date asc, id asc",
     }),
   ]);
   const vehiculos = await vehiculosPorId([...new Set(ordenes.map((o) => m2oId(o.vehicle_id)).filter((x): x is number => !!x))]);
