@@ -177,8 +177,8 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
               {!col.cargando && col.ordenes.length === 0 && !col.error && <div className="small muted center" style={{ padding: 12 }}>Sin órdenes</div>}
               {col.ordenes.map((o) => {
                 const movible = puedeMover(c.estado) && moviendo === null;
-                // Las bloqueadas y finalizadas no se mueven: al tocarlas se abre su detalle.
-                const abre = c.estado === "to_be_paid" || c.estado === "done";
+                // Lo que no se puede mover (bloqueadas, finalizadas o sin permiso) abre su detalle al tocarlo.
+                const abre = !puedeMover(c.estado);
                 const clickeable = movible || abre;
                 return (
                   <article

@@ -68,7 +68,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "repuestos", "reportes", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "aprobar", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -132,5 +132,23 @@ describe("menú lateral", () => {
     expect(hrefs).toContain("/ordenes/nueva");
     expect(hrefs).toContain("/inventario/nuevo");
     expect(hrefs).not.toContain("/compras/nueva");
+  });
+});
+
+describe("rol cobrador", () => {
+  const cobrador = { rol: "cobrador" as const, permisosOff: [] };
+  it("ve el tablero y el detalle, y carga órdenes nuevas", () => {
+    expect(puedeU(cobrador, "ordenes.ver_todas")).toBe(true);
+    expect(puedeU(cobrador, "ordenes.crear")).toBe(true);
+    expect(puedeU(cobrador, "vehiculos.buscar")).toBe(true);
+  });
+  it("no mueve, no finaliza, no verifica ni toca inventario o compras", () => {
+    for (const a of ["ordenes.mover_estado", "ordenes.finalizar", "ordenes.aprobar", "ordenes.editar", "reportes.ver", "inventario.ver", "compras.ver", "usuarios.gestionar"] as Accion[])
+      expect(puedeU(cobrador, a)).toBe(false);
+  });
+  it("entra al tablero y su menú es solo Taller", () => {
+    expect(inicioDe(cobrador)).toBe("/tablero");
+    expect(menuDe(pantallasDe(cobrador)).map((p) => p.href)).toEqual(["/tablero"]);
+    expect(permisosDelRol("cobrador")).toEqual(["crear", "tablero"]);
   });
 });

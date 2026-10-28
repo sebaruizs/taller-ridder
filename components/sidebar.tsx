@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import type { Rol } from "@/lib/db/schema";
 import { SECCIONES, menuDe, type Pantalla } from "@/lib/permisos";
 
-const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
+const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
 
 // Marca la opción más específica; en "/inventario/nuevo" queda marcado "Productos".
 function hrefActivo(pathname: string, hrefs: string[]): string | null {

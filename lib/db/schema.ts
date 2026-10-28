@@ -16,7 +16,7 @@ const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => "bytea",
 });
 
-export const ROLES = ["mecanico", "jefe", "admin"] as const;
+export const ROLES = ["mecanico", "jefe", "cobrador", "admin"] as const;
 export type Rol = (typeof ROLES)[number];
 
 // Tema de pantalla de cada usuario. "sistema" sigue al celular o la PC.

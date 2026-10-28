@@ -5,7 +5,7 @@ import type { UsuarioAdmin, ContactoOdoo } from "@/lib/usuarios";
 import type { Rol } from "@/lib/db/schema";
 import { MODULOS, PERMISOS, claveModulo, modulosDelRol, permisosDelRol, resumenPermisosOff, type Modulo } from "@/lib/permisos";
 
-const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", admin: "Admin" };
+const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
 
 type Form = {
   id: number | null;
