@@ -90,8 +90,6 @@ a { color: inherit; }
   cursor: pointer; text-decoration: none;
 }
 .btn:disabled { opacity: 0.5; cursor: default; }
-/* Principal deshabilitado: gris y legible (el texto dice qué falta), no azul lavado. */
-.btn-primary:disabled { opacity: 1; background: var(--surface-2); border-color: var(--line); color: var(--ink-2); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn-ghost { background: transparent; border-color: transparent; }
 .btn-block { width: 100%; }
@@ -297,9 +295,7 @@ textarea.input { min-height: 110px; resize: vertical; }
   .grid-ordenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
   .grid-ordenes .card:hover { border-color: var(--ridder); }
 
-  .contenido .wrap.tablero-wrap { max-width: none; }
-  /* Pantallas anchas (detalle, verificar, compras): hasta 1280 px, alineadas con el título. */
-  .contenido .wrap.wrap-ancho { max-width: 1280px; margin-left: 0; }
+  .contenido .wrap.tablero-wrap, .contenido .wrap.wrap-ancho { max-width: none; }
   /* el tablero ocupa todo el ancho: el encabezado también, así título y botón quedan alineados con las columnas */
   .contenido .topbar:has(+ .tablero-wrap), .contenido .topbar:has(+ .wrap-ancho) { max-width: none; }
   .kpis { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
@@ -455,32 +451,3 @@ textarea.input { min-height: 110px; resize: vertical; }
 .tablero-acciones { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 4px; cursor: default; }
 .tablero-acciones .btn { min-height: 40px; padding: 0 14px; font-size: 14px; flex: 1 1 auto; }
 .placa-link:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
-/* Finalizar: una sola columna enfocada en el reporte del mecánico. */
-.finalizar-wrap { display: flex; flex-direction: column; gap: 14px; }
-.finalizar-cabecera { display: flex; flex-direction: column; gap: 6px; }
-.finalizar-tipo { font-size: 17px; }
-.finalizar-titulo { margin: 0; font-size: 16px; }
-.finalizar-reporte { gap: 16px; }
-.finalizar-odometro { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.finalizar-odometro .input { max-width: 200px; font-family: var(--font-mono); font-size: 20px; }
-@media (min-width: 1024px) {
-  .contenido .wrap.finalizar-wrap { max-width: 704px; margin-left: 0; }
-  .contenido .topbar:has(+ .finalizar-wrap) { max-width: none; }
-}
-/* Detalle de la orden, estilo Odoo. */
-.orden-cabecera { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
-.orden-acciones { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
-.orden-datos { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 6px 0 0; }
-.orden-datos div { display: flex; flex-direction: column; gap: 2px; }
-.orden-datos dt { font-size: 12px; color: var(--ink-2); }
-.orden-datos dd { margin: 0; font-weight: 600; font-size: 14px; }
-.orden-par { display: grid; gap: 14px; }
-@media (min-width: 1024px) {
-  .orden-par { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
-}
-/* GPS en filas: un equipo por línea cuando hay espacio. */
-.orden-par .gps-tarjetas { grid-template-columns: 1fr; }
-.orden-par .gps-tarjeta { flex-direction: row; flex-wrap: wrap; align-items: center; column-gap: 14px; row-gap: 4px; padding: 10px 12px; }
-.orden-par .gps-tarjeta .gps-acciones { width: auto; margin: 0 0 0 auto; }
-/* Repuestos: los números cerca del nombre. */
-.lineas-tabla { max-width: 1100px; }

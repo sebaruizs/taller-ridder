@@ -1,8 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DetalleOrden } from "@/lib/ordenes";
 import { SelectorFotos, useFotos } from "@/components/selector-fotos";
+import { CajaRepuestos } from "@/components/repuestos-orden";
+import { PanelGps } from "@/components/gps-tarjeta";
+import type { LineaRepuesto } from "@/lib/taller";
 
 const fmt = (n: number) => new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
 
@@ -25,8 +28,19 @@ function olvidarClave(ordenId: number) {
   } catch {}
 }
 
-// Solo el reporte del mecánico: odómetro, qué hizo y fotos. Repuestos, GPS e historial están en el detalle de la orden.
-export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecanico: string }) {
+export function FormFinalizar({
+  orden,
+  mecanico,
+  repuestos,
+  gps,
+  historial,
+}: {
+  orden: DetalleOrden;
+  mecanico: string;
+  repuestos: LineaRepuesto[] | null;
+  gps: { puedeBloquear: boolean } | null;
+  historial: React.ReactNode;
+}) {
   const router = useRouter();
   const fotosEstado = useFotos();
   const procesando = fotosEstado.procesando;
@@ -42,8 +56,6 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
   const km = Number(digitos);
   const kmMenor = km > 0 && orden.ultimoOdometro > 0 && km < orden.ultimoOdometro;
   const puedeEnviar = hayKm && (!kmMenor || confirmaKm) && procesando === 0 && !enviando;
-  // Qué falta para poder finalizar, dicho en el botón deshabilitado.
-  const falta = !hayKm ? "Cargá el odómetro" : kmMenor && !confirmaKm ? "Confirmá el odómetro" : procesando ? "Procesando fotos…" : null;
 
   const yaFinalizada = orden.estado !== "running";
 
@@ -82,63 +94,62 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
     }
   }
 
+  const chofer = useMemo(() => orden.chofer ?? "sin chofer asignado", [orden.chofer]);
+
   return (
-    <main className="wrap finalizar-wrap">
-      <section className="finalizar-cabecera">
-        <div className="row between" style={{ gap: 10 }}>
+    <main className="wrap wrap-ancho stack" style={{ paddingTop: 0, gap: 16 }}>
+      <div className="finalizar-grid">
+      <div>
+      <section className="card stack" style={{ gap: 8 }}>
+        <div className="row between wrap-row">
           <span className="placa placa-lg">{orden.chapa}</span>
-          {orden.dias !== null && <span className={`badge ${orden.dias > 7 ? "badge-danger" : ""}`}>{orden.dias === 1 ? "1 día" : `${orden.dias} días`} en taller</span>}
+          {orden.dias !== null && <span className={`badge ${orden.dias > 7 ? "badge-danger" : ""}`}>{orden.dias} días en taller</span>}
         </div>
-        <strong className="finalizar-tipo">{orden.tipo ?? "Sin tipo"}</strong>
-        <span className="small muted">
-          {orden.vehiculo}
-          {" · "}
-          {orden.chofer ? `Chofer: ${orden.chofer}` : "Sin chofer asignado"}
-        </span>
-        {orden.descripcion && <span className="small">Pedido: {orden.descripcion}</span>}
+        <div className="small muted">{orden.vehiculo}</div>
+        <div style={{ fontWeight: 600 }}>{orden.tipo ?? "Sin tipo"}</div>
+        <div className="small">{orden.descripcion ?? <span className="muted">Sin descripción</span>}</div>
+        <div className="small muted">Chofer: {chofer}</div>
+        {orden.cliente && <div className="small muted">{orden.cliente}</div>}
       </section>
 
       {yaFinalizada && <div className="alert alert-warn">Esta orden ya no está en proceso.</div>}
 
-      <section className="card stack finalizar-reporte">
-        <h2 className="finalizar-titulo">Reporte del trabajo</h2>
+      <div className="field">
+        <label htmlFor="odo">Odómetro (km)</label>
+        <input
+          id="odo"
+          className="input"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder={orden.ultimoOdometro ? `Último: ${fmt(orden.ultimoOdometro)}` : "Ej: 15230"}
+          value={hayKm ? fmt(km) : ""}
+          onChange={(e) => { setOdometro(e.target.value); setConfirmaKm(false); }}
+          style={{ fontFamily: "var(--font-mono)", fontSize: 22 }}
+        />
+        <span className="small muted">
+          {orden.ultimoOdometro ? `Último registrado: ${fmt(orden.ultimoOdometro)} km` : "No hay odómetro registrado para esta moto."} Si la moto no tiene odómetro o no marca, poné 0.
+        </span>
+        {kmMenor && (
+          <label className="alert alert-warn row" style={{ alignItems: "flex-start" }}>
+            <input type="checkbox" checked={confirmaKm} onChange={(e) => setConfirmaKm(e.target.checked)} style={{ width: 22, height: 22, flex: "none" }} />
+            <span>Es menor que el último ({fmt(orden.ultimoOdometro)} km). Revisá el número. Si está bien, marcá esta casilla.</span>
+          </label>
+        )}
+      </div>
+      </div>
 
-        <div className="field">
-          <label htmlFor="odo">Odómetro (km)</label>
-          <div className="finalizar-odometro">
-            <input
-              id="odo"
-              className="input"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="Ej: 21.326"
-              value={hayKm ? fmt(km) : ""}
-              onChange={(e) => { setOdometro(e.target.value); setConfirmaKm(false); }}
-              aria-describedby="odo-ayuda"
-            />
-            <span className="small muted">{orden.ultimoOdometro ? `Último: ${fmt(orden.ultimoOdometro)} km` : "Sin odómetro anterior"}</span>
-          </div>
-          <span id="odo-ayuda" className="small muted">Si la moto no tiene odómetro o no marca, poné 0.</span>
-          {kmMenor && (
-            <label className="alert alert-warn row" style={{ alignItems: "flex-start" }}>
-              <input type="checkbox" checked={confirmaKm} onChange={(e) => setConfirmaKm(e.target.checked)} style={{ width: 22, height: 22, flex: "none" }} />
-              <span>Es menor que el último ({fmt(orden.ultimoOdometro)} km). Revisá el número. Si está bien, marcá esta casilla.</span>
-            </label>
-          )}
-        </div>
+      <div>
+      <SelectorFotos estado={fotosEstado} />
 
-        <div className="field">
-          <label htmlFor="obs">Qué hiciste <span className="muted small">(opcional)</span></label>
-          <textarea id="obs" className="input" placeholder="Qué cambiaste, qué repuestos usaste, qué falta…" value={observacion} onChange={(e) => setObservacion(e.target.value)} maxLength={4000} />
-        </div>
+      <div className="field">
+        <label htmlFor="obs">Observación <span className="muted small">(opcional)</span></label>
+        <textarea id="obs" className="input" placeholder="Qué hiciste, qué repuestos cambiaste, qué falta…" value={observacion} onChange={(e) => setObservacion(e.target.value)} maxLength={4000} />
+      </div>
 
-        <SelectorFotos estado={fotosEstado} />
-      </section>
-
-      <p className="small muted" style={{ margin: 0 }}>
-        Al finalizar, la orden pasa a «Listo para verificar» para que el jefe revise los repuestos.
+      <div className="small muted">
+        Al finalizar, la orden pasa a «Listo para verificar» para que el jefe cargue los repuestos.
         {!orden.tieneChofer && " Como la moto no tiene chofer, queda «Para entregar»."}
-      </p>
+      </div>
 
       {error && (
         <div className="alert alert-danger" role="alert">
@@ -155,12 +166,18 @@ export function FormFinalizar({ orden, mecanico }: { orden: DetalleOrden; mecani
             </button>
           ) : (
             <button className="btn btn-primary btn-block btn-lg" disabled={!puedeEnviar || yaFinalizada} onClick={() => enviar()}>
-              {enviando ? "Guardando en Odoo…" : yaFinalizada ? "Ya no está en proceso" : falta ?? "Finalizar trabajo"}
+              {enviando ? "Guardando en Odoo…" : procesando ? "Procesando fotos…" : "Finalizar trabajo"}
             </button>
           )}
           <span className="tiny muted center">Finaliza como {mecanico}</span>
         </div>
       </div>
+      </div>
+      </div>
+      {/* Debajo, a todo el ancho: repuestos (para quien puede cargarlos) e historial, como en Odoo. */}
+      {gps && <PanelGps ordenId={orden.id} chapa={orden.chapa} puedeBloquear={gps.puedeBloquear} />}
+      {repuestos && <CajaRepuestos ordenId={orden.id} lineasIniciales={repuestos} editable />}
+      {historial}
     </main>
   );
 }
