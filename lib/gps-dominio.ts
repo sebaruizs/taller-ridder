@@ -158,3 +158,11 @@ export function conTraccarAnterior(porChapa: Record<string, EquipoGps[]>, anteri
 // Los IMEI a consultar en el Traccar anterior: solo los equipos fuera de línea en el nuevo.
 export const imeisFueraDeLinea = (porChapa: Record<string, EquipoGps[]>) =>
   [...new Set(Object.values(porChapa).flat().filter((e) => !e.enLinea && e.imei).map((e) => e.imei as string))];
+
+// «Moneda Google»: el Sheets dice que la moto tiene moneda y en Traccar no reporta
+// (no hay equipo Monedas, o está fuera de línea y tampoco reporta en el Traccar anterior).
+export function muestraMonedaGoogle(equipos: EquipoGps[], tieneMonedaEnSheets: boolean): boolean {
+  if (!tieneMonedaEnSheets) return false;
+  const moneda = equipos.find((e) => e.tipo === "monedas");
+  return !moneda || (!moneda.enLinea && !moneda.anterior);
+}

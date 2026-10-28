@@ -43,6 +43,8 @@ const schema = z.object({
   // Vacío = no se consulta.
   TRACCAR_ANTERIOR_URL: z.string().url().default("https://gps.ridder.com.py"),
   TRACCAR_ANTERIOR_TOKEN: limpio,
+  // Google Sheets de monedas publicado como CSV (Archivo > Compartir > Publicar en la web > CSV). Vacío = no se usa.
+  MONEDAS_SHEET_CSV_URL: limpio,
 });
 
 export type Env = z.infer<typeof schema>;

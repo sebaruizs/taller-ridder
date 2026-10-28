@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { NOMBRE_TIPO, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
+import { NOMBRE_TIPO, muestraMonedaGoogle, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
 
 // GPS de una moto (Traccar): resumen en la tarjeta del tablero y panel completo en la orden,
 // donde quien puede bloquea o desbloquea el encendido.
@@ -19,12 +19,21 @@ const fechaHora = (iso: string | null) =>
 const bloqueo = (g: EquipoGps) => (g.bloqueado === null ? "¿?" : g.bloqueado ? "Bloqueado" : "Desbloqueado");
 
 // Resumen en la tarjeta del tablero: sin botones.
-export function GpsTarjeta({ equipos }: { equipos: EquipoGps[] | undefined }) {
+export function GpsTarjeta({ equipos, monedaGoogle = false }: { equipos: EquipoGps[] | undefined; monedaGoogle?: boolean }) {
   if (!equipos) return null;
-  if (!equipos.length) return <div className="gps-sin tiny muted">Sin GPS en Traccar</div>;
+  // La moneda del Sheets reemplaza a la de Traccar cuando esa no reporta.
+  const google = muestraMonedaGoogle(equipos, monedaGoogle);
+  const lista = google ? equipos.filter((e) => e.tipo !== "monedas") : equipos;
+  if (!lista.length && !google) return <div className="gps-sin tiny muted">Sin GPS en Traccar</div>;
   return (
     <div className="gps-lista">
-      {equipos.map((g) => (
+      {google && (
+        <div className="gps-equipo" title="Figura con moneda en el Sheets de monedas">
+          <span className="gps-punto" data-google aria-hidden />
+          <span className="gps-tipo">Moneda Google</span>
+        </div>
+      )}
+      {lista.map((g) => (
         <div key={g.id} className="gps-equipo" title={g.nombre}>
           <span className="gps-punto" data-en-linea={g.enLinea || undefined} data-anterior={(!g.enLinea && g.anterior) || undefined} aria-hidden />
           <span className="gps-tipo">{NOMBRE_TIPO[g.tipo]}</span>
@@ -44,6 +53,7 @@ export function GpsTarjeta({ equipos }: { equipos: EquipoGps[] | undefined }) {
 export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; chapa: string; puedeBloquear: boolean }) {
   const router = useRouter();
   const [equipos, setEquipos] = useState<EquipoGps[] | null>(null);
+  const [enSheets, setEnSheets] = useState(false);
   const [estado, setEstado] = useState<"cargando" | "listo" | "apagado" | "error">("cargando");
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -62,6 +72,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
         if (!r.ok) throw new Error(d.error);
         if (!d.habilitado) return setEstado("apagado");
         setEquipos(d.equipos[clave] ?? []);
+        setEnSheets((d.monedasGoogle ?? []).includes(clave));
         setEstado("listo");
       })
       .catch((e) => e.name !== "AbortError" && setEstado("error"));
@@ -118,6 +129,17 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
           {(["gps", "tc", "monedas"] as const).map((tipo) => {
             const g = equipos.find((e) => e.tipo === tipo);
             const esperado = tipo === "gps" ? clave : tipo === "tc" ? `${clave}-TC` : `${clave} - Monedas`;
+            // La moneda no reporta en Traccar pero el Sheets dice que la moto tiene: «Moneda Google».
+            if (tipo === "monedas" && muestraMonedaGoogle(equipos, enSheets))
+              return (
+                <div key={tipo} className="gps-tarjeta" data-google>
+                  <span className="gps-tarjeta-tipo">
+                    <span className="gps-punto" data-google aria-hidden /> {ETIQUETA[tipo]}
+                  </span>
+                  <strong>Moneda Google</strong>
+                  <span className="tiny muted">Figura en el Sheets de monedas; no reporta en Traccar.</span>
+                </div>
+              );
             return g ? (
               <TarjetaEquipo key={tipo} g={g} puedeBloquear={puedeBloquear} enviando={enviando} alTocar={tocar} />
             ) : (

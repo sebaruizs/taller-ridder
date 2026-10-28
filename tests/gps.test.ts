@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conTraccarAnterior, equiposPorChapa, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
+import { conTraccarAnterior, equiposPorChapa, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
 
 const disp = (id: number, name: string, extra: Partial<DispositivoTraccar> = {}): DispositivoTraccar => ({ id, name, status: "online", lastUpdate: "2026-10-28T12:00:00Z", positionId: id * 10, ...extra });
 
@@ -52,5 +52,16 @@ describe("GPS: Traccar anterior", () => {
     expect(r["816ABTI"][0].anterior).toEqual({ enLinea: true, ultimaConexion: "2026-10-28T12:00:00Z" });
     const viejo = conTraccarAnterior(base, [{ uniqueId: "111", status: "offline", lastUpdate: "2026-10-27T09:00:00Z" }]);
     expect(viejo["816ABTI"][0].anterior).toBeNull();
+  });
+});
+
+describe("GPS: Moneda Google", () => {
+  it("solo si el Sheets dice que tiene y Traccar no la tiene o no reporta", () => {
+    const enLinea = equiposPorChapa(["236ABXV"], [disp(3, "236ABXV - Monedas")], [])["236ABXV"];
+    const fuera = equiposPorChapa(["236ABXV"], [disp(3, "236ABXV - Monedas", { status: "offline" })], [])["236ABXV"];
+    expect(muestraMonedaGoogle([], true)).toBe(true);
+    expect(muestraMonedaGoogle(fuera, true)).toBe(true);
+    expect(muestraMonedaGoogle(enLinea, true)).toBe(false);
+    expect(muestraMonedaGoogle([], false)).toBe(false);
   });
 });

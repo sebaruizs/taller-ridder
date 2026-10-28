@@ -89,6 +89,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `API_COBRANZAS_SECRET` | Secreto de la API para Cobranzas (vacío = apagada) |
 | `TRACCAR_URL`, `TRACCAR_TOKEN` | GPS: Traccar y el token del usuario «Ridder taller» (vacío = sin GPS en el tablero) |
 | `TRACCAR_ANTERIOR_URL`, `TRACCAR_ANTERIOR_TOKEN` | Traccar anterior, solo lectura (vacío = no se consulta) |
+| `MONEDAS_SHEET_CSV_URL` | Google Sheets de monedas publicado como CSV (vacío = no se usa) |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"
@@ -168,3 +169,5 @@ En las tarjetas **En proceso** y **Listo para verificar** se ve un resumen del e
 Quien tiene el permiso **Bloquear el encendido** (jefe y admin) puede **Bloquear** o **Desbloquear** desde ese panel. El comando va **solo al equipo que se llama exactamente como la chapa** (`engineStop` / `engineResume`, si el modelo lo acepta); si no hay uno así, no hay botón. Siempre con confirmación; si la moto está en movimiento pide confirmar otra vez. Un comando por equipo cada 90 segundos. Si el GPS está desconectado queda en cola en Traccar (se avisa). Queda en el log, como nota en la orden de Odoo y en el historial de Traccar como «Ridder taller (<nombre>)» (se manda `X-Ridder-Usuario: <nombre>`; el token tiene que ser del usuario 14 «Ridder taller»).
 
 Si un equipo está **fuera de línea en el Traccar nuevo**, se busca el mismo IMEI en el **Traccar anterior** (`TRACCAR_ANTERIOR_URL`, `TRACCAR_ANTERIOR_TOKEN`, solo lectura, una consulta con todos los IMEI, timeout de 5 s). Si ahí reportó después que en el nuevo, la tarjeta muestra ese último reporte con la etiqueta «Traccar anterior». Bloquear y desbloquear van siempre al Traccar nuevo.
+
+**Moneda Google:** si el Google Sheets de monedas (`MONEDAS_SHEET_CSV_URL`, publicado como CSV, columnas «Nro. de Chapa» y «Moneda») dice que la moto tiene moneda —cualquier valor salvo «No»: Si, IOS, YGTAG…— y en Traccar no hay equipo Monedas o no reporta (tampoco en el anterior), la tarjeta Moneda muestra «Moneda Google». La hoja se lee cada 10 minutos; si Google no responde se usa lo último leído.

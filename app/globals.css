@@ -468,3 +468,6 @@ textarea.input { min-height: 110px; resize: vertical; }
 /* Equipo que reporta en el Traccar anterior (fuera de línea en el nuevo). */
 .gps-punto[data-anterior] { background: var(--warn); }
 .gps-anterior { font-size: 11px; padding: 1px 7px; margin-left: 4px; }
+/* Moneda que figura en el Sheets pero no reporta en Traccar. */
+.gps-punto[data-google] { background: var(--ridder); }
+.gps-tarjeta[data-google] { border-style: dashed; border-color: var(--ridder); }
