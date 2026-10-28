@@ -3,6 +3,8 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DetalleOrden } from "@/lib/ordenes";
 import { SelectorFotos, useFotos } from "@/components/selector-fotos";
+import { CajaRepuestos } from "@/components/repuestos-orden";
+import type { LineaRepuesto } from "@/lib/taller";
 
 const fmt = (n: number) => new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
 
@@ -25,7 +27,7 @@ function olvidarClave(ordenId: number) {
   } catch {}
 }
 
-export function FormFinalizar({ orden, mecanico, historial }: { orden: DetalleOrden; mecanico: string; historial: React.ReactNode }) {
+export function FormFinalizar({ orden, mecanico, repuestos, historial }: { orden: DetalleOrden; mecanico: string; repuestos: LineaRepuesto[] | null; historial: React.ReactNode }) {
   const router = useRouter();
   const fotosEstado = useFotos();
   const procesando = fotosEstado.procesando;
@@ -118,7 +120,7 @@ export function FormFinalizar({ orden, mecanico, historial }: { orden: DetalleOr
           </label>
         )}
       </div>
-      {historial}
+      {repuestos && <CajaRepuestos ordenId={orden.id} lineasIniciales={repuestos} editable />}
       </div>
 
       <div>
@@ -155,6 +157,7 @@ export function FormFinalizar({ orden, mecanico, historial }: { orden: DetalleOr
           <span className="tiny muted center">Finaliza como {mecanico}</span>
         </div>
       </div>
+      {historial}
       </div>
       </div>
     </main>

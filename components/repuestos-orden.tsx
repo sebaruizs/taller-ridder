@@ -186,22 +186,22 @@ export function FormRepuesto({ r, alAgregar, id = "rep" }: { r: EstadoRepuestos;
   );
 }
 
-// Sección desplegable dentro de una tarjeta del tablero: lee las líneas al abrir y avisa el nuevo total.
-export function RepuestosTarjeta({ ordenId, alCambiar }: { ordenId: number; alCambiar: (total: number) => void }) {
-  const r = useRepuestos(ordenId, null);
-  const { lineas, total } = r;
-  useEffect(() => {
-    if (lineas) alCambiar(total);
-  }, [lineas, total, alCambiar]);
+// Caja «Repuestos utilizados» (como en Odoo): la lista con su total y, para quien puede, el buscador para agregar.
+export function CajaRepuestos({ ordenId, lineasIniciales, editable }: { ordenId: number; lineasIniciales: LineaRepuesto[]; editable: boolean }) {
+  const r = useRepuestos(ordenId, lineasIniciales);
   return (
-    <div className="stack tablero-rep" style={{ gap: 10 }}>
-      <div className="row between small">
-        <strong>Repuestos</strong>
-        {lineas && <strong>{gs(total)}</strong>}
+    <section className="card stack" style={{ gap: 10 }}>
+      <div className="row between">
+        <strong>Repuestos utilizados</strong>
+        <strong>{gs(r.total)}</strong>
       </div>
-      <ListaRepuestos r={r} editable />
-      <FormRepuesto r={r} id={`rep-${ordenId}`} />
+      <ListaRepuestos r={r} editable={editable} />
+      {editable && (
+        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+          <FormRepuesto r={r} id={`rep-${ordenId}`} />
+        </div>
+      )}
       {r.error && <div className="alert alert-danger small" role="alert">{r.error}</div>}
-    </div>
+    </section>
   );
 }

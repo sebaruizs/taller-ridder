@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrdenLista } from "@/lib/ordenes";
-import { RepuestosTarjeta } from "@/components/repuestos-orden";
 
 const COLUMNAS = [
   { estado: "new", titulo: "Nuevo" },
@@ -32,7 +31,7 @@ const TITULO = Object.fromEntries(COLUMNAS.map((c) => [c.estado, c.titulo])) as 
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
 const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
 
-export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boolean; finalizar: boolean; verificar: boolean; repuestos: boolean } }) {
+export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boolean; finalizar: boolean; verificar: boolean } }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
@@ -43,19 +42,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const [arrastre, setArrastre] = useState<{ orden: OrdenLista; desde: Estado } | null>(null);
   const [encima, setEncima] = useState<Estado | null>(null);
   const [confirmar, setConfirmar] = useState<number | null>(null);
-  const [repAbierto, setRepAbierto] = useState<number | null>(null);
-
-  // Al cargar o quitar repuestos desde la tarjeta, se actualiza el total que muestra.
-  const totalRepuestos = useCallback((id: number, total: number) => {
-    setCols((c) => {
-      const cambia = (Object.keys(c) as Estado[]).filter((k) => c[k].ordenes.some((o) => o.id === id && o.totalRepuestos !== total));
-      // Sin cambios devuelve el mismo objeto: no re-renderiza (la tarjeta avisa el total en cada render).
-      if (!cambia.length) return c;
-      const sig = { ...c };
-      for (const k of cambia) sig[k] = { ...sig[k], ordenes: sig[k].ordenes.map((o) => (o.id === id ? { ...o, totalRepuestos: total } : o)) };
-      return sig;
-    });
-  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setQDebounced(q.trim()), 300);
@@ -217,7 +203,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     key={o.id}
                     className="card stack tablero-card"
                     style={{ gap: 6 }}
-                    draggable={movible && repAbierto !== o.id}
+                    draggable={movible}
                     data-movible={movible || undefined}
                     data-arrastrando={arrastre?.orden.id === o.id || undefined}
                     data-abre={abre || undefined}
@@ -253,22 +239,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{o.tipo ?? "Sin tipo"}</div>
                     <div className="row between" style={{ gap: 8 }}>
                       <span className="small muted">{o.mecanico ?? "Sin asignar"}</span>
-                      {/* Repuestos en cualquier estado: se despliegan dentro de la tarjeta. */}
-                      {acciones.repuestos && (
-                        <button
-                          type="button"
-                          className="tiny tablero-repuestos"
-                          aria-expanded={repAbierto === o.id}
-                          draggable={false}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setRepAbierto((id) => (id === o.id ? null : o.id));
-                          }}
-                          onKeyDown={(e) => e.stopPropagation()}
-                        >
-                          Repuestos{o.totalRepuestos > 0 ? ` · ${new Intl.NumberFormat("es-PY").format(Math.round(o.totalRepuestos))}` : ""} {repAbierto === o.id ? "▴" : "▾"}
-                        </button>
-                      )}
+                      {o.totalRepuestos > 0 && <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>Repuestos · {new Intl.NumberFormat("es-PY").format(Math.round(o.totalRepuestos))}</span>}
                     </div>
                     {cambio && permitido(c.estado, cambio) && (
                       <button
@@ -285,11 +256,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       >
                         {cambio === "to_be_paid" ? "Bloquear" : "Volver a En proceso"}
                       </button>
-                    )}
-                    {repAbierto === o.id && (
-                      <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} onDragStart={(e) => e.stopPropagation()}>
-                        <RepuestosTarjeta ordenId={o.id} alCambiar={(total) => totalRepuestos(o.id, total)} />
-                      </div>
                     )}
                     {moviendo === o.id && <div className="small muted">Moviendo…</div>}
                     {confirmar === o.id && (

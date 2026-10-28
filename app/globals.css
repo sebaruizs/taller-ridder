@@ -397,10 +397,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .tablero-card[data-abre]:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
 .placa-link { text-decoration: none; color: inherit; }
 .placa-link:hover { border-color: var(--ridder); color: var(--ridder); }
-.tablero-repuestos { color: var(--ridder); background: none; border: 0; cursor: pointer; font: inherit; font-weight: 600; white-space: nowrap; padding: 2px 0; }
-.tablero-repuestos:hover { text-decoration: underline; }
 .tablero-bloquear { align-self: flex-start; padding: 4px 10px; min-height: 0; }
-.tablero-rep { border-top: 1px solid var(--line); padding-top: 10px; cursor: default; overflow-wrap: anywhere; }
 /* Usuarios: lista por rol. En el celular cada fila apila sus datos; en la PC son columnas. */
 .lista-usuarios { padding: 0; overflow: hidden; }
 .lista-usuarios-titulo { padding: 12px 14px; background: var(--surface-2); }
@@ -414,3 +411,6 @@ textarea.input { min-height: 110px; resize: vertical; }
   .lista-usuarios-cols { padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
   .lista-usuarios-fila span:empty { display: block; }
 }
+.detalle-datos { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; margin: 4px 0 0; font-size: 14px; }
+.detalle-datos dt { color: var(--ink-3); }
+.detalle-datos dd { margin: 0; font-weight: 600; }
