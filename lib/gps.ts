@@ -5,7 +5,9 @@ import { registrar, type Usuario } from "./auth";
 import { MODELO_ORDEN, conAutor } from "./taller";
 import {
   COMANDO,
+  conTraccarAnterior,
   equiposPorChapa,
+  imeisFueraDeLinea,
   payloadNotaEncendido,
   resultadoComando,
   type AccionEncendido,
@@ -30,10 +32,14 @@ export const gpsHabilitado = () => Boolean(env().TRACCAR_TOKEN);
 async function traccar(ruta: string, init: RequestInit = {}): Promise<Response> {
   const cfg = env();
   if (!cfg.TRACCAR_TOKEN) throw new ErrorGps("El GPS no está configurado (falta TRACCAR_TOKEN)", 503);
-  const r = await fetch(cfg.TRACCAR_URL.replace(/\/$/, "") + ruta, {
+  return pedir(cfg.TRACCAR_URL, cfg.TRACCAR_TOKEN, ruta, init, 15_000);
+}
+
+async function pedir(base: string, token: string, ruta: string, init: RequestInit, timeout: number): Promise<Response> {
+  const r = await fetch(base.replace(/\/$/, "") + ruta, {
     ...init,
-    headers: { Authorization: `Bearer ${cfg.TRACCAR_TOKEN}`, Accept: "application/json", ...init.headers },
-    signal: AbortSignal.timeout(15_000),
+    headers: { Authorization: `Bearer ${token}`, Accept: "application/json", ...init.headers },
+    signal: AbortSignal.timeout(timeout),
     cache: "no-store",
   });
   if (r.status >= 400) {
@@ -63,7 +69,21 @@ export async function estadoGps(chapas: string[]): Promise<Record<string, Equipo
   const previo = equiposPorChapa(chapas, todos, []);
   const ids = new Set(Object.values(previo).flat().map((e) => e.id));
   const usados = todos.filter((d) => ids.has(d.id));
-  return equiposPorChapa(chapas, usados, await posiciones(usados.map((d) => d.positionId).filter((p) => p > 0)));
+  const porChapa = equiposPorChapa(chapas, usados, await posiciones(usados.map((d) => d.positionId).filter((p) => p > 0)));
+  return conTraccarAnterior(porChapa, await anteriores(imeisFueraDeLinea(porChapa)));
+}
+
+// Traccar anterior: solo lectura, una consulta con todos los IMEI. Si no responde, se sigue sin ese dato.
+async function anteriores(imeis: string[]): Promise<DispositivoTraccar[]> {
+  const cfg = env();
+  if (!cfg.TRACCAR_ANTERIOR_TOKEN || !imeis.length) return [];
+  try {
+    const q = imeis.map((i) => `uniqueId=${encodeURIComponent(i)}`).join("&");
+    return (await (await pedir(cfg.TRACCAR_ANTERIOR_URL, cfg.TRACCAR_ANTERIOR_TOKEN, `/api/devices?${q}`, {}, 5_000)).json()) as DispositivoTraccar[];
+  } catch (e) {
+    console.error("[gps] Traccar anterior", e instanceof Error ? e.message : e);
+    return [];
+  }
 }
 
 // Un comando por equipo cada 90 segundos: evita reenviar mientras el anterior sigue en camino o en cola.

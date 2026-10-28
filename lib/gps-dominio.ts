@@ -48,6 +48,8 @@ export type EquipoGps = {
   ubicacion: { lat: number; lon: number } | null;
   // El bloqueo del encendido se manda al equipo con la chapa exacta.
   corta: boolean;
+  // Si está fuera de línea en el nuevo pero el mismo equipo (IMEI) reportó después en el Traccar anterior.
+  anterior: { enLinea: boolean; ultimaConexion: string } | null;
 };
 
 const soloLetrasYNumeros = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -90,6 +92,7 @@ export function estadoEquipo(d: DispositivoTraccar, p: PosicionTraccar | undefin
     ultimoDato: p?.fixTime || null,
     ubicacion: p && typeof p.latitude === "number" && typeof p.longitude === "number" ? { lat: p.latitude, lon: p.longitude } : null,
     corta: tipo === "gps",
+    anterior: null,
   };
 }
 
@@ -130,3 +133,28 @@ export function payloadNotaEncendido(p: { autor: string; accion: AccionEncendido
     ...NOTA_INTERNA,
   };
 }
+
+// El dato del Traccar anterior para cada equipo fuera de línea en el nuevo: el mismo IMEI, el device con el
+// lastUpdate más reciente (hay duplicados), y solo si reportó después que en el nuevo.
+export function conTraccarAnterior(porChapa: Record<string, EquipoGps[]>, anteriores: Pick<DispositivoTraccar, "uniqueId" | "status" | "lastUpdate">[]) {
+  const masReciente = new Map<string, Pick<DispositivoTraccar, "status" | "lastUpdate">>();
+  for (const d of anteriores) {
+    if (!d.uniqueId || !d.lastUpdate) continue;
+    const ya = masReciente.get(d.uniqueId);
+    if (!ya || (ya.lastUpdate ?? "") < d.lastUpdate) masReciente.set(d.uniqueId, d);
+  }
+  const res: Record<string, EquipoGps[]> = {};
+  for (const [chapa, lista] of Object.entries(porChapa)) {
+    res[chapa] = lista.map((e) => {
+      const a = !e.enLinea && e.imei ? masReciente.get(e.imei) : undefined;
+      if (!a?.lastUpdate) return e;
+      const nuevo = e.ultimaConexion ? Date.parse(e.ultimaConexion) : 0;
+      return Date.parse(a.lastUpdate) > nuevo ? { ...e, anterior: { enLinea: a.status === "online", ultimaConexion: a.lastUpdate } } : e;
+    });
+  }
+  return res;
+}
+
+// Los IMEI a consultar en el Traccar anterior: solo los equipos fuera de línea en el nuevo.
+export const imeisFueraDeLinea = (porChapa: Record<string, EquipoGps[]>) =>
+  [...new Set(Object.values(porChapa).flat().filter((e) => !e.enLinea && e.imei).map((e) => e.imei as string))];

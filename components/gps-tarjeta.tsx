@@ -26,10 +26,10 @@ export function GpsTarjeta({ equipos }: { equipos: EquipoGps[] | undefined }) {
     <div className="gps-lista">
       {equipos.map((g) => (
         <div key={g.id} className="gps-equipo" title={g.nombre}>
-          <span className="gps-punto" data-en-linea={g.enLinea || undefined} aria-hidden />
+          <span className="gps-punto" data-en-linea={g.enLinea || undefined} data-anterior={(!g.enLinea && g.anterior) || undefined} aria-hidden />
           <span className="gps-tipo">{NOMBRE_TIPO[g.tipo]}</span>
           <span className="tiny muted">
-            {g.enLinea ? "En línea" : `Sin señal · ${hace(g.ultimaConexion)}`}
+            {g.enLinea ? "En línea" : g.anterior ? `Traccar anterior · ${hace(g.anterior.ultimaConexion)}` : `Sin señal · ${hace(g.ultimaConexion)}`}
             {g.encendido !== null && ` · ${g.encendido ? "Encendida" : "Apagada"}`}
             {g.kmh ? ` · ${g.kmh} km/h` : ""}
             {g.tipo !== "monedas" && ` · ${bloqueo(g)}`}
@@ -157,11 +157,14 @@ function TarjetaEquipo({
   alTocar: (accion: AccionEncendido) => void;
 }) {
   // El último reporte del equipo: la última posición, o la última conexión si no hay posición.
-  const reporte = g.ultimoDato ?? g.ultimaConexion;
+  // Fuera de línea en el nuevo pero reportando en el Traccar anterior: se muestra ese reporte, marcado.
+  const anterior = !g.enLinea ? g.anterior : null;
+  const reporte = anterior ? anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
   return (
     <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.nombre}>
       <span className="gps-tarjeta-tipo">
-        <span className="gps-punto" data-en-linea={g.enLinea || undefined} aria-hidden /> {ETIQUETA[g.tipo]}
+        <span className="gps-punto" data-en-linea={g.enLinea || undefined} data-anterior={anterior || undefined} aria-hidden /> {ETIQUETA[g.tipo]}
+        {anterior && <span className="badge badge-warn gps-anterior">Traccar anterior</span>}
       </span>
       <strong>{g.nombre}</strong>
       {reporte ? (
@@ -171,7 +174,11 @@ function TarjetaEquipo({
       ) : (
         <span className="small muted">Sin reportes</span>
       )}
-      {!g.enLinea && <span className="small rojo" style={{ fontWeight: 600 }}>Fuera de línea</span>}
+      {!g.enLinea && (
+        <span className="small rojo" style={{ fontWeight: 600 }}>
+          {anterior ? "Fuera de línea en el Traccar nuevo" : "Fuera de línea"}
+        </span>
+      )}
       {g.corta && puedeBloquear && (
         <span className="gps-acciones">
           <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>

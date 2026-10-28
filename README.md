@@ -88,6 +88,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `WEBHOOK_USUARIOS_SECRET` | Secreto del webhook de altas desde Cobranzas (vacío = apagado) |
 | `API_COBRANZAS_SECRET` | Secreto de la API para Cobranzas (vacío = apagada) |
 | `TRACCAR_URL`, `TRACCAR_TOKEN` | GPS: Traccar y el token del usuario «Ridder taller» (vacío = sin GPS en el tablero) |
+| `TRACCAR_ANTERIOR_URL`, `TRACCAR_ANTERIOR_TOKEN` | Traccar anterior, solo lectura (vacío = no se consulta) |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"
@@ -165,3 +166,5 @@ Si cambiás el esquema, generá la migración con `npm run db:generate`.
 En las tarjetas **En proceso** y **Listo para verificar** se ve un resumen del estado de los GPS de la moto según Traccar (`TRACCAR_URL`, `TRACCAR_TOKEN`): todos los equipos cuyo nombre es la chapa (la chapa sola, `-TC` y ` - Monedas`; los archivados no). Al tocar la tarjeta (Finalizar, Verificar o el detalle de la orden), el panel **GPS** muestra todos los datos de cada equipo: conexión, último dato y ubicación, encendido, bloqueo (según el relé que informa el GPS; «¿?» si no lo informa), velocidad, batería, IMEI, modelo y teléfono.
 
 Quien tiene el permiso **Bloquear el encendido** (jefe y admin) puede **Bloquear** o **Desbloquear** desde ese panel. El comando va **solo al equipo que se llama exactamente como la chapa** (`engineStop` / `engineResume`, si el modelo lo acepta); si no hay uno así, no hay botón. Siempre con confirmación; si la moto está en movimiento pide confirmar otra vez. Un comando por equipo cada 90 segundos. Si el GPS está desconectado queda en cola en Traccar (se avisa). Queda en el log, como nota en la orden de Odoo y en el historial de Traccar como «Ridder taller (<nombre>)» (se manda `X-Ridder-Usuario: <nombre>`; el token tiene que ser del usuario 14 «Ridder taller»).
+
+Si un equipo está **fuera de línea en el Traccar nuevo**, se busca el mismo IMEI en el **Traccar anterior** (`TRACCAR_ANTERIOR_URL`, `TRACCAR_ANTERIOR_TOKEN`, solo lectura, una consulta con todos los IMEI, timeout de 5 s). Si ahí reportó después que en el nuevo, la tarjeta muestra ese último reporte con la etiqueta «Traccar anterior». Bloquear y desbloquear van siempre al Traccar nuevo.

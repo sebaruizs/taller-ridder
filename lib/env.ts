@@ -39,6 +39,10 @@ const schema = z.object({
   // GPS (track.ridder.com.py): token de API del usuario «Ridder taller». Vacío = sin estados de GPS ni cortes.
   TRACCAR_URL: z.string().url().default("https://track.ridder.com.py"),
   TRACCAR_TOKEN: limpio,
+  // Traccar anterior (gps.ridder.com.py), solo lectura: se consulta cuando un equipo está fuera de línea en el nuevo.
+  // Vacío = no se consulta.
+  TRACCAR_ANTERIOR_URL: z.string().url().default("https://gps.ridder.com.py"),
+  TRACCAR_ANTERIOR_TOKEN: limpio,
 });
 
 export type Env = z.infer<typeof schema>;

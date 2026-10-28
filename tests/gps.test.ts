@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { equiposPorChapa, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
+import { conTraccarAnterior, equiposPorChapa, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
 
 const disp = (id: number, name: string, extra: Partial<DispositivoTraccar> = {}): DispositivoTraccar => ({ id, name, status: "online", lastUpdate: "2026-10-28T12:00:00Z", positionId: id * 10, ...extra });
 
@@ -34,5 +34,23 @@ describe("GPS: equipos de cada moto", () => {
     expect(resultadoComando(200, "bloquear").enCola).toBe(false);
     expect(resultadoComando(202, "desbloquear")).toMatchObject({ enCola: true });
     expect(payloadNotaEncendido({ autor: "Derlis", accion: "bloquear", equipo: "816ABTI", enCola: true }).body).toContain("bloqueó el encendido");
+  });
+});
+
+describe("GPS: Traccar anterior", () => {
+  const nuevo = (id: number, extra: Partial<DispositivoTraccar>) => disp(id, "816ABTI", { status: "offline", lastUpdate: "2026-10-28T10:00:00Z", uniqueId: "111", ...extra });
+  it("solo consulta los fuera de línea con IMEI", () => {
+    const r = equiposPorChapa(["816ABTI", "236ABXV"], [nuevo(1, {}), disp(2, "236ABXV", { uniqueId: "222" })], []);
+    expect(imeisFueraDeLinea(r)).toEqual(["111"]);
+  });
+  it("usa el device más reciente del mismo IMEI y solo si reportó después que en el nuevo", () => {
+    const base = equiposPorChapa(["816ABTI"], [nuevo(1, {})], []);
+    const r = conTraccarAnterior(base, [
+      { uniqueId: "111", status: "offline", lastUpdate: "2026-10-28T09:00:00Z" },
+      { uniqueId: "111", status: "online", lastUpdate: "2026-10-28T12:00:00Z" },
+    ]);
+    expect(r["816ABTI"][0].anterior).toEqual({ enLinea: true, ultimaConexion: "2026-10-28T12:00:00Z" });
+    const viejo = conTraccarAnterior(base, [{ uniqueId: "111", status: "offline", lastUpdate: "2026-10-27T09:00:00Z" }]);
+    expect(viejo["816ABTI"][0].anterior).toBeNull();
   });
 });

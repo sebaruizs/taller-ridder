@@ -465,3 +465,6 @@ textarea.input { min-height: 110px; resize: vertical; }
   .finalizar-fotos .foto-add:only-child { grid-column: 1 / -1; aspect-ratio: auto; height: 100%; min-height: 140px; }
   .finalizar-fotos .fotos:has(.foto-add:only-child) { align-content: stretch; }
 }
+/* Equipo que reporta en el Traccar anterior (fuera de línea en el nuevo). */
+.gps-punto[data-anterior] { background: var(--warn); }
+.gps-anterior { font-size: 11px; padding: 1px 7px; margin-left: 4px; }
