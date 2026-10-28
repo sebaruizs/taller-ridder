@@ -36,6 +36,9 @@ const schema = z.object({
   WEBHOOK_USUARIOS_SECRET: limpio,
   // Secreto de la API para Cobranzas: con él, cada ruta /api actúa como el usuario de X-Ridder-Usuario. Vacío = apagada.
   API_COBRANZAS_SECRET: limpio,
+  // GPS (track.ridder.com.py): token de API del usuario «Ridder taller». Vacío = sin estados de GPS ni cortes.
+  TRACCAR_URL: z.string().url().default("https://track.ridder.com.py"),
+  TRACCAR_TOKEN: limpio,
 });
 
 export type Env = z.infer<typeof schema>;

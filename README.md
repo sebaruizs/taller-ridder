@@ -87,6 +87,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `ODOO_TAG_EJECUTIVO` | id de la etiqueta de contactos "ejecutivo", para cobradores (24) |
 | `WEBHOOK_USUARIOS_SECRET` | Secreto del webhook de altas desde Cobranzas (vacío = apagado) |
 | `API_COBRANZAS_SECRET` | Secreto de la API para Cobranzas (vacío = apagada) |
+| `TRACCAR_URL`, `TRACCAR_TOKEN` | GPS: Traccar y el token del usuario «Ridder taller» (vacío = sin GPS en el tablero) |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"
@@ -158,3 +159,9 @@ tests/          tests unitarios (Vitest)
 ```
 
 Si cambiás el esquema, generá la migración con `npm run db:generate`.
+
+## GPS en el tablero
+
+En las tarjetas **En proceso** y **Listo para verificar** se ve el estado de los GPS de la moto según Traccar (`TRACCAR_URL`, `TRACCAR_TOKEN`): todos los equipos cuyo nombre es la chapa (la chapa sola, `-TC` y ` - Monedas`; los archivados no). Por equipo: en línea o sin señal, encendida o apagada y el relé de corte según el GPS (si no lo informa, «¿?»).
+
+Quien tiene el permiso **Cortar el encendido** (jefe y admin) puede cortar o restablecer el encendido. El comando va **solo al equipo con la chapa sola** (`engineStop` / `engineResume`, si el modelo lo acepta), siempre con confirmación; si la moto está en movimiento pide confirmar otra vez. Un comando por equipo cada 90 segundos. Si el GPS está desconectado queda en cola en Traccar (se avisa). Queda en el log, como nota en la orden de Odoo y en el historial de Traccar como «Ridder taller (<nombre>)» (se manda `X-Ridder-Usuario: <nombre>`; el token tiene que ser del usuario 14 «Ridder taller»). Si la moto no tiene un equipo con la chapa exacta, no hay botón.

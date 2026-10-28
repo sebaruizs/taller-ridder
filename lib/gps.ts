@@ -1,0 +1,113 @@
+import "server-only";
+import { env } from "./env";
+import { odoo } from "./odoo";
+import { registrar, type Usuario } from "./auth";
+import { MODELO_ORDEN, conAutor } from "./taller";
+import {
+  COMANDO,
+  equiposPorChapa,
+  payloadNotaEncendido,
+  resultadoComando,
+  type AccionEncendido,
+  type DispositivoTraccar,
+  type EquipoGps,
+  type PosicionTraccar,
+} from "./gps-dominio";
+
+// Traccar (track.ridder.com.py) con el token del usuario «Ridder taller». Sin TRACCAR_TOKEN, apagado.
+export class ErrorGps extends Error {
+  constructor(
+    mensaje: string,
+    readonly status = 400,
+    readonly extra: Record<string, unknown> = {},
+  ) {
+    super(mensaje);
+  }
+}
+
+export const gpsHabilitado = () => Boolean(env().TRACCAR_TOKEN);
+
+async function traccar(ruta: string, init: RequestInit = {}): Promise<Response> {
+  const cfg = env();
+  if (!cfg.TRACCAR_TOKEN) throw new ErrorGps("El GPS no está configurado (falta TRACCAR_TOKEN)", 503);
+  const r = await fetch(cfg.TRACCAR_URL.replace(/\/$/, "") + ruta, {
+    ...init,
+    headers: { Authorization: `Bearer ${cfg.TRACCAR_TOKEN}`, Accept: "application/json", ...init.headers },
+    signal: AbortSignal.timeout(15_000),
+    cache: "no-store",
+  });
+  if (r.status >= 400) {
+    const texto = (await r.text().catch(() => "")).slice(0, 200);
+    throw new ErrorGps(`Traccar respondió ${r.status}${texto ? `: ${texto}` : ""}`, 502);
+  }
+  return r;
+}
+
+// La lista de equipos cambia poco: se guarda medio minuto.
+let cacheEquipos: { hasta: number; lista: DispositivoTraccar[] } | undefined;
+async function dispositivos(): Promise<DispositivoTraccar[]> {
+  if (cacheEquipos && cacheEquipos.hasta > Date.now()) return cacheEquipos.lista;
+  const lista = (await (await traccar("/api/devices")).json()) as DispositivoTraccar[];
+  cacheEquipos = { hasta: Date.now() + 30_000, lista };
+  return lista;
+}
+
+async function posiciones(ids: number[]): Promise<PosicionTraccar[]> {
+  if (!ids.length) return [];
+  const q = ids.map((id) => `id=${id}`).join("&");
+  return (await (await traccar(`/api/positions?${q}`)).json()) as PosicionTraccar[];
+}
+
+export async function estadoGps(chapas: string[]): Promise<Record<string, EquipoGps[]>> {
+  const todos = await dispositivos();
+  const previo = equiposPorChapa(chapas, todos, []);
+  const ids = new Set(Object.values(previo).flat().map((e) => e.id));
+  const usados = todos.filter((d) => ids.has(d.id));
+  return equiposPorChapa(chapas, usados, await posiciones(usados.map((d) => d.positionId).filter((p) => p > 0)));
+}
+
+// Un comando por equipo cada 90 segundos: evita reenviar mientras el anterior sigue en camino o en cola.
+const ultimoComando = new Map<number, number>();
+const ESPERA_MS = 90_000;
+
+export async function cambiarEncendido(
+  d: { chapa: string; accion: AccionEncendido; ordenId?: number; confirmaEnMovimiento: boolean },
+  u: Usuario,
+): Promise<{ mensaje: string; enCola: boolean; equipo: string }> {
+  cacheEquipos = undefined;
+  const equipos = (await estadoGps([d.chapa]))[d.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? [];
+  const equipo = equipos.find((e) => e.corta);
+  if (!equipo) throw new ErrorGps("Esta moto no tiene en Traccar un GPS con la chapa exacta: no se puede cortar desde acá", 404);
+  if (d.accion === "cortar" && equipo.enMovimiento && !d.confirmaEnMovimiento) {
+    throw new ErrorGps(`La moto está en movimiento (${equipo.kmh ?? 0} km/h). Confirmá si igual querés cortar el encendido.`, 409, { requiereConfirmar: true });
+  }
+  const antes = ultimoComando.get(equipo.id);
+  if (antes && Date.now() - antes < ESPERA_MS) {
+    throw new ErrorGps("Ya se mandó un comando a este GPS hace menos de un minuto y medio. Esperá a que el equipo lo confirme.", 429);
+  }
+  const tipos = (await (await traccar(`/api/commands/types?deviceId=${equipo.id}`)).json()) as { type: string }[];
+  if (!tipos.some((t) => t.type === COMANDO[d.accion])) throw new ErrorGps(`El GPS «${equipo.nombre}» no acepta ese comando`, 409);
+
+  ultimoComando.set(equipo.id, Date.now());
+  const r = await traccar("/api/commands/send", {
+    method: "POST",
+    // Traccar lo registra como «Ridder taller (<persona>)».
+    headers: { "Content-Type": "application/json", "X-Ridder-Usuario": encodeURIComponent(u.nombre) },
+    body: JSON.stringify({ deviceId: equipo.id, type: COMANDO[d.accion] }),
+  }).catch((e) => {
+    ultimoComando.delete(equipo.id);
+    throw e;
+  });
+  const res = resultadoComando(r.status, d.accion);
+
+  await registrar(u.id, d.accion === "cortar" ? "gps.cortar" : "gps.restablecer", {
+    ordenId: d.ordenId,
+    detalle: { chapa: d.chapa, equipo: equipo.nombre, deviceId: equipo.id, enCola: res.enCola, enMovimiento: equipo.enMovimiento },
+  });
+  if (d.ordenId) {
+    await odoo
+      .messagePost(MODELO_ORDEN, d.ordenId, conAutor(payloadNotaEncendido({ autor: u.nombre, accion: d.accion, equipo: equipo.nombre, enCola: res.enCola }), u.odooPartnerId))
+      .catch((e) => console.error("[gps] nota", e));
+  }
+  return { ...res, equipo: equipo.nombre };
+}

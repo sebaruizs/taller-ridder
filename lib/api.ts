@@ -8,6 +8,7 @@ import { WebhookApagado, WebhookInvalido, WebhookNoAutorizado } from "./webhook-
 import { NoVerificable } from "./verificar";
 import { ProductoInvalido } from "./crear-producto";
 import { CompraInvalida } from "./crear-compra";
+import { ErrorGps } from "./gps";
 
 export function json<T>(data: T, status = 200) {
   return NextResponse.json(data, { status, headers: { "Cache-Control": "no-store" } });
@@ -32,6 +33,7 @@ export function manejar<C>(handler: (req: Request, ctx: C) => Promise<Response>)
       if (e instanceof NoVerificable) return errorJson(e.message, 409);
       if (e instanceof ProductoInvalido) return errorJson(e.message, 400);
       if (e instanceof CompraInvalida) return errorJson(e.message, 400);
+      if (e instanceof ErrorGps) return errorJson(e.message, e.status, e.extra);
       if (e instanceof OdooError) {
         console.error("[odoo]", e.message, e.detalle);
         return errorJson(`Odoo: ${e.message}`, 502);

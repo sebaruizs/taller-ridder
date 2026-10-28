@@ -431,3 +431,14 @@ textarea.input { min-height: 110px; resize: vertical; }
 .lineas-total { text-align: right; padding-top: 10px; }
 .lineas-caja .tabla-scroll { overflow: visible; }
 @media (max-width: 1023px) { .lineas-caja .tabla-scroll { overflow-x: auto; } }
+/* GPS en las tarjetas del tablero. */
+.gps-lista { display: flex; flex-direction: column; gap: 4px; border-top: 1px solid var(--line); padding-top: 6px; cursor: default; }
+.gps-equipo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.gps-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
+.gps-punto[data-en-linea] { background: var(--ok, #16a34a); }
+.gps-tipo { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; }
+.gps-acciones { display: flex; gap: 6px; width: 100%; }
+.gps-boton { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.gps-boton:hover { border-color: var(--ridder); color: var(--ridder); }
+.gps-cortar:hover { border-color: var(--danger); color: var(--danger); }
+.gps-sin { border-top: 1px solid var(--line); padding-top: 6px; }
