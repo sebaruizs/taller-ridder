@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import type { OrdenLista } from "@/lib/ordenes";
 import type { EquipoGps } from "@/lib/gps-dominio";
 import { GpsTarjeta } from "@/components/gps-tarjeta";
+import type { ColoresReporte } from "@/lib/ajustes-dominio";
 
 const COLUMNAS = [
   { estado: "new", titulo: "Nuevo" },
@@ -44,6 +45,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   // Estado de los GPS: solo de las motos en «En proceso» y «Listo para verificar».
   const [gps, setGps] = useState<Record<string, EquipoGps[]> | null>(null);
   const [monedasGoogle, setMonedasGoogle] = useState<Set<string>>(new Set());
+  const [colores, setColores] = useState<ColoresReporte | undefined>(undefined);
   const [arrastre, setArrastre] = useState<{ orden: OrdenLista; desde: Estado } | null>(null);
   const [encima, setEncima] = useState<Estado | null>(null);
 
@@ -119,6 +121,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
       .then((d) => {
         setGps(d.habilitado ? d.equipos ?? {} : null);
         setMonedasGoogle(new Set(d.monedasGoogle ?? []));
+        if (d.colores) setColores(d.colores);
       })
       .catch(() => {});
     return () => ctrl.abort();
@@ -249,6 +252,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       <GpsTarjeta
                         equipos={gps?.[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? []}
                         monedaGoogle={monedasGoogle.has(o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        colores={colores}
                       />
                     )}
                     {moviendo === o.id && <div className="small muted">Moviendo…</div>}

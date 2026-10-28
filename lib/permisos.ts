@@ -129,6 +129,7 @@ export const PANTALLAS = [
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
   { href: "/reportes", nombre: "Reportes", seccion: "Taller", acciones: ["reportes.ver"] },
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Configuración", acciones: ["usuarios.gestionar"] },
+  { href: "/admin/ajustes", nombre: "Ajustes", seccion: "Configuración", acciones: ["config.editar"] },
   { href: "/inventario/nuevo", nombre: "Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"], alta: true },
   { href: "/inventario", nombre: "Productos", seccion: "Inventario", acciones: ["inventario.ver"] },
   { href: "/compras/nueva", nombre: "Nueva compra", seccion: "Compras", acciones: ["compras.crear"], alta: true },

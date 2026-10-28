@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { NOMBRE_TIPO, muestraMonedaGoogle, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
+import { COLORES_POR_DEFECTO, colorReporte, type ColoresReporte } from "@/lib/ajustes-dominio";
 
 // GPS de una moto (Traccar): resumen en la tarjeta del tablero y panel completo en la orden,
 // donde quien puede bloquea o desbloquea el encendido.
@@ -12,14 +13,26 @@ const hace = (iso: string | null) => {
   if (min < 1) return "recién";
   if (min < 60) return `hace ${min} min`;
   if (min < 48 * 60) return `hace ${Math.round(min / 60)} h`;
-  return `hace ${Math.round(min / 1440)} días`;
+  const dias = Math.round(min / 1440);
+  if (dias < 60) return `hace ${dias} días`;
+  const meses = Math.round(dias / 30);
+  if (meses < 24) return `hace ${meses} meses`;
+  return `hace ${Math.round(dias / 365)} años`;
 };
 const fechaHora = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("es-PY", { timeZone: "America/Asuncion", dateStyle: "short", timeStyle: "short" }).format(new Date(iso)) : "—";
 const bloqueo = (g: EquipoGps) => (g.bloqueado === null ? "¿?" : g.bloqueado ? "Bloqueado" : "Desbloqueado");
 
 // Resumen en la tarjeta del tablero: sin botones.
-export function GpsTarjeta({ equipos, monedaGoogle = false }: { equipos: EquipoGps[] | undefined; monedaGoogle?: boolean }) {
+export function GpsTarjeta({
+  equipos,
+  monedaGoogle = false,
+  colores = COLORES_POR_DEFECTO,
+}: {
+  equipos: EquipoGps[] | undefined;
+  monedaGoogle?: boolean;
+  colores?: ColoresReporte;
+}) {
   if (!equipos) return null;
   // La moneda del Sheets reemplaza a la de Traccar cuando esa no reporta.
   const google = muestraMonedaGoogle(equipos, monedaGoogle);
@@ -33,18 +46,25 @@ export function GpsTarjeta({ equipos, monedaGoogle = false }: { equipos: EquipoG
           <span className="gps-tipo">Moneda Google</span>
         </div>
       )}
-      {lista.map((g) => (
+      {lista.map((g) => {
+        // Color según hace cuánto reportó (en el anterior, si es de ahí el último reporte).
+        const reporte = !g.enLinea && g.anterior ? g.anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
+        const color = colorReporte(reporte, colores) ?? undefined;
+        return (
         <div key={g.id} className="gps-equipo" title={g.nombre}>
-          <span className="gps-punto" data-en-linea={g.enLinea || undefined} data-anterior={(!g.enLinea && g.anterior) || undefined} aria-hidden />
+          <span className="gps-punto" data-color={color} aria-hidden />
           <span className="gps-tipo">{NOMBRE_TIPO[g.tipo]}</span>
           <span className="tiny muted">
-            {g.enLinea ? "En línea" : g.anterior ? `Traccar anterior · ${hace(g.anterior.ultimaConexion)}` : `Sin señal · ${hace(g.ultimaConexion)}`}
+            <span data-color={color} style={{ fontWeight: 600 }}>
+              {g.enLinea ? `En línea · ${hace(reporte)}` : g.anterior ? `Traccar anterior · ${hace(reporte)}` : `Sin señal · ${hace(reporte)}`}
+            </span>
             {g.encendido !== null && ` · ${g.encendido ? "Encendida" : "Apagada"}`}
             {g.kmh ? ` · ${g.kmh} km/h` : ""}
             {g.tipo !== "monedas" && ` · ${bloqueo(g)}`}
           </span>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -54,6 +74,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
   const router = useRouter();
   const [equipos, setEquipos] = useState<EquipoGps[] | null>(null);
   const [enSheets, setEnSheets] = useState(false);
+  const [colores, setColores] = useState<ColoresReporte>(COLORES_POR_DEFECTO);
   const [estado, setEstado] = useState<"cargando" | "listo" | "apagado" | "error">("cargando");
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -73,6 +94,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
         if (!d.habilitado) return setEstado("apagado");
         setEquipos(d.equipos[clave] ?? []);
         setEnSheets((d.monedasGoogle ?? []).includes(clave));
+        if (d.colores) setColores(d.colores);
         setEstado("listo");
       })
       .catch((e) => e.name !== "AbortError" && setEstado("error"));
@@ -141,7 +163,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
                 </div>
               );
             return g ? (
-              <TarjetaEquipo key={tipo} g={g} puedeBloquear={puedeBloquear} enviando={enviando} alTocar={tocar} />
+              <TarjetaEquipo key={tipo} g={g} colores={colores} puedeBloquear={puedeBloquear} enviando={enviando} alTocar={tocar} />
             ) : (
               <div key={tipo} className="gps-tarjeta" data-falta>
                 <span className="gps-tarjeta-tipo">{ETIQUETA[tipo]}</span>
@@ -153,7 +175,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
           {equipos
             .filter((e) => e.tipo === "otro")
             .map((g) => (
-              <TarjetaEquipo key={g.id} g={g} puedeBloquear={false} enviando={enviando} alTocar={tocar} />
+              <TarjetaEquipo key={g.id} g={g} colores={colores} puedeBloquear={false} enviando={enviando} alTocar={tocar} />
             ))}
         </div>
       )}
@@ -169,11 +191,13 @@ const ETIQUETA: Record<EquipoGps["tipo"], string> = { gps: "Chapa", tc: "TC", mo
 
 function TarjetaEquipo({
   g,
+  colores,
   puedeBloquear,
   enviando,
   alTocar,
 }: {
   g: EquipoGps;
+  colores: ColoresReporte;
   puedeBloquear: boolean;
   enviando: boolean;
   alTocar: (accion: AccionEncendido) => void;
@@ -182,23 +206,27 @@ function TarjetaEquipo({
   // Fuera de línea en el nuevo pero reportando en el Traccar anterior: se muestra ese reporte, marcado.
   const anterior = !g.enLinea ? g.anterior : null;
   const reporte = anterior ? anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
+  // Verde / amarillo / rojo según hace cuánto reportó (umbrales de Ajustes).
+  const color = colorReporte(reporte, colores) ?? undefined;
   return (
     <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.nombre}>
       <span className="gps-tarjeta-tipo">
-        <span className="gps-punto" data-en-linea={g.enLinea || undefined} data-anterior={anterior || undefined} aria-hidden /> {ETIQUETA[g.tipo]}
+        <span className="gps-punto" data-color={color} aria-hidden /> {ETIQUETA[g.tipo]}
         {anterior && <span className="badge badge-warn gps-anterior">Traccar anterior</span>}
       </span>
       <strong>{g.nombre}</strong>
       {reporte ? (
         <span className="small">
-          Último reporte: <span className="gps-hora">{fechaHora(reporte)}</span> <span className="muted">{hace(reporte)}</span>
+          Último reporte: <span className="gps-hora">{fechaHora(reporte)}</span>{" "}
+          <span data-color={color} style={{ fontWeight: 600 }}>{hace(reporte)}</span>
         </span>
       ) : (
         <span className="small muted">Sin reportes</span>
       )}
       {!g.enLinea && (
         <span className="small rojo" style={{ fontWeight: 600 }}>
-          {anterior ? "Fuera de línea en el Traccar nuevo" : "Fuera de línea"}
+          {/* Reporta en el anterior: en rojo, hace cuánto que no reporta en el nuevo. */}
+          {anterior ? (g.ultimaConexion ? `${hace(g.ultimaConexion).replace(/^h/, "H")}` : "Sin reportes") : "Fuera de línea"}
         </span>
       )}
       {g.corta && puedeBloquear && (
