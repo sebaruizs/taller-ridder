@@ -126,7 +126,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const destinosDe = (de: Estado) => (DESTINOS[de] ?? []).filter((d) => permitido(de, d.a));
   const puedeMover = (de: Estado) => destinosDe(de).length > 0;
 
-  // Lo mismo al soltar en otra columna o al usar los botones de la tarjeta.
+  // Al soltar la tarjeta en otra columna.
   function llevar(de: Estado, a: Estado, o: OrdenLista) {
     if (!permitido(de, a)) return;
     if (a === "cancelled") router.push(`/ordenes/${o.id}/finalizar`);
@@ -134,20 +134,14 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
     else void mover(o, de, a);
   }
 
-  // Lo que se puede hacer desde la tarjeta, con nombre: la principal de la columna y, si hay, una secundaria.
-  // Tocar la tarjeta (o la placa) abre siempre el detalle de la orden.
-  function accionesDe(estado: Estado): { a: Estado; texto: string; principal: boolean }[] {
-    const lista: { a: Estado; texto: string; principal: boolean }[] = [];
-    if (estado === "new") lista.push({ a: "running", texto: "Pasar a En proceso", principal: true });
-    if (estado === "running") {
-      lista.push({ a: "cancelled", texto: "Cargar reporte", principal: true });
-      lista.push({ a: "to_be_paid", texto: "Pasar a Bloqueado", principal: false });
-    }
-    if (estado === "to_be_paid") lista.push({ a: "running", texto: "Volver a En proceso", principal: true });
-    if (estado === "cancelled") lista.push({ a: "done", texto: "Verificar", principal: true });
-    return lista.filter((x) => permitido(estado, x.a));
-  }
-  const abrir = (o: OrdenLista) => router.push(`/ordenes/${o.id}`);
+  // Las etapas se cambian solo arrastrando. Tocar la tarjeta abre su pantalla de trabajo: En proceso, el reporte;
+  // Listo para verificar, la verificación (si tiene ese permiso); lo demás, el detalle de la orden.
+  const destinoDe = (estado: Estado, o: OrdenLista) =>
+    estado === "running" && acciones.finalizar
+      ? `/ordenes/${o.id}/finalizar`
+      : estado === "cancelled" && acciones.verificar
+        ? `/verificar/${o.id}`
+        : `/ordenes/${o.id}`;
 
   const destinoArrastre = (hacia: Estado) => (arrastre ? destinosDe(arrastre.desde).find((d) => d.a === hacia) : undefined);
   const aceptaSoltar = (hacia: Estado) => destinoArrastre(hacia) !== undefined;
@@ -206,7 +200,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
               {!col.cargando && col.ordenes.length === 0 && !col.error && <div className="small muted center" style={{ padding: 12 }}>Sin órdenes</div>}
               {col.ordenes.map((o) => {
                 const movible = puedeMover(c.estado) && moviendo === null;
-                const botones = accionesDe(c.estado);
                 return (
                   <article
                     key={o.id}
@@ -215,8 +208,8 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     draggable={movible}
                     data-movible={movible || undefined}
                     data-arrastrando={arrastre?.orden.id === o.id || undefined}
-                    // El mouse puede tocar toda la tarjeta; el teclado y el lector de pantalla usan la placa (un enlace).
-                    onClick={() => moviendo === null && abrir(o)}
+                    // Toda la tarjeta abre lo mismo, también la placa (un enlace, para teclado y lector de pantalla).
+                    onClick={() => moviendo === null && router.push(destinoDe(c.estado, o))}
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", String(o.id));
@@ -229,11 +222,11 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                   >
                     <div className="row between">
                       <Link
-                        href={`/ordenes/${o.id}`}
+                        href={destinoDe(c.estado, o)}
                         className="placa placa-link"
                         draggable={false}
                         onClick={(e) => e.stopPropagation()}
-                        aria-label={`Ver la orden de ${o.chapa}`}
+                        aria-label={`Abrir ${o.chapa}`}
                       >
                         {o.chapa}
                       </Link>
@@ -249,22 +242,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       {o.totalRepuestos > 0 && <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>Repuestos · {new Intl.NumberFormat("es-PY").format(Math.round(o.totalRepuestos))}</span>}
                     </div>
                     {conGps(c.estado) && <GpsTarjeta equipos={gps?.[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? []} />}
-                    {botones.length > 0 && (
-                      <div className="tablero-acciones" onClick={(e) => e.stopPropagation()}>
-                        {botones.map((b) => (
-                          <button
-                            key={b.a}
-                            type="button"
-                            className={`btn ${b.principal ? "btn-primary" : ""}`}
-                            disabled={moviendo !== null}
-                            draggable={false}
-                            onClick={() => llevar(c.estado, b.a, o)}
-                          >
-                            {b.texto}
-                          </button>
-                        ))}
-                      </div>
-                    )}
                     {moviendo === o.id && <div className="small muted">Moviendo…</div>}
                   </article>
                 );
