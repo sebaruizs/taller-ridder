@@ -32,7 +32,7 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
   return (
     <>
       <Topbar titulo={`Orden #${id}`} volver={volver} />
-      <main className="wrap">
+      <main className="wrap wrap-ancho stack" style={{ gap: 14 }}>
         <div className="finalizar-grid">
           <div className="stack" style={{ gap: 14 }}>
             <section className="card stack" style={{ gap: 8 }}>
@@ -52,9 +52,10 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
               {puedeVerificar && <Link className="btn btn-primary" href={`/verificar/${id}`} style={{ alignSelf: "flex-start" }}>Verificar y aprobar</Link>}
             </section>
 
-            {/* Repuestos utilizados, como en Odoo: quien puede los carga acá mismo. */}
-            <CajaRepuestos ordenId={id} lineasIniciales={repuestos} editable={editarRepuestos} />
 
+          </div>
+
+          <div className="stack" style={{ gap: 14 }}>
             <section className="card stack" style={{ gap: 10 }}>
               <div className="row between">
                 <strong>Reporte del mecánico</strong>
@@ -77,11 +78,11 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
               )}
             </section>
           </div>
-
-          <div>
-            <Historial ordenId={id} />
-          </div>
         </div>
+
+        {/* Debajo, a todo el ancho: repuestos utilizados (editables para quien puede) e historial, como en Odoo. */}
+        <CajaRepuestos ordenId={id} lineasIniciales={repuestos} editable={editarRepuestos} />
+        <Historial ordenId={id} />
       </main>
     </>
   );

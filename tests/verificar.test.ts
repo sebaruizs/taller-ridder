@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { NoVerificable, agregarRepuesto, aprobarOrden, quitarRepuesto, type DepsAprobar, type OdooVerificar } from "@/lib/verificar";
+import { NoVerificable, agregarRepuesto, aprobarOrden, editarRepuesto, quitarRepuesto, type DepsAprobar, type OdooVerificar } from "@/lib/verificar";
 import { mensajeTelegramVerificado, payloadNotaVerificacion } from "@/lib/taller";
 
 type Linea = { id: number; product_id: [number, string]; quantity: number; unit_cost: number; total_cost: number };
@@ -56,6 +56,15 @@ describe("repuestos de una orden para verificar", () => {
     expect(r.lineas).toHaveLength(1);
   });
 
+  it("edita cantidad y costo de una línea y actualiza el costo de la orden", async () => {
+    const t = armar({ lineas: [foco] });
+    const r = await editarRepuesto(t.odoo, 4132, 1, { cantidad: 3, costoUnitario: 25000 });
+    const w = t.llamadas.filter((l) => l.method === "write");
+    expect(w[0].args).toEqual([[1], { quantity: 3, unit_cost: 25000 }]);
+    expect(r.antes.cantidad).toBe(2);
+    await expect(editarRepuesto(t.odoo, 4132, 999, { cantidad: 1, costoUnitario: 1 })).rejects.toBeInstanceOf(NoVerificable);
+  });
+
   it("deja cargar y quitar repuestos en cualquier estado de la orden", async () => {
     for (const estado of ["new", "to_be_paid", "running", "done"]) {
       const t = armar({ estado, lineas: [foco] });
@@ -110,7 +119,7 @@ describe("textos de verificación", () => {
   it("el Telegram lista repuestos y total", () => {
     const m = mensajeTelegramVerificado({
       autor: "Derlis", chapa: "472ABSN", tipo: "Mantenimiento",
-      lineas: [{ id: 1, producto: "Foco H4", productoId: 46, cantidad: 1.5, costoUnitario: 10000, total: 15000 }],
+      lineas: [{ id: 1, producto: "Foco H4", productoId: 46, cantidad: 1.5, unidad: "Unidades", costoUnitario: 10000, total: 15000 }],
     });
     expect(m).toContain("🔎 Verificado por Derlis");
     expect(m).toContain("• 1,5 × Foco H4");

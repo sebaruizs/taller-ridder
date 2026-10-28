@@ -3,13 +3,13 @@ import Link from "next/link";
 import { useState } from "react";
 import type { DetalleOrden } from "@/lib/ordenes";
 import { ESTADOS, type EstadoOrden, type LineaRepuesto } from "@/lib/taller";
-import { FormRepuesto, ListaRepuestos, gs, useRepuestos } from "@/components/repuestos-orden";
+import { TablaRepuestos, gs, useRepuestos } from "@/components/repuestos-orden";
 
 type Aprobada = { chapa: string; lineas: LineaRepuesto[]; avisos: string[] };
 
 export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAprobar, historial }: { orden: DetalleOrden; lineasIniciales: LineaRepuesto[]; puedeRepuestos: boolean; puedeAprobar: boolean; historial: React.ReactNode }) {
   const rep = useRepuestos(orden.id, lineasIniciales);
-  const lineas = rep.lineas ?? [];
+  const lineas = rep.lineas;
   const { total, ocupado, error } = rep;
   const [sinRepuestos, setSinRepuestos] = useState(false);
   const [aprobada, setAprobada] = useState<Aprobada | null>(null);
@@ -47,7 +47,7 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
   const listoParaAprobar = puedeAprobar && editable && !ocupado && (lineas.length > 0 || sinRepuestos);
 
   return (
-    <main className="wrap">
+    <main className="wrap wrap-ancho">
       <div className="finalizar-grid">
         <div>
           <section className="card stack" style={{ gap: 8 }}>
@@ -68,24 +68,9 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
               Esta orden está en «{estadoTexto}». {puedeRepuestos ? "Podés cargar o quitar repuestos; la aprobación se hace cuando pase a «Listo para verificar»." : "La aprobación se hace cuando pase a «Listo para verificar»."}
             </div>
           )}
-
-          <section className="card stack" style={{ gap: 10 }}>
-            <div className="row between">
-              <strong>Repuestos utilizados</strong>
-              <strong>{gs(total)}</strong>
-            </div>
-            <ListaRepuestos r={rep} editable={puedeRepuestos} />
-          </section>
-          {historial}
         </div>
 
         <div>
-          {puedeRepuestos && (
-            <section className="card stack" style={{ gap: 12 }}>
-              <strong>Agregar repuesto</strong>
-              <FormRepuesto r={rep} alAgregar={() => setSinRepuestos(false)} />
-            </section>
-          )}
 
           {editable && puedeAprobar && lineas.length === 0 && (
             <label className="check">
@@ -107,6 +92,10 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
             </div>
           )}
         </div>
+      </div>
+      <div className="stack" style={{ gap: 14, marginTop: 14 }}>
+        <TablaRepuestos r={rep} editable={puedeRepuestos} alAgregar={() => setSinRepuestos(false)} conError={false} />
+        {historial}
       </div>
     </main>
   );

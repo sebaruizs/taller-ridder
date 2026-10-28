@@ -1,36 +1,25 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LineaRepuesto } from "@/lib/taller";
 import type { ProductoOdoo } from "@/lib/verificar-servicio";
 
-// Carga de repuestos de una orden: la usan Verificar y la sección desplegable de las tarjetas del tablero.
+// «Repuestos utilizados», como la lista de Odoo: una fila por repuesto, editable en el lugar,
+// y «Agregar una línea» al final. La usan Finalizar, Verificar y el detalle de la orden.
 
 export const gs = (n: number) => `Gs. ${new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Math.round(n))}`;
+const miles = (n: number) => new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 }).format(n);
 // Costo en guaraníes: el punto es separador de miles. Cantidad: acepta 1,5 o 1.5.
 const num = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
 const cant = (s: string) => Number(s.replace(",", "."));
 
-export function useRepuestos(ordenId: number, iniciales: LineaRepuesto[] | null) {
+type Datos = { cantidad: number; costoUnitario: number };
+
+export function useRepuestos(ordenId: number, iniciales: LineaRepuesto[]) {
   const router = useRouter();
-  const [lineas, setLineas] = useState<LineaRepuesto[] | null>(iniciales);
+  const [lineas, setLineas] = useState<LineaRepuesto[]>(iniciales);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Sin líneas iniciales (tarjeta del tablero): se leen de Odoo al abrir.
-  useEffect(() => {
-    if (iniciales) return;
-    const ctrl = new AbortController();
-    fetch(`/api/ordenes/${ordenId}/repuestos`, { signal: ctrl.signal })
-      .then(async (r) => {
-        if (r.status === 401) return router.replace("/ingresar");
-        const d = await r.json().catch(() => ({}));
-        if (r.ok) setLineas(d.lineas);
-        else setError(d.error ?? "No se pudieron leer los repuestos");
-      })
-      .catch((e) => e.name !== "AbortError" && setError("Sin conexión"));
-    return () => ctrl.abort();
-  }, [ordenId, iniciales, router]);
 
   async function llamar(url: string, init: RequestInit): Promise<Record<string, unknown> | null> {
     setOcupado(true);
@@ -55,55 +44,150 @@ export function useRepuestos(ordenId: number, iniciales: LineaRepuesto[] | null)
     }
   }
 
-  async function agregar(p: { productoId: number; cantidad: number; costoUnitario: number }): Promise<boolean> {
-    const d = await llamar(`/api/ordenes/${ordenId}/repuestos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(p),
-    });
+  async function guardar(url: string, method: string, body?: unknown): Promise<boolean> {
+    const d = await llamar(url, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
     if (d) setLineas(d.lineas as LineaRepuesto[]);
     return Boolean(d);
   }
 
+  const base = `/api/ordenes/${ordenId}/repuestos`;
+  const agregar = (p: Datos & { productoId: number }) => guardar(base, "POST", p);
+  const editar = (l: LineaRepuesto, p: Datos) => guardar(`${base}/${l.id}`, "PATCH", p);
   async function quitar(l: LineaRepuesto) {
     if (ocupado || !confirm(`¿Quitar ${l.producto}?`)) return;
-    const d = await llamar(`/api/ordenes/${ordenId}/repuestos/${l.id}`, { method: "DELETE" });
-    if (d) setLineas(d.lineas as LineaRepuesto[]);
+    await guardar(`${base}/${l.id}`, "DELETE");
   }
 
-  const total = (lineas ?? []).reduce((s, l) => s + l.total, 0);
-  return { lineas, total, ocupado, error, setError, llamar, agregar, quitar };
+  const total = lineas.reduce((s, l) => s + l.total, 0);
+  return { lineas, total, ocupado, error, llamar, agregar, editar, quitar };
 }
 
 export type EstadoRepuestos = ReturnType<typeof useRepuestos>;
 
-export function ListaRepuestos({ r, editable }: { r: EstadoRepuestos; editable: boolean }) {
-  if (r.lineas === null) return <span className="small muted">{r.error ? "" : "Leyendo repuestos de Odoo…"}</span>;
-  if (r.lineas.length === 0) return <span className="small muted">Todavía no hay repuestos cargados.</span>;
+export function CajaRepuestos({ ordenId, lineasIniciales, editable }: { ordenId: number; lineasIniciales: LineaRepuesto[]; editable: boolean }) {
+  const r = useRepuestos(ordenId, lineasIniciales);
+  return <TablaRepuestos r={r} editable={editable} />;
+}
+
+export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r: EstadoRepuestos; editable: boolean; alAgregar?: () => void; conError?: boolean }) {
+  const [agregando, setAgregando] = useState(false);
+  const columnas = editable ? 6 : 5;
   return (
-    <>
-      {r.lineas.map((l) => (
-        <div key={l.id} className="row between" style={{ alignItems: "flex-start", borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-          <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-            <span style={{ fontWeight: 600 }}>{l.producto}</span>
-            <span className="small muted">{l.cantidad} × {gs(l.costoUnitario)} = {gs(l.total)}</span>
-          </div>
-          {editable && (
-            <button type="button" className="btn btn-ghost small" disabled={r.ocupado} onClick={() => r.quitar(l)} aria-label={`Quitar ${l.producto}`}>Quitar</button>
-          )}
-        </div>
-      ))}
-    </>
+    <section className="card stack repuestos-caja" style={{ gap: 0 }}>
+      <strong className="repuestos-titulo">Repuestos utilizados</strong>
+      <div className="tabla-scroll">
+        <table className="tabla repuestos-tabla">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th className="num">Utilizado</th>
+              <th>UdM</th>
+              <th className="num">Costo unitario</th>
+              <th className="num">Total</th>
+              {editable && <th aria-label="Quitar" />}
+            </tr>
+          </thead>
+          <tbody>
+            {r.lineas.map((l) => (editable ? <FilaEditable key={`${l.id}-${l.cantidad}-${l.costoUnitario}`} l={l} r={r} /> : <FilaLectura key={l.id} l={l} />))}
+            {r.lineas.length === 0 && !agregando && (
+              <tr>
+                <td colSpan={columnas} className="small muted">Todavía no hay repuestos cargados.</td>
+              </tr>
+            )}
+            {editable &&
+              (agregando ? (
+                <FilaNueva
+                  r={r}
+                  cerrar={() => setAgregando(false)}
+                  alAgregar={() => {
+                    setAgregando(false);
+                    alAgregar?.();
+                  }}
+                />
+              ) : (
+                <tr>
+                  <td colSpan={columnas}>
+                    <button type="button" className="repuestos-agregar" onClick={() => setAgregando(true)} disabled={r.ocupado}>
+                      Agregar una línea
+                    </button>
+                  </td>
+                </tr>
+              ))}
+          </tbody>
+        </table>
+      </div>
+      {conError && r.error && <div className="alert alert-danger small" role="alert" style={{ margin: "10px 0 0" }}>{r.error}</div>}
+      <div className="repuestos-total">
+        {r.ocupado && <span className="small muted">Guardando en Odoo… · </span>}
+        <span className="muted">Total costo repuestos:</span> <strong>{gs(r.total)}</strong>
+      </div>
+    </section>
   );
 }
 
-export function FormRepuesto({ r, alAgregar, id = "rep" }: { r: EstadoRepuestos; alAgregar?: () => void; id?: string }) {
+function FilaLectura({ l }: { l: LineaRepuesto }) {
+  return (
+    <tr>
+      <td>{l.producto}</td>
+      <td className="num">{miles(l.cantidad)}</td>
+      <td>{l.unidad ?? ""}</td>
+      <td className="num">{miles(l.costoUnitario)}</td>
+      <td className="num">{miles(l.total)}</td>
+    </tr>
+  );
+}
+
+// Cantidad y costo se editan en la misma fila; se guarda al salir del campo o con Enter.
+function FilaEditable({ l, r }: { l: LineaRepuesto; r: EstadoRepuestos }) {
+  const [cantidad, setCantidad] = useState(String(l.cantidad).replace(".", ","));
+  const [costo, setCosto] = useState(miles(l.costoUnitario));
+  const c = cant(cantidad);
+  const u = num(costo || "0");
+  const cambio = c !== l.cantidad || u !== l.costoUnitario;
+
+  function guardar() {
+    if (!cambio || r.ocupado) return;
+    if (!(c > 0) || !(u >= 0)) {
+      setCantidad(String(l.cantidad).replace(".", ","));
+      setCosto(miles(l.costoUnitario));
+      return;
+    }
+    void r.editar(l, { cantidad: c, costoUnitario: u });
+  }
+  const alTeclear = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") e.currentTarget.blur();
+  };
+
+  return (
+    <tr data-cambio={cambio || undefined}>
+      <td>{l.producto}</td>
+      <td className="num">
+        <input className="celda num" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} onBlur={guardar} onKeyDown={alTeclear} aria-label={`Cantidad de ${l.producto}`} />
+      </td>
+      <td>{l.unidad ?? ""}</td>
+      <td className="num">
+        <input className="celda num" inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} onBlur={guardar} onKeyDown={alTeclear} aria-label={`Costo unitario de ${l.producto}`} />
+      </td>
+      <td className="num">{miles(cambio && c > 0 ? c * u : l.total)}</td>
+      <td className="num">
+        <button type="button" className="repuestos-quitar" disabled={r.ocupado} onClick={() => r.quitar(l)} aria-label={`Quitar ${l.producto}`} title="Quitar">
+          🗑
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// «Agregar una línea»: buscar el producto en la misma fila, como en Odoo.
+function FilaNueva({ r, cerrar, alAgregar }: { r: EstadoRepuestos; cerrar: () => void; alAgregar: () => void }) {
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<{ q: string; lista: ProductoOdoo[] } | null>(null);
   const [producto, setProducto] = useState<ProductoOdoo | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [costo, setCosto] = useState("");
+  const cantRef = useRef<HTMLInputElement>(null);
   const busqueda = q.trim();
+  const listo = producto !== null && !r.ocupado && cant(cantidad) > 0;
 
   useEffect(() => {
     if (producto || busqueda.length < 2) return;
@@ -122,86 +206,71 @@ export function FormRepuesto({ r, alAgregar, id = "rep" }: { r: EstadoRepuestos;
 
   function elegir(p: ProductoOdoo) {
     setProducto(p);
-    setCosto(String(Math.round(p.costo)));
-    setCantidad("1");
+    setCosto(miles(Math.round(p.costo)));
+    setTimeout(() => cantRef.current?.select(), 0);
   }
 
-  function limpiar() {
-    setProducto(null);
-    setQ("");
-    setResultados(null);
-    setCosto("");
-    setCantidad("1");
+  async function confirmar() {
+    if (!listo || !producto) return;
+    if (await r.agregar({ productoId: producto.id, cantidad: cant(cantidad), costoUnitario: num(costo || "0") })) alAgregar();
   }
-
-  async function enviar(e: React.FormEvent) {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!producto || r.ocupado) return;
-    if (await r.agregar({ productoId: producto.id, cantidad: cant(cantidad), costoUnitario: num(costo || "0") })) {
-      limpiar();
-      alAgregar?.();
+  const alTeclear = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      void confirmar();
     }
-  }
+    if (e.key === "Escape") cerrar();
+  };
 
   return (
-    <form className="stack" style={{ gap: 12 }} onSubmit={enviar}>
-      {producto ? (
-        <div className="row between" style={{ alignItems: "flex-start" }}>
-          <div className="stack" style={{ gap: 2 }}>
-            <span style={{ fontWeight: 600 }}>{producto.nombre}</span>
-            <span className="small muted">Costo en Odoo: {gs(producto.costo)}{producto.unidad ? ` por ${producto.unidad}` : ""}</span>
+    <tr className="repuestos-nueva">
+      <td>
+        {producto ? (
+          <button type="button" className="repuestos-producto" onClick={() => setProducto(null)} title="Cambiar producto">
+            {producto.nombre}
+          </button>
+        ) : (
+          <div className="repuestos-buscar">
+            <input
+              className="celda"
+              autoFocus
+              placeholder="Buscar repuesto por nombre o código"
+              autoComplete="off"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Escape" && cerrar()}
+              aria-label="Repuesto"
+            />
+            {resultados?.q === busqueda && (
+              <div className="repuestos-opciones" role="listbox" aria-label="Repuestos encontrados">
+                {resultados.lista.length === 0 && <span className="small muted">No hay repuestos con ese nombre.</span>}
+                {resultados.lista.map((p) => (
+                  <button key={p.id} type="button" role="option" aria-selected={false} onClick={() => elegir(p)}>
+                    <span>{p.nombre}</span>
+                    <span className="small muted">{gs(p.costo)}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <button type="button" className="btn btn-ghost small" onClick={limpiar}>Cambiar</button>
-        </div>
-      ) : (
-        <div className="field">
-          <label htmlFor={`${id}-prod`}>Repuesto</label>
-          <input id={`${id}-prod`} className="input" placeholder="Buscar por nombre o código" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
-          {resultados?.q === busqueda && resultados.lista.length === 0 && <span className="small muted">No hay repuestos con ese nombre.</span>}
-          {resultados?.q === busqueda && resultados.lista.length > 0 && (
-            <div className="stack" style={{ gap: 6 }} role="listbox" aria-label="Repuestos encontrados">
-              {resultados.lista.map((p) => (
-                <button key={p.id} type="button" role="option" aria-selected={false} className="card row between" style={{ textAlign: "left", cursor: "pointer", padding: "10px 12px" }} onClick={() => elegir(p)}>
-                  <span>{p.nombre}</span>
-                  <span className="small muted" style={{ whiteSpace: "nowrap" }}>{gs(p.costo)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      <div className="row" style={{ alignItems: "flex-end" }}>
-        <div className="field" style={{ flex: 1 }}>
-          <label htmlFor={`${id}-cant`}>Cantidad</label>
-          <input id={`${id}-cant`} className="input" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
-        </div>
-        <div className="field" style={{ flex: 2 }}>
-          <label htmlFor={`${id}-costo`}>Costo unitario (Gs.)</label>
-          <input id={`${id}-costo`} className="input" inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} />
-        </div>
-      </div>
-      <button className="btn" disabled={!producto || r.ocupado || !(cant(cantidad) > 0)}>{r.ocupado ? "Guardando en Odoo…" : "Agregar repuesto"}</button>
-    </form>
-  );
-}
-
-// Caja «Repuestos utilizados» (como en Odoo): la lista con su total y, para quien puede, el buscador para agregar.
-export function CajaRepuestos({ ordenId, lineasIniciales, editable }: { ordenId: number; lineasIniciales: LineaRepuesto[]; editable: boolean }) {
-  const r = useRepuestos(ordenId, lineasIniciales);
-  return (
-    <section className="card stack" style={{ gap: 10 }}>
-      <div className="row between">
-        <strong>Repuestos utilizados</strong>
-        <strong>{gs(r.total)}</strong>
-      </div>
-      <ListaRepuestos r={r} editable={editable} />
-      {editable && (
-        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-          <FormRepuesto r={r} id={`rep-${ordenId}`} />
-        </div>
-      )}
-      {r.error && <div className="alert alert-danger small" role="alert">{r.error}</div>}
-    </section>
+        )}
+      </td>
+      <td className="num">
+        <input ref={cantRef} className="celda num" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} onKeyDown={alTeclear} aria-label="Cantidad" />
+      </td>
+      <td>{producto?.unidad ?? ""}</td>
+      <td className="num">
+        <input className="celda num" inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} onKeyDown={alTeclear} aria-label="Costo unitario" />
+      </td>
+      <td className="num">{producto ? miles(cant(cantidad) * num(costo || "0") || 0) : ""}</td>
+      <td className="num" style={{ whiteSpace: "nowrap" }}>
+        <button type="button" className="btn btn-primary repuestos-guardar" disabled={!listo} onClick={confirmar}>
+          Guardar
+        </button>
+        <button type="button" className="repuestos-quitar" onClick={cerrar} aria-label="Descartar línea" title="Descartar">
+          ✕
+        </button>
+      </td>
+    </tr>
   );
 }

@@ -4,7 +4,7 @@ import { env } from "./env";
 import { enviarTelegram } from "./telegram";
 import { registrar, type Usuario } from "./auth";
 import { formatoGs, totalRepuestos } from "./taller";
-import { NoVerificable, agregarRepuesto, aprobarOrden, quitarRepuesto } from "./verificar";
+import { NoVerificable, agregarRepuesto, aprobarOrden, editarRepuesto, quitarRepuesto } from "./verificar";
 
 export type ProductoOdoo = { id: number; nombre: string; costo: number; unidad: string | null };
 
@@ -43,6 +43,17 @@ export function quitarRepuestoComo(ordenId: number, lineaId: number, u: Usuario)
   return conCandado(ordenId, async () => {
     const r = await quitarRepuesto(odoo, ordenId, lineaId);
     await registrar(u.id, "orden.repuesto_quitar", { ordenId, detalle: { ...r.quitada } });
+    return r.lineas;
+  });
+}
+
+export function editarRepuestoComo(ordenId: number, lineaId: number, datos: { cantidad: number; costoUnitario: number }, u: Usuario) {
+  return conCandado(ordenId, async () => {
+    const r = await editarRepuesto(odoo, ordenId, lineaId, datos);
+    await registrar(u.id, "orden.repuesto_editar", {
+      ordenId,
+      detalle: { lineaId, producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos },
+    });
     return r.lineas;
   });
 }

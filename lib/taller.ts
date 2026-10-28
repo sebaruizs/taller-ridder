@@ -195,7 +195,7 @@ export function payloadNotaCambioEstado(p: { autor: string; de: EstadoOrden; a: 
 
 export const MODELO_LINEA = "fleet.vehicle.log.services.product.line";
 
-export type LineaRepuesto = { id: number; producto: string; productoId: number; cantidad: number; costoUnitario: number; total: number };
+export type LineaRepuesto = { id: number; producto: string; productoId: number; cantidad: number; unidad: string | null; costoUnitario: number; total: number };
 
 // No se toca "delivered": esas líneas no mueven stock hoy y así deben seguir.
 export function payloadLineaRepuesto(ordenId: number, p: { productoId: number; cantidad: number; costoUnitario: number }) {

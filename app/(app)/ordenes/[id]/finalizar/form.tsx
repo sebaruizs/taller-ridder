@@ -81,7 +81,7 @@ export function FormFinalizar({ orden, mecanico, repuestos, historial }: { orden
   const chofer = useMemo(() => orden.chofer ?? "sin chofer asignado", [orden.chofer]);
 
   return (
-    <main className="wrap stack" style={{ paddingTop: 0, gap: 16 }}>
+    <main className="wrap wrap-ancho stack" style={{ paddingTop: 0, gap: 16 }}>
       <div className="finalizar-grid">
       <div>
       <section className="card stack" style={{ gap: 8 }}>
@@ -120,7 +120,6 @@ export function FormFinalizar({ orden, mecanico, repuestos, historial }: { orden
           </label>
         )}
       </div>
-      {repuestos && <CajaRepuestos ordenId={orden.id} lineasIniciales={repuestos} editable />}
       </div>
 
       <div>
@@ -157,9 +156,11 @@ export function FormFinalizar({ orden, mecanico, repuestos, historial }: { orden
           <span className="tiny muted center">Finaliza como {mecanico}</span>
         </div>
       </div>
+      </div>
+      </div>
+      {/* Debajo, a todo el ancho: repuestos (para quien puede cargarlos) e historial, como en Odoo. */}
+      {repuestos && <CajaRepuestos ordenId={orden.id} lineasIniciales={repuestos} editable />}
       {historial}
-      </div>
-      </div>
     </main>
   );
 }

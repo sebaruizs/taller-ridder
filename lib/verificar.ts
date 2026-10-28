@@ -34,17 +34,19 @@ async function ordenExistente(odoo: OdooVerificar, ordenId: number): Promise<voi
 }
 
 export async function leerRepuestos(odoo: Pick<OdooClient, "searchRead">, ordenId: number): Promise<LineaRepuesto[]> {
-  const filas = await odoo.searchRead<{ id: number; product_id: Many2one; quantity: number; unit_cost: number; total_cost: number }>(
+  const filas = await odoo.searchRead<{ id: number; product_id: Many2one; quantity: number; product_uom_id?: Many2one; unit_cost: number; total_cost: number }>(
     MODELO_LINEA,
     [["service_id", "=", ordenId]],
-    ["id", "product_id", "quantity", "unit_cost", "total_cost"],
-    { limit: 200, order: "id asc" },
+    ["id", "product_id", "quantity", "product_uom_id", "unit_cost", "total_cost"],
+    // En español, como en Odoo: «Unidades» y no «Units».
+    { limit: 200, order: "id asc", context: { lang: "es_419" } },
   );
   return filas.map((l) => ({
     id: l.id,
     producto: l.product_id ? l.product_id[1] : "—",
     productoId: l.product_id ? l.product_id[0] : 0,
     cantidad: l.quantity,
+    unidad: l.product_uom_id ? l.product_uom_id[1] : null,
     costoUnitario: l.unit_cost,
     total: l.total_cost,
   }));
@@ -83,6 +85,21 @@ export async function quitarRepuesto(odoo: OdooVerificar, ordenId: number, linea
   await odoo.unlink(MODELO_LINEA, [lineaId]);
   await sincronizarCosto(odoo, ordenId);
   return { lineas: await leerRepuestos(odoo, ordenId), quitada };
+}
+
+// Corregir cantidad o costo de una línea, como al editar la fila en Odoo.
+export async function editarRepuesto(
+  odoo: OdooVerificar,
+  ordenId: number,
+  lineaId: number,
+  datos: { cantidad: number; costoUnitario: number },
+): Promise<{ lineas: LineaRepuesto[]; antes: LineaRepuesto }> {
+  await ordenExistente(odoo, ordenId);
+  const antes = (await leerRepuestos(odoo, ordenId)).find((l) => l.id === lineaId);
+  if (!antes) throw new NoVerificable("Ese repuesto no es de esta orden");
+  await odoo.write(MODELO_LINEA, [lineaId], { quantity: datos.cantidad, unit_cost: datos.costoUnitario });
+  await sincronizarCosto(odoo, ordenId);
+  return { lineas: await leerRepuestos(odoo, ordenId), antes };
 }
 
 export type DepsAprobar = {
