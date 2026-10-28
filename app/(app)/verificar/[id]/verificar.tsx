@@ -1,112 +1,25 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import type { DetalleOrden } from "@/lib/ordenes";
 import { ESTADOS, type EstadoOrden, type LineaRepuesto } from "@/lib/taller";
-import type { ProductoOdoo } from "@/lib/verificar-servicio";
-
-const gs = (n: number) => `Gs. ${new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Math.round(n))}`;
-// Costo en guaraníes: el punto es separador de miles. Cantidad: acepta 1,5 o 1.5.
-const num = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
-const cant = (s: string) => Number(s.replace(",", "."));
+import { FormRepuesto, ListaRepuestos, gs, useRepuestos } from "@/components/repuestos-orden";
 
 type Aprobada = { chapa: string; lineas: LineaRepuesto[]; avisos: string[] };
 
 export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAprobar, historial }: { orden: DetalleOrden; lineasIniciales: LineaRepuesto[]; puedeRepuestos: boolean; puedeAprobar: boolean; historial: React.ReactNode }) {
-  const router = useRouter();
-  const [lineas, setLineas] = useState(lineasIniciales);
-  const [q, setQ] = useState("");
-  const [resultados, setResultados] = useState<{ q: string; lista: ProductoOdoo[] } | null>(null);
-  const [producto, setProducto] = useState<ProductoOdoo | null>(null);
-  const [cantidad, setCantidad] = useState("1");
-  const [costo, setCosto] = useState("");
-  const [ocupado, setOcupado] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const rep = useRepuestos(orden.id, lineasIniciales);
+  const lineas = rep.lineas ?? [];
+  const { total, ocupado, error } = rep;
   const [sinRepuestos, setSinRepuestos] = useState(false);
   const [aprobada, setAprobada] = useState<Aprobada | null>(null);
 
   // Aprobar solo en «Listo para verificar»; los repuestos se cargan en cualquier estado.
   const editable = orden.estado === "cancelled";
   const estadoTexto = ESTADOS[orden.estado as EstadoOrden] ?? orden.estado;
-  const total = lineas.reduce((s, l) => s + l.total, 0);
-  const busqueda = q.trim();
-
-  useEffect(() => {
-    if (producto || busqueda.length < 2) return;
-    const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(`/api/productos?q=${encodeURIComponent(busqueda)}`, { signal: ctrl.signal })
-        .then((r) => r.json())
-        .then((d) => setResultados({ q: busqueda, lista: d.productos ?? [] }))
-        .catch(() => {});
-    }, 300);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [busqueda, producto]);
-
-  async function llamar(url: string, init: RequestInit): Promise<Record<string, unknown> | null> {
-    setOcupado(true);
-    setError(null);
-    try {
-      const r = await fetch(url, init);
-      if (r.status === 401) {
-        router.replace("/ingresar");
-        return null;
-      }
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setError(d.error ?? "No se pudo guardar");
-        return null;
-      }
-      return d;
-    } catch {
-      setError("Sin conexión. Probá de nuevo.");
-      return null;
-    } finally {
-      setOcupado(false);
-    }
-  }
-
-  function elegir(p: ProductoOdoo) {
-    setProducto(p);
-    setCosto(String(Math.round(p.costo)));
-    setCantidad("1");
-  }
-
-  function limpiar() {
-    setProducto(null);
-    setQ("");
-    setResultados(null);
-    setCosto("");
-    setCantidad("1");
-  }
-
-  async function agregar(e: React.FormEvent) {
-    e.preventDefault();
-    if (!producto || ocupado) return;
-    const d = await llamar(`/api/ordenes/${orden.id}/repuestos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ productoId: producto.id, cantidad: cant(cantidad), costoUnitario: num(costo || "0") }),
-    });
-    if (d) {
-      setLineas(d.lineas as LineaRepuesto[]);
-      setSinRepuestos(false);
-      limpiar();
-    }
-  }
-
-  async function quitar(l: LineaRepuesto) {
-    if (ocupado || !confirm(`¿Quitar ${l.producto}?`)) return;
-    const d = await llamar(`/api/ordenes/${orden.id}/repuestos/${l.id}`, { method: "DELETE" });
-    if (d) setLineas(d.lineas as LineaRepuesto[]);
-  }
 
   async function aprobar() {
-    const d = await llamar(`/api/ordenes/${orden.id}/aprobar`, {
+    const d = await rep.llamar(`/api/ordenes/${orden.id}/aprobar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ confirmaSinRepuestos: sinRepuestos }),
@@ -161,63 +74,17 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
               <strong>Repuestos utilizados</strong>
               <strong>{gs(total)}</strong>
             </div>
-            {lineas.length === 0 && <span className="small muted">Todavía no hay repuestos cargados.</span>}
-            {lineas.map((l) => (
-              <div key={l.id} className="row between" style={{ alignItems: "flex-start", borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-                <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-                  <span style={{ fontWeight: 600 }}>{l.producto}</span>
-                  <span className="small muted">{l.cantidad} × {gs(l.costoUnitario)} = {gs(l.total)}</span>
-                </div>
-                {puedeRepuestos && (
-                  <button type="button" className="btn btn-ghost small" disabled={ocupado} onClick={() => quitar(l)} aria-label={`Quitar ${l.producto}`}>Quitar</button>
-                )}
-              </div>
-            ))}
+            <ListaRepuestos r={rep} editable={puedeRepuestos} />
           </section>
           {historial}
         </div>
 
         <div>
           {puedeRepuestos && (
-            <form className="card stack" style={{ gap: 12 }} onSubmit={agregar}>
+            <section className="card stack" style={{ gap: 12 }}>
               <strong>Agregar repuesto</strong>
-              {producto ? (
-                <div className="row between" style={{ alignItems: "flex-start" }}>
-                  <div className="stack" style={{ gap: 2 }}>
-                    <span style={{ fontWeight: 600 }}>{producto.nombre}</span>
-                    <span className="small muted">Costo en Odoo: {gs(producto.costo)}{producto.unidad ? ` por ${producto.unidad}` : ""}</span>
-                  </div>
-                  <button type="button" className="btn btn-ghost small" onClick={limpiar}>Cambiar</button>
-                </div>
-              ) : (
-                <div className="field">
-                  <label htmlFor="prod">Repuesto</label>
-                  <input id="prod" className="input" placeholder="Buscar por nombre o código" autoComplete="off" value={q} onChange={(e) => setQ(e.target.value)} />
-                  {resultados?.q === busqueda && resultados.lista.length === 0 && <span className="small muted">No hay repuestos con ese nombre.</span>}
-                  {resultados?.q === busqueda && resultados.lista.length > 0 && (
-                    <div className="stack" style={{ gap: 6 }} role="listbox" aria-label="Repuestos encontrados">
-                      {resultados.lista.map((p) => (
-                        <button key={p.id} type="button" role="option" aria-selected={false} className="card row between" style={{ textAlign: "left", cursor: "pointer", padding: "10px 12px" }} onClick={() => elegir(p)}>
-                          <span>{p.nombre}</span>
-                          <span className="small muted" style={{ whiteSpace: "nowrap" }}>{gs(p.costo)}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              <div className="row" style={{ alignItems: "flex-end" }}>
-                <div className="field" style={{ flex: 1 }}>
-                  <label htmlFor="cant">Cantidad</label>
-                  <input id="cant" className="input" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} />
-                </div>
-                <div className="field" style={{ flex: 2 }}>
-                  <label htmlFor="costo">Costo unitario (Gs.)</label>
-                  <input id="costo" className="input" inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} />
-                </div>
-              </div>
-              <button className="btn" disabled={!producto || ocupado || !(cant(cantidad) > 0)}>{ocupado ? "Guardando en Odoo…" : "Agregar repuesto"}</button>
-            </form>
+              <FormRepuesto r={rep} alAgregar={() => setSinRepuestos(false)} />
+            </section>
           )}
 
           {editable && puedeAprobar && lineas.length === 0 && (
