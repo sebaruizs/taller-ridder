@@ -159,10 +159,10 @@ export function conTraccarAnterior(porChapa: Record<string, EquipoGps[]>, anteri
 export const imeisFueraDeLinea = (porChapa: Record<string, EquipoGps[]>) =>
   [...new Set(Object.values(porChapa).flat().filter((e) => !e.enLinea && e.imei).map((e) => e.imei as string))];
 
-// «Moneda Google»: el Sheets dice que la moto tiene moneda y en Traccar no reporta
-// (no hay equipo Monedas, o está fuera de línea y tampoco reporta en el Traccar anterior).
-export function muestraMonedaGoogle(equipos: EquipoGps[], tieneMonedaEnSheets: boolean): boolean {
-  if (!tieneMonedaEnSheets) return false;
+// Lo del Sheets («Moneda Google», «Sin moneda», «IOS»…) se muestra cuando la moto figura ahí y en Traccar
+// la moneda no reporta (no hay equipo Monedas, o está fuera de línea y tampoco reporta en el Traccar anterior).
+export function muestraMonedaGoogle(equipos: EquipoGps[], monedaEnSheets: string | null | undefined): boolean {
+  if (!monedaEnSheets) return false;
   const moneda = equipos.find((e) => e.tipo === "monedas");
   return !moneda || (!moneda.enLinea && !moneda.anterior);
 }

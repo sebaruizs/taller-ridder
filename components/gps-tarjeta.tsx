@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { SIN_MONEDA } from "@/lib/monedas-dominio";
 import { NOMBRE_TIPO, muestraMonedaGoogle, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
 import { COLORES_POR_DEFECTO, colorReporte, type ColoresReporte } from "@/lib/ajustes-dominio";
 
@@ -28,11 +29,12 @@ const bloqueo = (g: EquipoGps) => (g.bloqueado === null ? "¿?" : g.bloqueado ? 
 // Resumen en la tarjeta del tablero: sin botones.
 export function GpsTarjeta({
   equipos,
-  monedaGoogle = false,
+  monedaGoogle,
   colores = COLORES_POR_DEFECTO,
 }: {
   equipos: EquipoGps[] | undefined;
-  monedaGoogle?: boolean;
+  /** Lo que dice el Sheets de monedas: «Moneda Google», «Sin moneda» o el nombre de la moneda. */
+  monedaGoogle?: string;
   colores?: ColoresReporte;
 }) {
   if (!equipos) return null;
@@ -43,9 +45,9 @@ export function GpsTarjeta({
   return (
     <div className="gps-lista">
       {google && (
-        <div className="gps-equipo" title="Figura con moneda en el Sheets de monedas">
+        <div className="gps-equipo" title="Según el Sheets de monedas">
           <span className="gps-punto" data-google aria-hidden />
-          <span className="gps-tipo">Moneda Google</span>
+          <span className="gps-tipo">{monedaGoogle}</span>
         </div>
       )}
       {lista.map((g) => {
@@ -75,7 +77,7 @@ export function GpsTarjeta({
 export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; chapa: string; puedeBloquear: boolean }) {
   const router = useRouter();
   const [equipos, setEquipos] = useState<EquipoGps[] | null>(null);
-  const [enSheets, setEnSheets] = useState(false);
+  const [enSheets, setEnSheets] = useState<string | null>(null);
   const [colores, setColores] = useState<ColoresReporte>(COLORES_POR_DEFECTO);
   const [estado, setEstado] = useState<"cargando" | "listo" | "apagado" | "error">("cargando");
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
@@ -95,7 +97,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
         if (!r.ok) throw new Error(d.error);
         if (!d.habilitado) return setEstado("apagado");
         setEquipos(d.equipos[clave] ?? []);
-        setEnSheets((d.monedasGoogle ?? []).includes(clave));
+        setEnSheets(d.monedasGoogle?.[clave] ?? null);
         if (d.colores) setColores(d.colores);
         setEstado("listo");
       })
@@ -153,15 +155,17 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
           {(["gps", "tc", "monedas"] as const).map((tipo) => {
             const g = equipos.find((e) => e.tipo === tipo);
             const esperado = tipo === "gps" ? clave : tipo === "tc" ? `${clave}-TC` : `${clave} - Monedas`;
-            // La moneda no reporta en Traccar pero el Sheets dice que la moto tiene: «Moneda Google».
+            // La moneda no reporta en Traccar pero la moto figura en el Sheets: se muestra lo que dice ahí.
             if (tipo === "monedas" && muestraMonedaGoogle(equipos, enSheets))
               return (
                 <div key={tipo} className="gps-tarjeta" data-google>
                   <span className="gps-tarjeta-tipo">
                     <span className="gps-punto" data-google aria-hidden /> {ETIQUETA[tipo]}
                   </span>
-                  <strong>Moneda Google</strong>
-                  <span className="tiny muted">Figura en el Sheets de monedas; no reporta en Traccar.</span>
+                  <strong>{enSheets}</strong>
+                  <span className="tiny muted">
+                    {enSheets === SIN_MONEDA ? "El Sheets de monedas dice que no tiene." : "Según el Sheets de monedas; no reporta en Traccar."}
+                  </span>
                 </div>
               );
             return g ? (

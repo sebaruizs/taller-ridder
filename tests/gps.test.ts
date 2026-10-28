@@ -59,9 +59,9 @@ describe("GPS: Moneda Google", () => {
   it("solo si el Sheets dice que tiene y Traccar no la tiene o no reporta", () => {
     const enLinea = equiposPorChapa(["236ABXV"], [disp(3, "236ABXV - Monedas")], [])["236ABXV"];
     const fuera = equiposPorChapa(["236ABXV"], [disp(3, "236ABXV - Monedas", { status: "offline" })], [])["236ABXV"];
-    expect(muestraMonedaGoogle([], true)).toBe(true);
-    expect(muestraMonedaGoogle(fuera, true)).toBe(true);
-    expect(muestraMonedaGoogle(enLinea, true)).toBe(false);
-    expect(muestraMonedaGoogle([], false)).toBe(false);
+    expect(muestraMonedaGoogle([], "Moneda Google")).toBe(true);
+    expect(muestraMonedaGoogle(fuera, "IOS")).toBe(true);
+    expect(muestraMonedaGoogle(enLinea, "Moneda Google")).toBe(false);
+    expect(muestraMonedaGoogle([], undefined)).toBe(false);
   });
 });

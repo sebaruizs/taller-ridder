@@ -44,7 +44,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   // Estado de los GPS: solo de las motos en «En proceso» y «Listo para verificar».
   const [gps, setGps] = useState<Record<string, EquipoGps[]> | null>(null);
-  const [monedasGoogle, setMonedasGoogle] = useState<Set<string>>(new Set());
+  const [monedasGoogle, setMonedasGoogle] = useState<Record<string, string>>({});
   const [colores, setColores] = useState<ColoresReporte | undefined>(undefined);
   const [arrastre, setArrastre] = useState<{ orden: OrdenLista; desde: Estado } | null>(null);
   const [encima, setEncima] = useState<Estado | null>(null);
@@ -120,7 +120,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
       .then((r) => r.json())
       .then((d) => {
         setGps(d.habilitado ? d.equipos ?? {} : null);
-        setMonedasGoogle(new Set(d.monedasGoogle ?? []));
+        setMonedasGoogle(d.monedasGoogle ?? {});
         if (d.colores) setColores(d.colores);
       })
       .catch(() => {});
@@ -251,7 +251,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     {conGps(c.estado) && (
                       <GpsTarjeta
                         equipos={gps?.[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? []}
-                        monedaGoogle={monedasGoogle.has(o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                        monedaGoogle={monedasGoogle[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")]}
                         colores={colores}
                       />
                     )}
