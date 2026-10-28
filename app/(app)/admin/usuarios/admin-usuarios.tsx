@@ -6,6 +6,8 @@ import type { Rol } from "@/lib/db/schema";
 import { MODULOS, PERMISOS, claveModulo, modulosDelRol, permisosDelRol, resumenPermisosOff, type Modulo } from "@/lib/permisos";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
+// Orden de los grupos en la lista; los inactivos van todos juntos al final.
+const ORDEN_ROLES: Rol[] = ["admin", "jefe", "cobrador", "mecanico"];
 
 type Form = {
   id: number | null;
@@ -172,23 +174,29 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
       {aviso && <div className="alert alert-ok">{aviso}</div>}
-      <div className="grid-usuarios">
-      {usuarios.map((u) => (
-        <button key={u.id} className="card stack" style={{ gap: 4, textAlign: "left", cursor: "pointer", opacity: u.activo ? 1 : 0.55 }} onClick={() => editar(u)}>
-          <div className="row between">
-            <strong>{u.nombre}</strong>
-            <span className="badge">{u.activo ? ROL_NOMBRE[u.rol] : "Inactivo"}</span>
-          </div>
-          <div className="small muted">Usuario: {u.usuario}</div>
-          <div className="small muted">Odoo: {contactoNombre(u) ?? "sin contacto"}</div>
-          {u.rol !== "admin" && (u.permisosOff?.length ?? 0) > 0 && (
-            <div className="small" style={{ color: "var(--warn)" }}>
-              Sin: {resumenPermisosOff(u.permisosOff).join(", ")}
+      {[...ORDEN_ROLES.map((r) => ({ titulo: ROL_NOMBRE[r], lista: usuarios.filter((u) => u.activo && u.rol === r) })), { titulo: "Inactivos", lista: usuarios.filter((u) => !u.activo) }]
+        .filter((g) => g.lista.length > 0)
+        .map((g) => (
+          <section key={g.titulo} className="card lista-usuarios">
+            <header className="row between lista-usuarios-titulo">
+              <strong>{g.titulo}</strong>
+              <span className="small muted">{g.lista.length}</span>
+            </header>
+            <div className="lista-usuarios-cols small muted" aria-hidden>
+              <span>Nombre</span><span>Usuario</span><span>Contacto en Odoo</span><span>Permisos quitados</span>
             </div>
-          )}
-        </button>
-      ))}
-      </div>
+            {[...g.lista].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).map((u) => (
+              <button key={u.id} type="button" className="lista-usuarios-fila" data-inactivo={!u.activo || undefined} onClick={() => editar(u)}>
+                <strong>{u.nombre}{!u.activo && <span className="tiny muted"> · {ROL_NOMBRE[u.rol]}</span>}</strong>
+                <span className="small muted">{u.usuario}</span>
+                <span className="small muted">{contactoNombre(u) ?? "Sin contacto"}</span>
+                <span className="small" style={{ color: "var(--warn)" }}>
+                  {u.rol !== "admin" && (u.permisosOff?.length ?? 0) > 0 ? `Sin: ${resumenPermisosOff(u.permisosOff).join(", ")}` : ""}
+                </span>
+              </button>
+            ))}
+          </section>
+        ))}
       <div className="bottom-bar">
         <div className="accion-corta">
           <button className="btn btn-primary btn-block btn-lg" onClick={() => { setAviso(null); setError(null); setForm({ ...VACIO }); }}>

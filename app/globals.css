@@ -179,7 +179,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
 /* Grillas: en el celular son una columna; en PC se abren (ver media query). */
-.grid-ordenes, .grid-usuarios { display: flex; flex-direction: column; gap: 10px; }
+.grid-ordenes { display: flex; flex-direction: column; gap: 10px; }
 .filtros { display: flex; flex-direction: column; gap: 10px; }
 .finalizar-grid { display: flex; flex-direction: column; gap: 16px; }
 .finalizar-grid > div { display: flex; flex-direction: column; gap: 16px; }
@@ -294,7 +294,6 @@ textarea.input { min-height: 110px; resize: vertical; }
   .filtros .chips { flex-wrap: wrap; overflow: visible; }
   .grid-ordenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
   .grid-ordenes .card:hover { border-color: var(--ridder); }
-  .grid-usuarios { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 
   .contenido .wrap.tablero-wrap { max-width: none; }
   /* el tablero ocupa todo el ancho: el encabezado también, así título y botón quedan alineados con las columnas */
@@ -402,3 +401,16 @@ textarea.input { min-height: 110px; resize: vertical; }
 .tablero-repuestos:hover { text-decoration: underline; }
 .tablero-bloquear { align-self: flex-start; padding: 4px 10px; min-height: 0; }
 .tablero-rep { border-top: 1px solid var(--line); padding-top: 10px; cursor: default; overflow-wrap: anywhere; }
+/* Usuarios: lista por rol. En el celular cada fila apila sus datos; en la PC son columnas. */
+.lista-usuarios { padding: 0; overflow: hidden; }
+.lista-usuarios-titulo { padding: 12px 14px; background: var(--surface-2); }
+.lista-usuarios-cols { display: none; }
+.lista-usuarios-fila { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 10px 14px; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.lista-usuarios-fila:hover { background: var(--surface-2); }
+.lista-usuarios-fila[data-inactivo] { opacity: 0.6; }
+.lista-usuarios-fila span:empty { display: none; }
+@media (min-width: 1024px) {
+  .lista-usuarios-cols, .lista-usuarios-fila { display: grid; grid-template-columns: 1.4fr 1fr 1.4fr 1.6fr; gap: 12px; align-items: baseline; }
+  .lista-usuarios-cols { padding: 8px 14px; border-top: 1px solid var(--line); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .lista-usuarios-fila span:empty { display: block; }
+}
