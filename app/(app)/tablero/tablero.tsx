@@ -15,13 +15,18 @@ const COLUMNAS = [
 type Estado = (typeof COLUMNAS)[number]["estado"];
 type Columna = { ordenes: OrdenLista[]; total: number; pagina: number; porPagina: number; cargando: boolean; error: string | null };
 
-// Movimientos posibles. Pasar a En proceso es directo; los otros dos abren el formulario
-// que hace el cambio (el reporte del mecánico y la verificación con repuestos).
-const DESTINO: Partial<Record<Estado, { a: Estado; texto: string }>> = {
-  new: { a: "running", texto: "Soltá para pasar a En proceso" },
-  running: { a: "cancelled", texto: "Soltá para cargar el reporte del trabajo" },
-  cancelled: { a: "done", texto: "Soltá para verificar y cargar repuestos" },
+// Movimientos posibles. Nuevo → En proceso y En proceso ↔ Bloqueado son directos; los otros dos
+// abren el formulario que hace el cambio (el reporte del mecánico y la verificación con repuestos).
+const DESTINOS: Partial<Record<Estado, { a: Estado; texto: string }[]>> = {
+  new: [{ a: "running", texto: "Soltá para pasar a En proceso" }],
+  running: [
+    { a: "cancelled", texto: "Soltá para cargar el reporte del trabajo" },
+    { a: "to_be_paid", texto: "Soltá para bloquear" },
+  ],
+  to_be_paid: [{ a: "running", texto: "Soltá para volver a En proceso" }],
+  cancelled: [{ a: "done", texto: "Soltá para verificar y cargar repuestos" }],
 };
+const TITULO = Object.fromEntries(COLUMNAS.map((c) => [c.estado, c.titulo])) as Record<Estado, string>;
 
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
 const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
@@ -78,50 +83,62 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
     return () => ctrl.abort();
   }, [cargar]);
 
-  async function iniciar(o: OrdenLista) {
+  // Cambio directo de estado. Se ve en la columna nueva al instante; si falla, cargar() la devuelve a su lugar.
+  async function mover(o: OrdenLista, de: Estado, a: Estado) {
+    setConfirmar(null);
     setMoviendo(o.id);
     setAviso(null);
+    setCols((c) => ({
+      ...c,
+      [de]: { ...c[de], ordenes: c[de].ordenes.filter((x) => x.id !== o.id), total: c[de].total - 1 },
+      [a]: { ...c[a], ordenes: [o, ...c[a].ordenes], total: c[a].total + 1 },
+    }));
     try {
-      const r = await fetch(`/api/ordenes/${o.id}/iniciar`, { method: "POST" });
+      const r = await fetch(`/api/ordenes/${o.id}/mover`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ de, a }) });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        setAviso({ ok: false, msg: d.error ?? "No se pudo mover la orden" });
-      } else {
-        setAviso({ ok: !d.aviso, msg: d.aviso ?? `${o.chapa} pasó a En proceso.` });
-      }
-      await Promise.all([cargar("new", 1), cargar("running", 1)]);
+      if (!r.ok) setAviso({ ok: false, msg: d.error ?? "No se pudo mover la orden" });
+      else setAviso({ ok: !d.aviso, msg: d.aviso ?? `${o.chapa} pasó a ${TITULO[a]}.` });
     } catch {
       setAviso({ ok: false, msg: "Sin conexión. Probá de nuevo." });
     } finally {
+      await Promise.all([cargar(de, 1), cargar(a, 1)]);
       setMoviendo(null);
     }
   }
 
-  const puedeMover = (desde: Estado) =>
-    (desde === "new" && acciones.iniciar) || (desde === "running" && acciones.finalizar) || (desde === "cancelled" && acciones.verificar);
+  // Reportar y verificar necesitan su permiso; los cambios directos, el de mover en el tablero.
+  const permitido = (de: Estado, a: Estado) =>
+    de === "running" && a === "cancelled" ? acciones.finalizar : de === "cancelled" ? acciones.verificar : acciones.iniciar;
+  const destinosDe = (de: Estado) => (DESTINOS[de] ?? []).filter((d) => permitido(de, d.a));
+  const puedeMover = (de: Estado) => destinosDe(de).length > 0;
 
-  // Lo mismo al soltar en la columna siguiente o al tocar la tarjeta.
-  function avanzar(desde: Estado, o: OrdenLista) {
-    if (!puedeMover(desde)) return;
-    if (desde === "new") {
-      setConfirmar(null);
-      // Se ve en En proceso al instante; si falla, cargar() la devuelve a su lugar.
-      setCols((c) => ({
-        ...c,
-        new: { ...c.new, ordenes: c.new.ordenes.filter((x) => x.id !== o.id), total: c.new.total - 1 },
-        running: { ...c.running, ordenes: [o, ...c.running.ordenes], total: c.running.total + 1 },
-      }));
-      void iniciar(o);
-    } else if (desde === "running") router.push(`/ordenes/${o.id}/finalizar`);
-    else if (desde === "cancelled") router.push(`/verificar/${o.id}`);
+  // Lo mismo al soltar en otra columna o al usar los botones de la tarjeta.
+  function llevar(de: Estado, a: Estado, o: OrdenLista) {
+    if (!permitido(de, a)) return;
+    if (a === "cancelled") router.push(`/ordenes/${o.id}/finalizar`);
+    else if (a === "done") router.push(`/verificar/${o.id}`);
+    else void mover(o, de, a);
+  }
+
+  // Al tocar la tarjeta: Nuevo pide confirmar; En proceso abre el reporte y Listo para verificar la verificación
+  // (si tiene ese permiso); lo demás abre el detalle de la orden.
+  function alTocar(estado: Estado): "confirmar" | "running" | "cancelled" | "detalle" {
+    if (estado === "new" && permitido("new", "running")) return "confirmar";
+    if (estado === "running" && acciones.finalizar) return "running";
+    if (estado === "cancelled" && acciones.verificar) return "cancelled";
+    return "detalle";
   }
 
   function tocar(estado: Estado, o: OrdenLista) {
-    if (estado === "new") setConfirmar((id) => (id === o.id ? null : o.id));
-    else avanzar(estado, o);
+    const t = alTocar(estado);
+    if (t === "confirmar") setConfirmar((id) => (id === o.id ? null : o.id));
+    else if (t === "running") llevar("running", "cancelled", o);
+    else if (t === "cancelled") llevar("cancelled", "done", o);
+    else router.push(`/ordenes/${o.id}`);
   }
 
-  const aceptaSoltar = (hacia: Estado) => arrastre !== null && DESTINO[arrastre.desde]?.a === hacia;
+  const destinoArrastre = (hacia: Estado) => (arrastre ? destinosDe(arrastre.desde).find((d) => d.a === hacia) : undefined);
+  const aceptaSoltar = (hacia: Estado) => destinoArrastre(hacia) !== undefined;
 
   return (
     <main className="wrap stack tablero-wrap">
@@ -164,22 +181,23 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                 const a = arrastre;
                 setArrastre(null);
                 setEncima(null);
-                if (a && aceptaSoltar(c.estado)) avanzar(a.desde, a.orden);
+                if (a && aceptaSoltar(c.estado)) llevar(a.desde, c.estado, a.orden);
               }}
             >
               <header className="row between tablero-col-head">
                 <strong>{c.titulo}</strong>
                 <span className="badge">{col.total}</span>
               </header>
-              {aceptaSoltar(c.estado) && arrastre && <div className="tablero-soltar">{DESTINO[arrastre.desde]?.texto}</div>}
+              {aceptaSoltar(c.estado) && <div className="tablero-soltar">{destinoArrastre(c.estado)?.texto}</div>}
               {col.error && <div className="alert alert-danger small">{col.error}</div>}
               {col.cargando && col.pagina === 0 && <div className="skeleton" />}
               {!col.cargando && col.ordenes.length === 0 && !col.error && <div className="small muted center" style={{ padding: 12 }}>Sin órdenes</div>}
               {col.ordenes.map((o) => {
                 const movible = puedeMover(c.estado) && moviendo === null;
-                // Lo que no se puede mover (bloqueadas, finalizadas o sin permiso) abre su detalle al tocarlo.
-                const abre = !puedeMover(c.estado);
-                const clickeable = movible || abre;
+                const toque = alTocar(c.estado);
+                const abre = toque === "detalle";
+                // Bloquear / desbloquear con un botón: en el celular no se puede arrastrar.
+                const cambio = c.estado === "running" ? "to_be_paid" : c.estado === "to_be_paid" ? "running" : null;
                 return (
                   <article
                     key={o.id}
@@ -189,9 +207,9 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                     data-movible={movible || undefined}
                     data-arrastrando={arrastre?.orden.id === o.id || undefined}
                     data-abre={abre || undefined}
-                    role={clickeable ? "button" : undefined}
-                    tabIndex={clickeable ? 0 : undefined}
-                    aria-label={movible ? `${o.chapa}: ${DESTINO[c.estado]?.texto.replace("Soltá para ", "")}` : abre ? `${o.chapa}: ver detalle` : undefined}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${o.chapa}: ${toque === "confirmar" ? "pasar a En proceso" : toque === "running" ? "cargar el reporte del trabajo" : toque === "cancelled" ? "verificar y cargar repuestos" : "ver detalle"}`}
                     onDragStart={(e) => {
                       e.dataTransfer.effectAllowed = "move";
                       e.dataTransfer.setData("text/plain", String(o.id));
@@ -202,12 +220,11 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       setArrastre(null);
                       setEncima(null);
                     }}
-                    onClick={() => (abre ? router.push(`/ordenes/${o.id}`) : movible && tocar(c.estado, o))}
+                    onClick={() => moviendo === null && tocar(c.estado, o)}
                     onKeyDown={(e) => {
-                      if (clickeable && (e.key === "Enter" || e.key === " ")) {
+                      if (moviendo === null && (e.key === "Enter" || e.key === " ")) {
                         e.preventDefault();
-                        if (abre) router.push(`/ordenes/${o.id}`);
-                        else tocar(c.estado, o);
+                        tocar(c.estado, o);
                       }
                     }}
                   >
@@ -235,10 +252,26 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                         </Link>
                       )}
                     </div>
-                    {moviendo === o.id && <div className="small muted">Moviendo a En proceso…</div>}
+                    {cambio && permitido(c.estado, cambio) && (
+                      <button
+                        type="button"
+                        className="btn btn-ghost small tablero-bloquear"
+                        disabled={moviendo !== null}
+                        draggable={false}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (cambio === "to_be_paid" && !confirm(`¿Bloquear ${o.chapa}?`)) return;
+                          llevar(c.estado, cambio, o);
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
+                        {cambio === "to_be_paid" ? "Bloquear" : "Volver a En proceso"}
+                      </button>
+                    )}
+                    {moviendo === o.id && <div className="small muted">Moviendo…</div>}
                     {confirmar === o.id && (
                       <div className="row" style={{ gap: 8 }} onClick={(e) => e.stopPropagation()}>
-                        <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={() => avanzar("new", o)}>Pasar a En proceso</button>
+                        <button type="button" className="btn btn-primary" style={{ flex: 1 }} onClick={() => llevar("new", "running", o)}>Pasar a En proceso</button>
                         <button type="button" className="btn" onClick={() => setConfirmar(null)}>Cancelar</button>
                       </div>
                     )}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { iniciarOrden } from "@/lib/tablero";
+import { iniciarOrden, moverOrden, movimientoValido } from "@/lib/tablero";
 import { NoVerificable } from "@/lib/verificar";
 import { COLUMNAS_TABLERO, dominioOrdenes, payloadNotaCambioEstado } from "@/lib/taller";
 
@@ -65,5 +65,30 @@ describe("filtros de órdenes para Cobranzas", () => {
       ["state", "=", "done"],
       "|", ["purchaser_id", "=", 2615], "&", ["purchaser_id", "=", false], ["vehicle_id.driver_id", "=", 2615],
     ]);
+  });
+});
+
+describe("bloquear y desbloquear desde el tablero", () => {
+  it("solo permite Nuevo → En proceso y En proceso ↔ Bloqueado", () => {
+    expect(movimientoValido("running", "to_be_paid")).toBe(true);
+    expect(movimientoValido("to_be_paid", "running")).toBe(true);
+    expect(movimientoValido("new", "running")).toBe(true);
+    expect(movimientoValido("new", "to_be_paid")).toBe(false);
+    expect(movimientoValido("running", "done")).toBe(false);
+    expect(movimientoValido("cancelled", "done")).toBe(false);
+  });
+});
+
+describe("mover En proceso → Bloqueado", () => {
+  it("escribe el estado y deja nota", async () => {
+    const t = odooCon("running");
+    await moverOrden(t.odoo, 4366, "running", "to_be_paid", "Derlis");
+    expect(t.llamadas[0].args).toEqual(["fleet.vehicle.log.services", [4366], { state: "to_be_paid" }]);
+    expect(t.llamadas.some((l) => l.method === "messagePost")).toBe(true);
+  });
+  it("no mueve si la orden ya cambió de estado", async () => {
+    const t = odooCon("cancelled");
+    await expect(moverOrden(t.odoo, 4366, "running", "to_be_paid", "Derlis")).rejects.toBeInstanceOf(NoVerificable);
+    expect(t.llamadas).toHaveLength(0);
   });
 });
