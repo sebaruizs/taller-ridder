@@ -326,14 +326,8 @@ textarea.input { min-height: 110px; resize: vertical; }
 .precio-edit.celda { min-width: 170px; align-items: flex-end; }
 
 /* Nueva compra */
-.linea-compra { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; }
-.linea-compra > .stack { grid-column: 1 / -1; }
-.linea-compra .input { min-height: 40px; font-size: 16px; }
-.linea-compra .num-linea { text-align: right; font-variant-numeric: tabular-nums; }
 @media (min-width: 1024px) {
-  .linea-compra { grid-template-columns: minmax(0, 1fr) 90px 140px 130px auto; }
-  .linea-compra > .stack { grid-column: auto; }
-}
+    }
 
 /* Permisos por módulo (Usuarios). */
 .modulo-permisos[data-apagado] { opacity: 0.75; }
@@ -415,25 +409,25 @@ textarea.input { min-height: 110px; resize: vertical; }
 .detalle-datos dt { color: var(--ink-3); }
 .detalle-datos dd { margin: 0; font-weight: 600; }
 /* Repuestos utilizados: tabla tipo Odoo, editable en la fila. */
-.repuestos-caja { padding: 14px 14px 10px; }
-.repuestos-titulo { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 8px; }
-.repuestos-tabla td { vertical-align: middle; }
-.repuestos-tabla th:first-child, .repuestos-tabla td:first-child { width: 100%; min-width: 220px; }
-.repuestos-tabla tr[data-cambio] { background: var(--surface-2); }
+.lineas-caja { padding: 14px 14px 10px; }
+.lineas-titulo { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; padding-bottom: 8px; }
+.lineas-tabla td { vertical-align: middle; }
+.lineas-tabla th:first-child, .lineas-tabla td:first-child { width: 100%; min-width: 220px; }
+.lineas-tabla tr[data-cambio] { background: var(--surface-2); }
 .celda { width: 100%; min-width: 70px; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
 .celda.num { text-align: right; font-variant-numeric: tabular-nums; max-width: 130px; }
 .celda:hover { border-color: var(--line); }
 .celda:focus { outline: none; border-color: var(--ridder); background: var(--surface); }
-.repuestos-agregar { background: none; border: 0; padding: 4px 0; color: var(--ridder); font: inherit; font-weight: 600; cursor: pointer; }
-.repuestos-quitar { background: none; border: 0; padding: 4px 6px; cursor: pointer; color: var(--ink-3); font-size: 15px; }
-.repuestos-quitar:hover { color: var(--danger); }
-.repuestos-guardar { padding: 6px 12px; min-height: 0; font-size: 13px; }
-.repuestos-producto { background: none; border: 0; padding: 6px 0; font: inherit; font-weight: 600; color: inherit; text-align: left; cursor: pointer; }
-.repuestos-buscar { position: relative; }
-.repuestos-opciones { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
-.repuestos-opciones button { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; color: inherit; text-align: left; cursor: pointer; }
-.repuestos-opciones button:hover { background: var(--surface-2); }
-.repuestos-opciones > span { padding: 8px 10px; }
-.repuestos-total { text-align: right; padding-top: 10px; }
-.repuestos-caja .tabla-scroll { overflow: visible; }
-@media (max-width: 1023px) { .repuestos-caja .tabla-scroll { overflow-x: auto; } }
+.lineas-agregar { background: none; border: 0; padding: 4px 0; color: var(--ridder); font: inherit; font-weight: 600; cursor: pointer; }
+.lineas-quitar { background: none; border: 0; padding: 4px 6px; cursor: pointer; color: var(--ink-3); font-size: 15px; }
+.lineas-quitar:hover { color: var(--danger); }
+.lineas-guardar { padding: 6px 12px; min-height: 0; font-size: 13px; }
+.lineas-producto { background: none; border: 0; padding: 6px 0; font: inherit; font-weight: 600; color: inherit; text-align: left; cursor: pointer; }
+.lineas-buscar { position: relative; }
+.lineas-opciones { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; display: flex; flex-direction: column; max-height: 280px; overflow-y: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.lineas-opciones button { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.lineas-opciones button:hover { background: var(--surface-2); }
+.lineas-opciones > span { padding: 8px 10px; }
+.lineas-total { text-align: right; padding-top: 10px; }
+.lineas-caja .tabla-scroll { overflow: visible; }
+@media (max-width: 1023px) { .lineas-caja .tabla-scroll { overflow-x: auto; } }

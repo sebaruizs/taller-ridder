@@ -1,15 +1,14 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { ProductoCompra } from "@/lib/compras";
+import { BuscadorProducto, cant, miles, num as monto } from "@/components/lineas";
 
 type Opcion = { id: number; nombre: string };
-type Linea = { productoId: number; nombre: string; cantidad: string; precio: string; origen: string };
+type Linea = { productoId: number; nombre: string; cantidad: string; precio: string; origen: string; unidad: string | null };
 
 const gs = (n: number) => `Gs. ${new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Math.round(n))}`;
-// Precio en guaraníes: el punto es separador de miles. Cantidad: acepta 1,5 o 1.5.
-const monto = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
-const cant = (s: string) => Number(s.replace(",", "."));
+const urlProductos = (q: string) => `/api/compras/productos?q=${encodeURIComponent(q)}`;
 const conMiles = (s: string) => {
   const n = monto(s);
   return s.trim() === "" || Number.isNaN(n) ? s : new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
@@ -22,35 +21,18 @@ export function FormCompra({ proveedores, autor }: { proveedores: Opcion[]; auto
   const [referencia, setReferencia] = useState("");
   const [lineas, setLineas] = useState<Linea[]>([]);
   const [recibir, setRecibir] = useState(true);
-  const [q, setQ] = useState("");
-  const [resultados, setResultados] = useState<{ q: string; lista: ProductoCompra[] } | null>(null);
+  const [agregando, setAgregando] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const busqueda = q.trim();
-  useEffect(() => {
-    if (busqueda.length < 2) return;
-    const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(`/api/compras/productos?q=${encodeURIComponent(busqueda)}`, { signal: ctrl.signal })
-        .then((r) => r.json())
-        .then((d) => setResultados({ q: busqueda, lista: d.productos ?? [] }))
-        .catch(() => {});
-    }, 300);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [busqueda]);
-
+  // Elegir el producto en «Agregar una línea» crea la fila con cantidad 1 y el último precio pagado.
   function agregar(p: ProductoCompra) {
     setLineas((ls) =>
       ls.some((l) => l.productoId === p.id)
         ? ls
-        : [...ls, { productoId: p.id, nombre: p.nombre, cantidad: "1", precio: String(Math.round(p.precio)), origen: p.precioOrigen }],
+        : [...ls, { productoId: p.id, nombre: p.nombre, cantidad: "1", precio: String(Math.round(p.precio)), origen: p.precioOrigen, unidad: p.unidad }],
     );
-    setQ("");
-    setResultados(null);
+    setAgregando(false);
   }
 
   const cambiar = (i: number, campo: "cantidad" | "precio", v: string) =>
@@ -93,8 +75,8 @@ export function FormCompra({ proveedores, autor }: { proveedores: Opcion[]; auto
   }
 
   return (
-    <main className="wrap">
-      <form className="stack" style={{ gap: 14, maxWidth: 900 }} onSubmit={guardar}>
+    <main className="wrap wrap-ancho">
+      <form className="stack" style={{ gap: 14 }} onSubmit={guardar}>
         <div className="row wrap-row" style={{ gap: 12, alignItems: "flex-start" }}>
           <div className="field" style={{ flex: "1 1 260px" }}>
             <label htmlFor="c-prov">Proveedor</label>
@@ -109,42 +91,79 @@ export function FormCompra({ proveedores, autor }: { proveedores: Opcion[]; auto
           </div>
         </div>
 
-        <section className="card stack" style={{ gap: 10 }}>
-          <strong>Productos</strong>
-          <div className="field">
-            <input className="input" placeholder="Buscar producto por nombre o código para agregarlo" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Buscar producto" />
-            {resultados?.q === busqueda && resultados.lista.length === 0 && <span className="small muted">No hay productos con ese nombre. Si es nuevo, crealo primero en Inventario.</span>}
-            {resultados?.q === busqueda && resultados.lista.length > 0 && (
-              <div className="stack" style={{ gap: 6 }} role="listbox" aria-label="Productos encontrados">
-                {resultados.lista.map((p) => (
-                  <button key={p.id} type="button" role="option" aria-selected={false} className="card row between" style={{ textAlign: "left", cursor: "pointer", padding: "10px 12px" }} onClick={() => agregar(p)}>
-                    <span>{p.nombre} <span className="tiny muted">· stock {p.stock}</span></span>
-                    <span className="small muted" style={{ whiteSpace: "nowrap" }}>{gs(p.precio)}</span>
-                  </button>
+        {/* Líneas de la compra, como en Odoo: una fila por producto, editable en el lugar. */}
+        <section className="card stack lineas-caja" style={{ gap: 0 }}>
+          <strong className="lineas-titulo">Productos</strong>
+          <div className="tabla-scroll">
+            <table className="tabla lineas-tabla">
+              <thead>
+                <tr>
+                  <th>Producto</th>
+                  <th className="num">Cantidad</th>
+                  <th>UdM</th>
+                  <th className="num">Precio unitario</th>
+                  <th className="num">Subtotal</th>
+                  <th aria-label="Quitar" />
+                </tr>
+              </thead>
+              <tbody>
+                {lineas.map((l, i) => (
+                  <tr key={l.productoId}>
+                    <td>
+                      {l.nombre}
+                      <div className="tiny muted">Precio sugerido: {l.origen}</div>
+                    </td>
+                    <td className="num">
+                      <input className="celda num" inputMode="decimal" aria-label={`Cantidad de ${l.nombre}`} value={l.cantidad} onChange={(e) => cambiar(i, "cantidad", e.target.value)} />
+                    </td>
+                    <td>{l.unidad ?? ""}</td>
+                    <td className="num">
+                      <input className="celda num" inputMode="numeric" aria-label={`Precio unitario de ${l.nombre}`} value={conMiles(l.precio)} onChange={(e) => cambiar(i, "precio", e.target.value)} />
+                    </td>
+                    <td className="num">{miles((cant(l.cantidad) || 0) * (monto(l.precio) || 0))}</td>
+                    <td className="num">
+                      <button type="button" className="lineas-quitar" onClick={() => quitar(i)} aria-label={`Quitar ${l.nombre}`} title="Quitar">
+                        🗑
+                      </button>
+                    </td>
+                  </tr>
                 ))}
-              </div>
-            )}
+                {lineas.length === 0 && !agregando && (
+                  <tr>
+                    <td colSpan={6} className="small muted">Todavía no agregaste productos.</td>
+                  </tr>
+                )}
+                <tr className={agregando ? "lineas-nueva" : undefined}>
+                  <td colSpan={agregando ? 5 : 6}>
+                    {agregando ? (
+                      <BuscadorProducto<ProductoCompra>
+                        url={urlProductos}
+                        detalle={(p) => `${gs(p.precio)} · stock ${p.stock}`}
+                        alElegir={agregar}
+                        alCerrar={() => setAgregando(false)}
+                        vacio="No hay productos con ese nombre. Si es nuevo, crealo primero en Inventario."
+                      />
+                    ) : (
+                      <button type="button" className="lineas-agregar" onClick={() => setAgregando(true)}>
+                        Agregar una línea
+                      </button>
+                    )}
+                  </td>
+                  {agregando && (
+                    <td className="num">
+                      <button type="button" className="lineas-quitar" onClick={() => setAgregando(false)} aria-label="Descartar línea" title="Descartar">
+                        ✕
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              </tbody>
+            </table>
           </div>
-
-          {lineas.length === 0 && <span className="small muted">Todavía no agregaste productos.</span>}
-          {lineas.map((l, i) => (
-            <div key={l.productoId} className="linea-compra">
-              <div className="stack" style={{ gap: 2, minWidth: 0 }}>
-                <strong className="small">{l.nombre}</strong>
-                <span className="tiny muted">Precio sugerido: {l.origen}</span>
-              </div>
-              <input className="input" inputMode="decimal" aria-label={`Cantidad de ${l.nombre}`} value={l.cantidad} onChange={(e) => cambiar(i, "cantidad", e.target.value)} />
-              <input className="input" inputMode="numeric" aria-label={`Precio unitario de ${l.nombre}`} value={conMiles(l.precio)} onChange={(e) => cambiar(i, "precio", e.target.value)} />
-              <span className="small num-linea">{gs((cant(l.cantidad) || 0) * (monto(l.precio) || 0))}</span>
-              <button type="button" className="btn btn-ghost small" onClick={() => quitar(i)} aria-label={`Quitar ${l.nombre}`}>Quitar</button>
-            </div>
-          ))}
-          {lineas.length > 0 && (
-            <div className="row between" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
-              <span className="small muted">{lineas.length === 1 ? "1 producto" : `${lineas.length} productos`} · sin impuestos, como las compras actuales</span>
-              <strong>Total {gs(total)}</strong>
-            </div>
-          )}
+          <div className="lineas-total">
+            <span className="small muted">{lineas.length === 1 ? "1 producto" : `${lineas.length} productos`} · sin impuestos, como las compras actuales · </span>
+            <span className="muted">Total:</span> <strong>{gs(total)}</strong>
+          </div>
         </section>
 
         <label className="check">

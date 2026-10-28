@@ -1,17 +1,15 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { LineaRepuesto } from "@/lib/taller";
 import type { ProductoOdoo } from "@/lib/verificar-servicio";
+import { BuscadorProducto, cant, miles, num } from "@/components/lineas";
 
 // «Repuestos utilizados», como la lista de Odoo: una fila por repuesto, editable en el lugar,
 // y «Agregar una línea» al final. La usan Finalizar, Verificar y el detalle de la orden.
 
 export const gs = (n: number) => `Gs. ${new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Math.round(n))}`;
-const miles = (n: number) => new Intl.NumberFormat("es-PY", { maximumFractionDigits: 2 }).format(n);
-// Costo en guaraníes: el punto es separador de miles. Cantidad: acepta 1,5 o 1.5.
-const num = (s: string) => Number(s.replace(/\./g, "").replace(",", "."));
-const cant = (s: string) => Number(s.replace(",", "."));
+const urlProductos = (q: string) => `/api/productos?q=${encodeURIComponent(q)}`;
 
 type Datos = { cantidad: number; costoUnitario: number };
 
@@ -73,10 +71,10 @@ export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r:
   const [agregando, setAgregando] = useState(false);
   const columnas = editable ? 6 : 5;
   return (
-    <section className="card stack repuestos-caja" style={{ gap: 0 }}>
-      <strong className="repuestos-titulo">Repuestos utilizados</strong>
+    <section className="card stack lineas-caja" style={{ gap: 0 }}>
+      <strong className="lineas-titulo">Repuestos utilizados</strong>
       <div className="tabla-scroll">
-        <table className="tabla repuestos-tabla">
+        <table className="tabla lineas-tabla">
           <thead>
             <tr>
               <th>Producto</th>
@@ -107,7 +105,7 @@ export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r:
               ) : (
                 <tr>
                   <td colSpan={columnas}>
-                    <button type="button" className="repuestos-agregar" onClick={() => setAgregando(true)} disabled={r.ocupado}>
+                    <button type="button" className="lineas-agregar" onClick={() => setAgregando(true)} disabled={r.ocupado}>
                       Agregar una línea
                     </button>
                   </td>
@@ -117,7 +115,7 @@ export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r:
         </table>
       </div>
       {conError && r.error && <div className="alert alert-danger small" role="alert" style={{ margin: "10px 0 0" }}>{r.error}</div>}
-      <div className="repuestos-total">
+      <div className="lineas-total">
         {r.ocupado && <span className="small muted">Guardando en Odoo… · </span>}
         <span className="muted">Total costo repuestos:</span> <strong>{gs(r.total)}</strong>
       </div>
@@ -170,7 +168,7 @@ function FilaEditable({ l, r }: { l: LineaRepuesto; r: EstadoRepuestos }) {
       </td>
       <td className="num">{miles(cambio && c > 0 ? c * u : l.total)}</td>
       <td className="num">
-        <button type="button" className="repuestos-quitar" disabled={r.ocupado} onClick={() => r.quitar(l)} aria-label={`Quitar ${l.producto}`} title="Quitar">
+        <button type="button" className="lineas-quitar" disabled={r.ocupado} onClick={() => r.quitar(l)} aria-label={`Quitar ${l.producto}`} title="Quitar">
           🗑
         </button>
       </td>
@@ -180,29 +178,11 @@ function FilaEditable({ l, r }: { l: LineaRepuesto; r: EstadoRepuestos }) {
 
 // «Agregar una línea»: buscar el producto en la misma fila, como en Odoo.
 function FilaNueva({ r, cerrar, alAgregar }: { r: EstadoRepuestos; cerrar: () => void; alAgregar: () => void }) {
-  const [q, setQ] = useState("");
-  const [resultados, setResultados] = useState<{ q: string; lista: ProductoOdoo[] } | null>(null);
   const [producto, setProducto] = useState<ProductoOdoo | null>(null);
   const [cantidad, setCantidad] = useState("1");
   const [costo, setCosto] = useState("");
   const cantRef = useRef<HTMLInputElement>(null);
-  const busqueda = q.trim();
   const listo = producto !== null && !r.ocupado && cant(cantidad) > 0;
-
-  useEffect(() => {
-    if (producto || busqueda.length < 2) return;
-    const ctrl = new AbortController();
-    const t = setTimeout(() => {
-      fetch(`/api/productos?q=${encodeURIComponent(busqueda)}`, { signal: ctrl.signal })
-        .then((res) => res.json())
-        .then((d) => setResultados({ q: busqueda, lista: d.productos ?? [] }))
-        .catch(() => {});
-    }, 300);
-    return () => {
-      clearTimeout(t);
-      ctrl.abort();
-    };
-  }, [busqueda, producto]);
 
   function elegir(p: ProductoOdoo) {
     setProducto(p);
@@ -223,36 +203,14 @@ function FilaNueva({ r, cerrar, alAgregar }: { r: EstadoRepuestos; cerrar: () =>
   };
 
   return (
-    <tr className="repuestos-nueva">
+    <tr className="lineas-nueva">
       <td>
         {producto ? (
-          <button type="button" className="repuestos-producto" onClick={() => setProducto(null)} title="Cambiar producto">
+          <button type="button" className="lineas-producto" onClick={() => setProducto(null)} title="Cambiar producto">
             {producto.nombre}
           </button>
         ) : (
-          <div className="repuestos-buscar">
-            <input
-              className="celda"
-              autoFocus
-              placeholder="Buscar repuesto por nombre o código"
-              autoComplete="off"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Escape" && cerrar()}
-              aria-label="Repuesto"
-            />
-            {resultados?.q === busqueda && (
-              <div className="repuestos-opciones" role="listbox" aria-label="Repuestos encontrados">
-                {resultados.lista.length === 0 && <span className="small muted">No hay repuestos con ese nombre.</span>}
-                {resultados.lista.map((p) => (
-                  <button key={p.id} type="button" role="option" aria-selected={false} onClick={() => elegir(p)}>
-                    <span>{p.nombre}</span>
-                    <span className="small muted">{gs(p.costo)}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          <BuscadorProducto<ProductoOdoo> url={urlProductos} detalle={(p) => gs(p.costo)} alElegir={elegir} alCerrar={cerrar} vacio="No hay repuestos con ese nombre." />
         )}
       </td>
       <td className="num">
@@ -264,10 +222,10 @@ function FilaNueva({ r, cerrar, alAgregar }: { r: EstadoRepuestos; cerrar: () =>
       </td>
       <td className="num">{producto ? miles(cant(cantidad) * num(costo || "0") || 0) : ""}</td>
       <td className="num" style={{ whiteSpace: "nowrap" }}>
-        <button type="button" className="btn btn-primary repuestos-guardar" disabled={!listo} onClick={confirmar}>
+        <button type="button" className="btn btn-primary lineas-guardar" disabled={!listo} onClick={confirmar}>
           Guardar
         </button>
-        <button type="button" className="repuestos-quitar" onClick={cerrar} aria-label="Descartar línea" title="Descartar">
+        <button type="button" className="lineas-quitar" onClick={cerrar} aria-label="Descartar línea" title="Descartar">
           ✕
         </button>
       </td>

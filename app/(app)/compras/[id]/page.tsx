@@ -21,7 +21,7 @@ export default async function Compra(props: PageProps<"/compras/[id]">) {
   return (
     <>
       <Topbar titulo={`Compra ${c.numero}`} volver="/compras" />
-      <main className="wrap stack inventario-wrap" style={{ gap: 14 }}>
+      <main className="wrap wrap-ancho stack" style={{ gap: 14 }}>
         {sp.creada === "1" && (
           <div className={`alert ${sp.avisos === "1" ? "alert-warn" : "alert-ok"}`} role="status">
             Compra cargada en Odoo{sp.avisos === "1" ? ", pero algo quedó pendiente: revisá la recepción y el historial." : sp.recibida === "1" ? " y recibida: la mercadería ya entró al stock." : "."}
@@ -45,25 +45,30 @@ export default async function Compra(props: PageProps<"/compras/[id]">) {
 
         {c.puedeRecibir && puedeU(u, "compras.crear") && <BotonRecibir compraId={c.id} />}
 
-        <section className="card stack" style={{ gap: 10 }}>
-          <strong>Productos</strong>
+        {/* Líneas como en Odoo: Producto, Cantidad, Recibido, UdM, Precio unitario, Subtotal. */}
+        <section className="card stack lineas-caja" style={{ gap: 0 }}>
+          <strong className="lineas-titulo">Productos</strong>
           <div className="tabla-scroll">
-            <table className="tabla">
-              <thead><tr><th>Producto</th><th className="num">Pedido</th><th className="num">Recibido</th><th className="num">Precio unit.</th><th className="num">Subtotal</th></tr></thead>
+            <table className="tabla lineas-tabla">
+              <thead><tr><th>Producto</th><th className="num">Cantidad</th><th className="num">Recibido</th><th>UdM</th><th className="num">Precio unitario</th><th className="num">Subtotal</th></tr></thead>
               <tbody>
                 {c.lineas.map((l) => (
                   <tr key={l.id}>
                     <td>{verInventario && l.productoId ? <Link className="tabla-link" href={`/inventario/${l.productoId}`}>{l.producto}</Link> : l.producto}</td>
                     <td className="num">{cantidad(l.cantidad)}</td>
                     <td className={`num ${l.recibido < l.cantidad ? "ambar" : ""}`}>{cantidad(l.recibido)}</td>
-                    <td className="num">{gs(l.precio)}</td>
-                    <td className="num">{gs(l.subtotal)}</td>
+                    <td>{l.unidad ?? ""}</td>
+                    <td className="num">{cantidad(l.precio)}</td>
+                    <td className="num">{cantidad(l.subtotal)}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          {c.impuestos > 0 && <span className="small muted" style={{ textAlign: "right" }}>Subtotal {gs(c.subtotal)} · Impuestos {gs(c.impuestos)}</span>}
+          <div className="lineas-total">
+            {c.impuestos > 0 && <span className="small muted">Subtotal {gs(c.subtotal)} · Impuestos {gs(c.impuestos)} · </span>}
+            <span className="muted">Total:</span> <strong>{gs(c.total)}</strong>
+          </div>
         </section>
 
         {c.recepciones.length > 0 && (

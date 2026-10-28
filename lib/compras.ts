@@ -73,7 +73,7 @@ export async function resumenCompras() {
   };
 }
 
-export type LineaCompra = { id: number; productoId: number | null; producto: string; cantidad: number; recibido: number; precio: number; subtotal: number };
+export type LineaCompra = { id: number; productoId: number | null; producto: string; cantidad: number; recibido: number; unidad: string | null; precio: number; subtotal: number };
 export type RecepcionCompra = { id: number; numero: string; estado: string; fecha: string | null };
 
 const ESTADO_PICKING: Record<string, string> = { done: "Recibida", assigned: "Lista para recibir", confirmed: "En espera", waiting: "En espera", draft: "Borrador", cancel: "Cancelada" };
@@ -90,10 +90,12 @@ export async function detalleCompra(id: number) {
   if (!c) return null;
   const [lineas, recepciones] = await Promise.all([
     c.order_line.length
-      ? odoo.read<{ id: number; product_id: Many2one; name: string; product_qty: number; qty_received: number; price_unit: number; price_subtotal: number }>(
+      ? odoo.searchRead<{ id: number; product_id: Many2one; name: string; product_qty: number; qty_received: number; product_uom: Many2one; price_unit: number; price_subtotal: number }>(
           "purchase.order.line",
-          c.order_line,
-          ["id", "product_id", "name", "product_qty", "qty_received", "price_unit", "price_subtotal"],
+          [["id", "in", c.order_line]],
+          ["id", "product_id", "name", "product_qty", "qty_received", "product_uom", "price_unit", "price_subtotal"],
+          // UdM en español, como en Odoo.
+          { limit: c.order_line.length, order: "sequence asc, id asc", context: { lang: "es_419" } },
         )
       : Promise.resolve([]),
     c.picking_ids.length
@@ -111,6 +113,7 @@ export async function detalleCompra(id: number) {
       producto: l.product_id ? l.product_id[1] : l.name,
       cantidad: l.product_qty,
       recibido: l.qty_received,
+      unidad: l.product_uom ? l.product_uom[1] : null,
       precio: l.price_unit,
       subtotal: l.price_subtotal,
     })),
@@ -128,11 +131,11 @@ export type DetalleCompra = NonNullable<Awaited<ReturnType<typeof detalleCompra>
 
 // Productos para cargar en una compra, con el último precio pagado (o el costo si nunca se compró).
 export async function buscarProductosCompra(q: string) {
-  const productos = await odoo.searchRead<{ id: number; display_name: string; standard_price: number; qty_available: number }>(
+  const productos = await odoo.searchRead<{ id: number; display_name: string; standard_price: number; qty_available: number; uom_po_id: Many2one }>(
     "product.product",
     ["|", ["name", "ilike", q], ["default_code", "ilike", q], ["purchase_ok", "=", true], ["active", "=", true]],
-    ["id", "display_name", "standard_price", "qty_available"],
-    { limit: 15, order: "name asc" },
+    ["id", "display_name", "standard_price", "qty_available", "uom_po_id"],
+    { limit: 15, order: "name asc", context: { lang: "es_419" } },
   );
   if (!productos.length) return [];
   const ultimas = await odoo.searchRead<{ product_id: Many2one; price_unit: number }>(
@@ -149,6 +152,7 @@ export async function buscarProductosCompra(q: string) {
     precio: ultimoPrecio.get(p.id) ?? p.standard_price,
     precioOrigen: ultimoPrecio.has(p.id) ? "última compra" : "costo",
     stock: p.qty_available,
+    unidad: p.uom_po_id ? p.uom_po_id[1] : null,
   }));
 }
 

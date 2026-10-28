@@ -13,7 +13,7 @@ export async function buscarProductos(q: string): Promise<ProductoOdoo[]> {
     "product.product",
     ["|", ["name", "ilike", q], ["default_code", "ilike", q], ["active", "=", true]],
     ["id", "display_name", "standard_price", "uom_id"],
-    { limit: 15, order: "name asc" },
+    { limit: 15, order: "name asc", context: { lang: "es_419" } },
   );
   return filas.map((p) => ({ id: p.id, nombre: p.display_name, costo: p.standard_price || 0, unidad: p.uom_id ? p.uom_id[1] : null }));
 }
