@@ -147,9 +147,10 @@ export type DatosFinalizar = {
 };
 
 // Paso 1: odómetro, costo = repuestos, fecha de fin; mecánico y chofer solo si faltaban.
+// Odómetro 0 = sin dato: no se escribe (Odoo no deja vaciar el odómetro del servicio).
 export function payloadCamposFinalizar(orden: OrdenOdoo, vehiculo: VehiculoOdoo, datos: DatosFinalizar, hoy: string) {
   const vals: Record<string, unknown> = {
-    odometer: datos.odometro,
+    ...(datos.odometro > 0 ? { odometer: datos.odometro } : {}),
     amount: orden.total_products_cost || 0,
     service_end_date: hoy,
   };
@@ -174,7 +175,7 @@ export function payloadNotaFinalizacion(p: { mecanico: string; observacion: stri
   return {
     body:
       `<p><b>Trabajo finalizado por ${escaparHtml(p.mecanico)}</b> (app del taller).</p>` +
-      `<p>Odómetro: ${formatoKm(p.odometro)} km · Nuevo estado: ${ESTADOS[p.estado]}</p>` +
+      `<p>Odómetro: ${textoOdometro(p.odometro)} · Nuevo estado: ${ESTADOS[p.estado]}</p>` +
       (obs ? `<p>Observación: ${parrafos(obs)}</p>` : ""),
     ...NOTA_INTERNA,
   };
@@ -328,7 +329,7 @@ export function mensajeTelegramFinalizado(p: {
     `✅ Trabajo finalizado por ${p.mecanico}`,
     `📝 Tarea: ${p.tipo ? p.tipo[1] : "—"}`,
     `🚗 Vehículo: ${p.chapa}`,
-    `📏 Odómetro: ${formatoKm(p.odometro)} km`,
+    `📏 Odómetro: ${textoOdometro(p.odometro)}`,
     `🔧 Trabajos realizados: ${textoOVacio(p.descripcion)}`,
     `📌 Estado: ${ESTADOS[p.estado]}`,
     "",
@@ -340,6 +341,9 @@ export function mensajeTelegramFinalizado(p: {
 export function mensajeTelegramError(p: { chapa: string; ordenId: number; paso: string; error: string }): string {
   return [`⚠️ Error al escribir en Odoo`, `🚗 Vehículo: ${p.chapa}`, `🧾 Orden: #${p.ordenId}`, `Paso: ${p.paso}`, `Detalle: ${p.error}`].join("\n");
 }
+
+// Para notas y avisos: 0 es "sin odómetro".
+export const textoOdometro = (n: number) => (n > 0 ? `${formatoKm(n)} km` : "sin odómetro");
 
 export function formatoKm(n: number): string {
   return new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);

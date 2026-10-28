@@ -8,7 +8,13 @@ import { leerFotos } from "@/lib/fotos-form";
 
 const campos = z.object({
   clave: z.string().uuid("Clave de envío inválida"),
-  odometro: z.coerce.number({ error: "Ingresá el odómetro" }).positive("Ingresá el odómetro").max(2_000_000, "Odómetro fuera de rango"),
+  // 0 vale (moto sin odómetro o que no marca), pero el campo no puede quedar vacío.
+  odometro: z
+    .string({ error: "Ingresá el odómetro" })
+    .trim()
+    .min(1, "Ingresá el odómetro (0 si la moto no tiene)")
+    .transform(Number)
+    .pipe(z.number({ error: "Ingresá el odómetro" }).min(0, "El odómetro no puede ser negativo").max(2_000_000, "Odómetro fuera de rango")),
   observacion: z.string().max(4000).default(""),
 });
 

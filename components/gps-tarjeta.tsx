@@ -101,7 +101,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
 
   return (
     <section className="card stack lineas-caja" style={{ gap: 0 }}>
-      <div className="row between lineas-titulo">
+      <div className="row lineas-titulo" style={{ gap: 12 }}>
         <strong>GPS</strong>
         {estado === "listo" && (
           <button type="button" className="lineas-agregar" onClick={leer}>

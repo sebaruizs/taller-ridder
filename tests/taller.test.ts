@@ -12,6 +12,7 @@ import {
   hoyAsuncion,
   mensajeTelegramFinalizado,
   payloadCamposFinalizar,
+  textoOdometro,
   payloadNotaFinalizacion,
   payloadNuevaOrden,
   payloadNotaNuevaOrden,
@@ -220,5 +221,14 @@ describe("antigüedad del chofer como cliente", () => {
     expect(textoCliente("2026-09-27", ahora)).toBe("Cliente hace 1 mes (desde 27/09/2026)");
     expect(textoCliente("2026-10-26", ahora)).toBe("Cliente hace 1 día (desde 26/10/2026)");
     expect(textoCliente("2026-10-27", ahora)).toBe("Cliente desde hoy (27/10/2026)");
+  });
+});
+
+describe("odómetro 0 (sin dato)", () => {
+  it("no escribe el odómetro en Odoo y la nota dice «sin odómetro»", () => {
+    const vals = payloadCamposFinalizar(orden(), vehiculo(), { odometro: 0, partnerMecanico: null, observacion: "" }, "2026-10-24");
+    expect(vals).not.toHaveProperty("odometer");
+    expect(textoOdometro(0)).toBe("sin odómetro");
+    expect(textoOdometro(15230)).toBe("15.230 km");
   });
 });
