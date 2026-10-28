@@ -30,6 +30,8 @@ const schema = z.object({
   TELEGRAM_CHAT_TALLER: limpio,
   TELEGRAM_CHAT_ERRORES: limpio,
   APP_URL: z.string().url().optional(),
+  // Secreto compartido con Cobranzas para crear usuarios cobradores por webhook. Vacío = webhook apagado.
+  WEBHOOK_USUARIOS_SECRET: limpio,
 });
 
 export type Env = z.infer<typeof schema>;

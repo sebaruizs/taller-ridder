@@ -46,6 +46,8 @@ Igual que en cobranzas: cada persona entra con **usuario y contraseña** (mínim
 - Cada uno cambia su contraseña en **Cuenta**. Cambiar la contraseña o desactivar un usuario cierra sus sesiones.
 - Después de 5 intentos fallidos el usuario queda bloqueado 15 minutos; además hay un límite por IP.
 
+Los usuarios nuevos de Cobranzas (salvo los de Finanzas) se crean solos acá como **Cobrador**, con el mismo usuario y contraseña: Cobranzas llama a `POST /api/webhooks/usuarios` con `Authorization: Bearer <WEBHOOK_USUARIOS_SECRET>`. Si el usuario ya existe, no se modifica.
+
 Para emergencias (por ejemplo, recuperar el admin) se puede crear un usuario desde la terminal:
 
 ```bash
@@ -67,6 +69,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `TELEGRAM_CHAT_TALLER` | Grupo del taller (avisos de trabajos) |
 | `TELEGRAM_CHAT_ERRORES` | Grupo de errores (fallas al escribir en Odoo) |
 | `ODOO_TAG_MECANICO` | id de la etiqueta de contactos "mecanico" (20) |
+| `WEBHOOK_USUARIOS_SECRET` | Secreto del webhook de altas desde Cobranzas (vacío = apagado) |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"

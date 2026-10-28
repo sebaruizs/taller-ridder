@@ -86,6 +86,31 @@ export async function crearUsuario(datos: z.infer<typeof crearSchema>, autor: Us
   return filas[0].id;
 }
 
+// Alta que llega por webhook desde Cobranzas: mismo usuario y contraseña, rol cobrador.
+// Si el usuario ya existe no se toca (puede ser otra persona con el mismo nombre de usuario).
+export const altaCobranzasSchema = z.object({ usuario: usuarioSchema, nombre: z.string().trim().min(2).max(80), password: passwordSchema });
+
+export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobranzasSchema>): Promise<{ id: number; creado: boolean }> {
+  const db = await getDb();
+  const filas = await db
+    .insert(schema.usuarios)
+    .values({
+      usuario: datos.usuario,
+      nombre: datos.nombre,
+      rol: "cobrador",
+      passwordHash: await hashPassword(datos.password),
+      permisosOff: [],
+    })
+    .onConflictDoNothing()
+    .returning({ id: schema.usuarios.id });
+  if (!filas.length) {
+    const [actual] = await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.usuario, datos.usuario));
+    return { id: actual.id, creado: false };
+  }
+  await registrar(null, "usuario.crear", { detalle: { usuario: datos.usuario, rol: "cobrador", origen: "cobranzas" } });
+  return { id: filas[0].id, creado: true };
+}
+
 export async function editarUsuario(id: number, datos: z.infer<typeof editarSchema>, autor: Usuario): Promise<void> {
   exigirContactoSiMecanico(datos);
   if (id === autor.id && (datos.rol !== "admin" || !datos.activo)) {
