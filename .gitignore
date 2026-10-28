@@ -43,3 +43,6 @@ next-env.d.ts
 
 # base local de desarrollo (pglite)
 /.data
+
+# Críticas y archivos de la skill impeccable (locales)
+.impeccable/
