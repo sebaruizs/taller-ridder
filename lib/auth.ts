@@ -112,12 +112,13 @@ const AUTOMATICO: Usuario = { id: 0, usuario: "automatico", nombre: "Cobranzas (
 const resumen = (v: string) => createHash("sha256").update(v).digest();
 
 // null: no es una llamada de Cobranzas (o el secreto no coincide: sigue como cualquier request sin sesión).
+// headers() va primero: marca la página como dinámica antes de leer el entorno (en el build no hay variables).
 export const llamadaCobranzas = cache(async (): Promise<{ por: string } | null> => {
-  const secreto = env().API_COBRANZAS_SECRET;
-  if (!secreto) return null;
   const h = await headers();
   const auth = h.get("authorization");
   if (!auth?.startsWith("Bearer ")) return null;
+  const secreto = env().API_COBRANZAS_SECRET;
+  if (!secreto) return null;
   if (!timingSafeEqual(resumen(auth.slice(7).trim()), resumen(secreto))) return null;
   return { por: quienHizo(h.get("x-ridder-usuario")) };
 });
