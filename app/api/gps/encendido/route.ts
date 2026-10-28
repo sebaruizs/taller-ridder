@@ -5,12 +5,12 @@ import { cambiarEncendido } from "@/lib/gps";
 
 const body = z.object({
   chapa: z.string().trim().min(2).max(20),
-  accion: z.enum(["cortar", "restablecer"]),
+  accion: z.enum(["bloquear", "desbloquear"]),
   ordenId: z.number().int().positive().optional(),
   confirmaEnMovimiento: z.boolean().default(false),
 });
 
-// Cortar o restablecer el encendido por GPS. Va al equipo con la chapa sola; queda en el log y en la orden.
+// Bloquear o desbloquear el encendido por GPS. Va al equipo con la chapa sola; queda en el log y en la orden.
 export const POST = manejar(async (req) => {
   const u = await exigir("gps.encendido");
   return json(await cambiarEncendido(body.parse(await req.json().catch(() => ({}))), u));

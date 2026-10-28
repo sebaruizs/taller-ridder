@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import type { DetalleOrden } from "@/lib/ordenes";
 import { SelectorFotos, useFotos } from "@/components/selector-fotos";
 import { CajaRepuestos } from "@/components/repuestos-orden";
+import { PanelGps } from "@/components/gps-tarjeta";
 import type { LineaRepuesto } from "@/lib/taller";
 
 const fmt = (n: number) => new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(n);
@@ -27,7 +28,19 @@ function olvidarClave(ordenId: number) {
   } catch {}
 }
 
-export function FormFinalizar({ orden, mecanico, repuestos, historial }: { orden: DetalleOrden; mecanico: string; repuestos: LineaRepuesto[] | null; historial: React.ReactNode }) {
+export function FormFinalizar({
+  orden,
+  mecanico,
+  repuestos,
+  gps,
+  historial,
+}: {
+  orden: DetalleOrden;
+  mecanico: string;
+  repuestos: LineaRepuesto[] | null;
+  gps: { puedeBloquear: boolean } | null;
+  historial: React.ReactNode;
+}) {
   const router = useRouter();
   const fotosEstado = useFotos();
   const procesando = fotosEstado.procesando;
@@ -159,6 +172,7 @@ export function FormFinalizar({ orden, mecanico, repuestos, historial }: { orden
       </div>
       </div>
       {/* Debajo, a todo el ancho: repuestos (para quien puede cargarlos) e historial, como en Odoo. */}
+      {gps && <PanelGps ordenId={orden.id} chapa={orden.chapa} puedeBloquear={gps.puedeBloquear} />}
       {repuestos && <CajaRepuestos ordenId={orden.id} lineasIniciales={repuestos} editable />}
       {historial}
     </main>

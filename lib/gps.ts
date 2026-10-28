@@ -77,9 +77,9 @@ export async function cambiarEncendido(
   cacheEquipos = undefined;
   const equipos = (await estadoGps([d.chapa]))[d.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? [];
   const equipo = equipos.find((e) => e.corta);
-  if (!equipo) throw new ErrorGps("Esta moto no tiene en Traccar un GPS con la chapa exacta: no se puede cortar desde acá", 404);
-  if (d.accion === "cortar" && equipo.enMovimiento && !d.confirmaEnMovimiento) {
-    throw new ErrorGps(`La moto está en movimiento (${equipo.kmh ?? 0} km/h). Confirmá si igual querés cortar el encendido.`, 409, { requiereConfirmar: true });
+  if (!equipo) throw new ErrorGps("Esta moto no tiene en Traccar un GPS con la chapa exacta: no se puede bloquear desde acá", 404);
+  if (d.accion === "bloquear" && equipo.enMovimiento && !d.confirmaEnMovimiento) {
+    throw new ErrorGps(`La moto está en movimiento (${equipo.kmh ?? 0} km/h). Confirmá si igual querés bloquearla.`, 409, { requiereConfirmar: true });
   }
   const antes = ultimoComando.get(equipo.id);
   if (antes && Date.now() - antes < ESPERA_MS) {
@@ -100,7 +100,7 @@ export async function cambiarEncendido(
   });
   const res = resultadoComando(r.status, d.accion);
 
-  await registrar(u.id, d.accion === "cortar" ? "gps.cortar" : "gps.restablecer", {
+  await registrar(u.id, d.accion === "bloquear" ? "gps.bloquear" : "gps.desbloquear", {
     ordenId: d.ordenId,
     detalle: { chapa: d.chapa, equipo: equipo.nombre, deviceId: equipo.id, enCola: res.enCola, enMovimiento: equipo.enMovimiento },
   });

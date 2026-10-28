@@ -19,7 +19,13 @@ export default async function Finalizar(props: PageProps<"/ordenes/[id]/finaliza
   return (
     <>
       <Topbar titulo="Finalizar trabajo" volver="/ordenes" />
-      <FormFinalizar orden={orden} mecanico={u.nombre} repuestos={repuestos} historial={<Historial ordenId={orden.id} />} />
+      <FormFinalizar
+        orden={orden}
+        mecanico={u.nombre}
+        repuestos={repuestos}
+        gps={puedeU(u, "ordenes.ver_todas") ? { puedeBloquear: puedeU(u, "gps.encendido") } : null}
+        historial={<Historial ordenId={orden.id} />}
+      />
     </>
   );
 }

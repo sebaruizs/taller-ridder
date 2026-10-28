@@ -12,6 +12,7 @@ import { cantidad, fecha } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
 import { Historial } from "@/components/historial";
 import { CajaRepuestos } from "@/components/repuestos-orden";
+import { PanelGps } from "@/components/gps-tarjeta";
 
 const claseEstado = (e: string) => (e === "done" ? "badge-ok" : e === "cancelled" ? "badge-warn" : e === "to_be_paid" ? "badge-danger" : "");
 
@@ -81,6 +82,10 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
         </div>
 
         {/* Debajo, a todo el ancho: repuestos utilizados (editables para quien puede) e historial, como en Odoo. */}
+        {/* GPS solo con la moto en el taller: En proceso o Listo para verificar. */}
+        {puedeU(u, "ordenes.ver_todas") && ["running", "cancelled"].includes(orden.estado) && (
+          <PanelGps ordenId={id} chapa={orden.chapa} puedeBloquear={puedeU(u, "gps.encendido")} />
+        )}
         <CajaRepuestos ordenId={id} lineasIniciales={repuestos} editable={editarRepuestos} />
         <Historial ordenId={id} />
       </main>

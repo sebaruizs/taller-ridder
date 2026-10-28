@@ -18,21 +18,21 @@ describe("GPS: equipos de cada moto", () => {
       ["816abti", "236ABXV"],
       [disp(2, "816ABTI-TC"), disp(1, "816ABTI"), disp(3, "236ABXV - Monedas"), disp(4, "999XXX"), disp(5, "236ABXV", { attributes: { "ridder.archived": true } })],
       [
-        { id: 10, deviceId: 1, fixTime: "", speed: 10, attributes: { ignition: true, blocked: false, batteryLevel: 80 } },
+        { id: 10, deviceId: 1, protocol: "gt06", fixTime: "2026-10-28T11:59:00Z", latitude: -25.3, longitude: -57.6, speed: 10, attributes: { ignition: true, blocked: false, batteryLevel: 80 } },
         { id: 20, deviceId: 2, fixTime: "", speed: 0, attributes: {} },
       ],
     );
     expect(Object.keys(r).sort()).toEqual(["236ABXV", "816ABTI"]);
     expect(r["816ABTI"].map((e) => [e.nombre, e.corta])).toEqual([["816ABTI", true], ["816ABTI-TC", false]]);
-    expect(r["816ABTI"][0]).toMatchObject({ encendido: true, bloqueado: false, kmh: 19, enMovimiento: true, bateria: 80 });
+    expect(r["816ABTI"][0]).toMatchObject({ encendido: true, bloqueado: false, kmh: 19, enMovimiento: true, bateria: 80, protocolo: "gt06", ubicacion: { lat: -25.3, lon: -57.6 } });
     // Sin dato de relé: desconocido, no "desbloqueado".
     expect(r["816ABTI"][1]).toMatchObject({ bloqueado: null, encendido: null, enMovimiento: false });
     expect(r["236ABXV"].map((e) => e.tipo)).toEqual(["monedas"]);
   });
 
   it("explica si el comando llegó o quedó en cola", () => {
-    expect(resultadoComando(200, "cortar").enCola).toBe(false);
-    expect(resultadoComando(202, "restablecer")).toMatchObject({ enCola: true });
-    expect(payloadNotaEncendido({ autor: "Derlis", accion: "cortar", equipo: "816ABTI", enCola: true }).body).toContain("cortó el encendido");
+    expect(resultadoComando(200, "bloquear").enCola).toBe(false);
+    expect(resultadoComando(202, "desbloquear")).toMatchObject({ enCola: true });
+    expect(payloadNotaEncendido({ autor: "Derlis", accion: "bloquear", equipo: "816ABTI", enCola: true }).body).toContain("bloqueó el encendido");
   });
 });

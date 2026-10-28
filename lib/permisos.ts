@@ -14,7 +14,7 @@ export const ACCIONES = {
   "vehiculos.buscar": ["jefe", "cobrador", "admin"],
   "vehiculos.historial": ["jefe", "admin"],
   "reportes.ver": ["jefe", "admin"],
-  // Cortar o restablecer el encendido de la moto por GPS (Traccar).
+  // Bloquear o desbloquear el encendido de la moto por GPS (Traccar).
   "gps.encendido": ["jefe", "admin"],
   "inventario.ver": ["jefe", "admin"],
   "inventario.crear": ["jefe", "admin"],
@@ -59,7 +59,7 @@ export const PERMISOS = {
   repuestos: { modulo: "taller", nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
   reportes: { modulo: "taller", nombre: "Reportes de mecánicos", detalle: "Lista de todos los trabajos reportados, con fotos y observación", acciones: ["reportes.ver"] },
   aprobar: { modulo: "taller", nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
-  encendido: { modulo: "taller", nombre: "Cortar el encendido", detalle: "Cortar o restablecer el encendido de la moto por GPS desde el tablero", acciones: ["gps.encendido"] },
+  encendido: { modulo: "taller", nombre: "Bloquear el encendido", detalle: "Bloquear o desbloquear el encendido de la moto por GPS", acciones: ["gps.encendido"] },
   inventario: { modulo: "inventario", nombre: "Ver productos", detalle: "Productos, stock, costos, precios y sus compras", acciones: ["inventario.ver"] },
   crear_productos: { modulo: "inventario", nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
   editar_precios: { modulo: "inventario", nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },

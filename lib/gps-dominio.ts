@@ -8,12 +8,24 @@ export const NOMBRE_TIPO: Record<TipoEquipo, string> = { gps: "GPS", tc: "TC", m
 export type DispositivoTraccar = {
   id: number;
   name: string;
+  uniqueId?: string;
   status: string;
   lastUpdate: string | null;
   positionId: number;
+  phone?: string | null;
+  model?: string | null;
   attributes?: Record<string, unknown>;
 };
-export type PosicionTraccar = { id: number; deviceId: number; fixTime: string; speed: number; attributes?: Record<string, unknown> };
+export type PosicionTraccar = {
+  id: number;
+  deviceId: number;
+  protocol?: string;
+  fixTime: string;
+  latitude?: number;
+  longitude?: number;
+  speed: number;
+  attributes?: Record<string, unknown>;
+};
 
 export type EquipoGps = {
   id: number;
@@ -27,7 +39,14 @@ export type EquipoGps = {
   kmh: number | null;
   enMovimiento: boolean;
   bateria: number | null;
-  // El corte de encendido se manda al equipo con la chapa sola.
+  // Datos del equipo para el detalle.
+  imei: string | null;
+  modelo: string | null;
+  protocolo: string | null;
+  telefono: string | null;
+  ultimoDato: string | null;
+  ubicacion: { lat: number; lon: number } | null;
+  // El bloqueo del encendido se manda al equipo con la chapa exacta.
   corta: boolean;
 };
 
@@ -64,6 +83,12 @@ export function estadoEquipo(d: DispositivoTraccar, p: PosicionTraccar | undefin
     kmh,
     enMovimiento: (kmh ?? 0) > 0 || a.motion === true,
     bateria: numero(a.batteryLevel),
+    imei: d.uniqueId || null,
+    modelo: d.model || null,
+    protocolo: p?.protocol || null,
+    telefono: d.phone || null,
+    ultimoDato: p?.fixTime || null,
+    ubicacion: p && typeof p.latitude === "number" && typeof p.longitude === "number" ? { lat: p.latitude, lon: p.longitude } : null,
     corta: tipo === "gps",
   };
 }
@@ -85,18 +110,19 @@ export function equiposPorChapa(chapas: string[], dispositivos: DispositivoTracc
   return res;
 }
 
-export type AccionEncendido = "cortar" | "restablecer";
-export const COMANDO: Record<AccionEncendido, string> = { cortar: "engineStop", restablecer: "engineResume" };
+// Bloquear = cortar el encendido (engineStop); desbloquear = restablecerlo (engineResume).
+export type AccionEncendido = "bloquear" | "desbloquear";
+export const COMANDO: Record<AccionEncendido, string> = { bloquear: "engineStop", desbloquear: "engineResume" };
 
 // Qué decirle a la persona según la respuesta de Traccar: 200 lo recibió el equipo, 202 quedó en cola.
 export function resultadoComando(status: number, accion: AccionEncendido): { enCola: boolean; mensaje: string } {
-  const que = accion === "cortar" ? "corte de encendido" : "restablecimiento del encendido";
+  const que = accion === "bloquear" ? "bloqueo" : "desbloqueo";
   if (status === 202) return { enCola: true, mensaje: `El GPS está desconectado: el ${que} quedó en cola y se manda cuando se conecte.` };
   return { enCola: false, mensaje: `El GPS recibió el ${que}. Se confirma cuando el equipo informe el cambio (hasta unos 3 minutos).` };
 }
 
 export function payloadNotaEncendido(p: { autor: string; accion: AccionEncendido; equipo: string; enCola: boolean }) {
-  const que = p.accion === "cortar" ? "cortó el encendido" : "restableció el encendido";
+  const que = p.accion === "bloquear" ? "bloqueó el encendido" : "desbloqueó el encendido";
   return {
     body:
       `<p><b>${escaparHtml(p.autor)}</b> ${que} de la moto desde la app del taller (GPS «${escaparHtml(p.equipo)}»)` +

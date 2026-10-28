@@ -4,10 +4,25 @@ import { useState } from "react";
 import type { DetalleOrden } from "@/lib/ordenes";
 import { ESTADOS, type EstadoOrden, type LineaRepuesto } from "@/lib/taller";
 import { TablaRepuestos, gs, useRepuestos } from "@/components/repuestos-orden";
+import { PanelGps } from "@/components/gps-tarjeta";
 
 type Aprobada = { chapa: string; lineas: LineaRepuesto[]; avisos: string[] };
 
-export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAprobar, historial }: { orden: DetalleOrden; lineasIniciales: LineaRepuesto[]; puedeRepuestos: boolean; puedeAprobar: boolean; historial: React.ReactNode }) {
+export function VerificarOrden({
+  orden,
+  lineasIniciales,
+  puedeRepuestos,
+  puedeAprobar,
+  gps,
+  historial,
+}: {
+  orden: DetalleOrden;
+  lineasIniciales: LineaRepuesto[];
+  puedeRepuestos: boolean;
+  puedeAprobar: boolean;
+  gps: { puedeBloquear: boolean } | null;
+  historial: React.ReactNode;
+}) {
   const rep = useRepuestos(orden.id, lineasIniciales);
   const lineas = rep.lineas;
   const { total, ocupado, error } = rep;
@@ -94,6 +109,7 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
         </div>
       </div>
       <div className="stack" style={{ gap: 14, marginTop: 14 }}>
+        {gps && <PanelGps ordenId={orden.id} chapa={orden.chapa} puedeBloquear={gps.puedeBloquear} />}
         <TablaRepuestos r={rep} editable={puedeRepuestos} alAgregar={() => setSinRepuestos(false)} conError={false} />
         {historial}
       </div>
