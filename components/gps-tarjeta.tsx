@@ -7,18 +7,20 @@ import { COLORES_POR_DEFECTO, colorReporte, type ColoresReporte } from "@/lib/aj
 // GPS de una moto (Traccar): resumen en la tarjeta del tablero y panel completo en la orden,
 // donde quien puede bloquea o desbloquea el encendido.
 
+const plural = (n: number, una: string, varias: string) => `hace ${n} ${n === 1 ? una : varias}`;
 const hace = (iso: string | null) => {
   if (!iso) return "sin datos";
   const min = Math.round((Date.now() - Date.parse(iso)) / 60_000);
   if (min < 1) return "recién";
-  if (min < 60) return `hace ${min} min`;
-  if (min < 48 * 60) return `hace ${Math.round(min / 60)} h`;
+  if (min < 60) return plural(min, "minuto", "minutos");
+  if (min < 48 * 60) return plural(Math.round(min / 60), "hora", "horas");
   const dias = Math.round(min / 1440);
-  if (dias < 60) return `hace ${dias} días`;
+  if (dias < 60) return plural(dias, "día", "días");
   const meses = Math.round(dias / 30);
-  if (meses < 24) return `hace ${meses} meses`;
-  return `hace ${Math.round(dias / 365)} años`;
+  if (meses < 24) return plural(meses, "mes", "meses");
+  return plural(Math.round(dias / 365), "año", "años");
 };
+const conMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const fechaHora = (iso: string | null) =>
   iso ? new Intl.DateTimeFormat("es-PY", { timeZone: "America/Asuncion", dateStyle: "short", timeStyle: "short" }).format(new Date(iso)) : "—";
 const bloqueo = (g: EquipoGps) => (g.bloqueado === null ? "¿?" : g.bloqueado ? "Bloqueado" : "Desbloqueado");
@@ -216,18 +218,18 @@ function TarjetaEquipo({
       </span>
       <strong>{g.nombre}</strong>
       {reporte ? (
-        <span className="small">
-          Último reporte: <span className="gps-hora">{fechaHora(reporte)}</span>{" "}
-          <span data-color={color} style={{ fontWeight: 600 }}>{hace(reporte)}</span>
-        </span>
+        <>
+          <span className="small">
+            Último reporte: <span className="gps-hora">{fechaHora(reporte)}</span>
+          </span>
+          {/* Hace cuánto reportó, con el color de los umbrales de Ajustes. */}
+          <span className="small" data-color={color} style={{ fontWeight: 600 }}>
+            {!g.enLinea && !anterior && "Fuera de línea · "}
+            {conMayuscula(hace(reporte))}
+          </span>
+        </>
       ) : (
         <span className="small muted">Sin reportes</span>
-      )}
-      {!g.enLinea && (
-        <span className="small rojo" style={{ fontWeight: 600 }}>
-          {/* Reporta en el anterior: en rojo, hace cuánto que no reporta en el nuevo. */}
-          {anterior ? (g.ultimaConexion ? `${hace(g.ultimaConexion).replace(/^h/, "H")}` : "Sin reportes") : "Fuera de línea"}
-        </span>
       )}
       {g.corta && puedeBloquear && (
         <span className="gps-acciones">
