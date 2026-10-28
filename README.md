@@ -42,15 +42,15 @@ Igual que en cobranzas: cada persona entra con **usuario y contraseña** (mínim
 
 - El primer admin se crea solo al arrancar si la base está vacía (`ADMIN_USER` / `ADMIN_PASSWORD`).
 - El admin crea y edita usuarios en **Usuarios**: rol, nombre, contraseña, activo y **contacto de Odoo**.
-- El contacto se elige entre los `res.partner` con la etiqueta **mecanico** (`ODOO_TAG_MECANICO`, id 20). Es obligatorio para los mecánicos: se usa como "Responsable" (`vendor_id`) al finalizar y para el filtro "Asignadas a mí".
+- El contacto se elige entre los `res.partner` con la etiqueta **mecanico** (`ODOO_TAG_MECANICO`, id 20) para los mecánicos, **ejecutivo** (`ODOO_TAG_EJECUTIVO`, id 24) para los cobradores, y cualquiera de las dos para jefes y admin. Es obligatorio para los mecánicos: se usa como "Responsable" (`vendor_id`) al finalizar y para el filtro "Asignadas a mí".
 - Cada uno cambia su contraseña en **Cuenta**. Cambiar la contraseña o desactivar un usuario cierra sus sesiones.
 - Después de 5 intentos fallidos el usuario queda bloqueado 15 minutos; además hay un límite por IP.
 
 Los usuarios nuevos de Cobranzas (salvo los de Finanzas) se crean solos acá como **Cobrador**, con el mismo usuario y contraseña. API para Cobranzas (solo servidor a servidor; con `WEBHOOK_USUARIOS_SECRET` vacío responde 404):
 
 - Encabezados: `Authorization: Bearer <WEBHOOK_USUARIOS_SECRET>` y `X-Ridder-Usuario: <login de quien lo hizo, URL-encoded>` (o `automatico`). Queda en el log como `origen: "cobranzas"` y `por`.
-- `POST /api/webhooks/usuarios` `{ usuario, nombre, password }`: crea un cobrador con `origen = "cobranzas"`. Si el usuario ya existe no lo toca: `200 { id, creado: false }`; si lo crea, `201 { id, creado: true }`.
-- `GET /api/webhooks/usuarios/<usuario>`: `{ existe: true, id, rol, activo, origen }`, o 404.
+- `POST /api/webhooks/usuarios` `{ usuario, nombre, password }`: crea un cobrador con `origen = "cobranzas"` y lo vincula al contacto **ejecutivo** de Odoo con el mismo nombre (sin mayúsculas, tildes ni espacios de más) si hay exactamente uno. Responde `{ id, creado, contacto: { id, nombre } | null, motivoContacto? }` (`201` si lo crea; `200` si ya existía: no lo modifica, salvo completar el contacto de una cuenta de Cobranzas que no lo tenía).
+- `GET /api/webhooks/usuarios/<usuario>`: `{ existe: true, id, rol, activo, origen, contacto }`, o 404.
 - `PATCH /api/webhooks/usuarios/<usuario>` `{ password?, activo? }`: solo cuentas con origen Cobranzas (si no, 409). Cambiar la contraseña o desactivar cierra sus sesiones.
 - Errores: `{ error }` con 400 (datos), 401 (secreto), 404 (no existe / API apagada), 409 (cuenta del taller).
 
@@ -84,6 +84,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `TELEGRAM_CHAT_TALLER` | Grupo del taller (avisos de trabajos) |
 | `TELEGRAM_CHAT_ERRORES` | Grupo de errores (fallas al escribir en Odoo) |
 | `ODOO_TAG_MECANICO` | id de la etiqueta de contactos "mecanico" (20) |
+| `ODOO_TAG_EJECUTIVO` | id de la etiqueta de contactos "ejecutivo", para cobradores (24) |
 | `WEBHOOK_USUARIOS_SECRET` | Secreto del webhook de altas desde Cobranzas (vacío = apagado) |
 | `API_COBRANZAS_SECRET` | Secreto de la API para Cobranzas (vacío = apagada) |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |

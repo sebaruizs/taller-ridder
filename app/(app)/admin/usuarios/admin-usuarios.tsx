@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { UsuarioAdmin, ContactoOdoo } from "@/lib/usuarios";
 import type { Rol } from "@/lib/db/schema";
+import { etiquetasDelRol, textoEtiquetas } from "@/lib/credenciales";
 import { MODULOS, PERMISOS, claveModulo, modulosDelRol, permisosDelRol, resumenPermisosOff, type Modulo } from "@/lib/permisos";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
@@ -25,7 +26,7 @@ const VACIO: Form = { id: null, usuario: "", nombre: "", rol: "mecanico", odooPa
 export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: number }) {
   const router = useRouter();
   const [usuarios, setUsuarios] = useState(inicial);
-  const [contactos, setContactos] = useState<ContactoOdoo[] | null>(null);
+  const [odoo, setOdoo] = useState<{ contactos: ContactoOdoo[]; ejecutivos: ContactoOdoo[] } | null>(null);
   const [errorContactos, setErrorContactos] = useState<string | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,7 +41,7 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
       .then(async (r) => {
         const d = await r.json();
         if (!r.ok) throw new Error(d.error);
-        setContactos(d.contactos);
+        setOdoo({ contactos: d.contactos, ejecutivos: d.ejecutivos ?? [] });
         setErrorContactos(null);
       })
       .catch((e) => e.name !== "AbortError" && setErrorContactos(e.message || "No se pudo leer Odoo"));
@@ -58,6 +59,22 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
     setAviso(null);
     setError(null);
     setForm({ id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, password: "", activo: u.activo, permisosOff: u.permisosOff ?? [] });
+  }
+
+  // Mecánico: «mecanico»; cobrador: «ejecutivo»; jefe y admin: las dos listas juntas.
+  const contactosDe = (rol: Rol): ContactoOdoo[] | null => {
+    if (!odoo) return null;
+    const porId = new Map<number, ContactoOdoo>();
+    for (const e of etiquetasDelRol(rol)) for (const c of e === "mecanico" ? odoo.contactos : odoo.ejecutivos) porId.set(c.id, c);
+    return [...porId.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  };
+  const contactos = form ? contactosDe(form.rol) : null;
+
+  function cambiarRol(rol: Rol) {
+    if (!form) return;
+    // Si el contacto elegido no es de la lista del nuevo rol, se quita.
+    const sigue = form.odooPartnerId && contactosDe(rol)?.some((c) => c.id === form.odooPartnerId);
+    setForm({ ...form, rol, odooPartnerId: sigue ? form.odooPartnerId : null });
   }
 
   function elegirContacto(id: number | null) {
@@ -109,7 +126,7 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
           <div className="field">
             <label htmlFor="f-rol">Rol</label>
             <select id="f-rol" className="input" value={form.rol} disabled={form.id === yo}
-              onChange={(e) => setForm({ ...form, rol: e.target.value as Rol })}>
+              onChange={(e) => cambiarRol(e.target.value as Rol)}>
               {(Object.keys(ROL_NOMBRE) as Rol[]).map((r) => <option key={r} value={r}>{ROL_NOMBRE[r]}</option>)}
             </select>
           </div>
@@ -132,7 +149,10 @@ export function AdminUsuarios({ inicial, yo }: { inicial: UsuarioAdmin[]; yo: nu
                 ))}
               </select>
             )}
-            <span className="small muted">Contactos con la etiqueta «mecanico». Queda como Responsable de la orden al finalizar.</span>
+            <span className="small muted">
+              Contactos con la etiqueta {textoEtiquetas(etiquetasDelRol(form.rol))}.
+              {form.rol !== "cobrador" && " Queda como Responsable de la orden al finalizar."}
+            </span>
           </div>
           <div className="field">
             <label htmlFor="f-nombre">Nombre visible</label>

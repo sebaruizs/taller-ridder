@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_INTENTOS,
+  contactoPorNombre,
+  etiquetasDelRol,
+  textoEtiquetas,
   datosUsuarioSchema,
   estaBloqueado,
   ipBloqueada,
@@ -56,5 +59,31 @@ describe("bloqueo por intentos", () => {
     expect(ipBloqueada("1.2.3.4", t)).toBe(true);
     expect(ipBloqueada("1.2.3.4", t + 16 * 60_000)).toBe(false);
     expect(ipBloqueada("5.6.7.8", t)).toBe(false);
+  });
+});
+
+describe("contacto de Odoo según el rol", () => {
+  it("mecánico «mecanico», cobrador «ejecutivo», jefe y admin las dos", () => {
+    expect(etiquetasDelRol("mecanico")).toEqual(["mecanico"]);
+    expect(etiquetasDelRol("cobrador")).toEqual(["ejecutivo"]);
+    expect(etiquetasDelRol("jefe")).toEqual(["mecanico", "ejecutivo"]);
+    expect(etiquetasDelRol("admin")).toEqual(["mecanico", "ejecutivo"]);
+    expect(textoEtiquetas(["mecanico", "ejecutivo"])).toBe("«mecanico» o «ejecutivo»");
+  });
+});
+
+describe("vincular por nombre el contacto de Odoo", () => {
+  const ejecutivos = [
+    { id: 1, nombre: "Osvaldo Matías  Ortellado Benitez" },
+    { id: 2, nombre: "Julian Daniel Vergara Medina" },
+    { id: 3, nombre: "Ana Pérez" },
+    { id: 4, nombre: "ana perez" },
+  ];
+  it("compara sin mayúsculas, tildes ni espacios de más", () => {
+    expect(contactoPorNombre(" osvaldo matias ortellado BENITEZ ", ejecutivos)).toEqual({ contacto: ejecutivos[0] });
+  });
+  it("sin coincidencia o con varias, no vincula", () => {
+    expect(contactoPorNombre("Nadie", ejecutivos)).toEqual({ contacto: null, motivo: "sin coincidencia" });
+    expect(contactoPorNombre("Ana Perez", ejecutivos)).toEqual({ contacto: null, motivo: "varias coincidencias: Ana Pérez, ana perez" });
   });
 });

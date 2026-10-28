@@ -5,33 +5,43 @@ import { getDb, schema } from "./db";
 import { env } from "./env";
 import { odoo } from "./odoo";
 import { hashPassword, registrar, type Usuario } from "./auth";
-import { datosUsuarioSchema, passwordSchema, usuarioSchema } from "./credenciales";
+import { contactoPorNombre, datosUsuarioSchema, etiquetasDelRol, passwordSchema, textoEtiquetas, usuarioSchema } from "./credenciales";
 import { limpiarPermisosOff } from "./permisos";
+import type { Rol } from "./db/schema";
 
 export type ContactoOdoo = { id: number; nombre: string };
 
-let cacheMecanicos: { hasta: number; lista: ContactoOdoo[] } | undefined;
+// Contactos de Odoo por etiqueta: «mecanico» y «ejecutivo». Qué etiqueta va con cada rol: etiquetasDelRol.
+const cacheContactos = new Map<number, { hasta: number; lista: ContactoOdoo[] }>();
 
-export async function mecanicosOdoo(): Promise<ContactoOdoo[]> {
-  if (cacheMecanicos && cacheMecanicos.hasta > Date.now()) return cacheMecanicos.lista;
-  const filas = await odoo.searchRead<{ id: number; name: string }>(
-    "res.partner",
-    [["category_id", "in", [env().ODOO_TAG_MECANICO]]],
-    ["id", "name"],
-    { limit: 200, order: "name asc" },
-  );
+async function contactosConEtiqueta(etiqueta: number, fresco = false): Promise<ContactoOdoo[]> {
+  const c = cacheContactos.get(etiqueta);
+  if (!fresco && c && c.hasta > Date.now()) return c.lista;
+  const filas = await odoo.searchRead<{ id: number; name: string }>("res.partner", [["category_id", "in", [etiqueta]]], ["id", "name"], {
+    limit: 200,
+    order: "name asc",
+  });
   const lista = filas.map((p) => ({ id: p.id, nombre: p.name.trim() }));
-  cacheMecanicos = { hasta: Date.now() + 5 * 60_000, lista };
+  cacheContactos.set(etiqueta, { hasta: Date.now() + 5 * 60_000, lista });
   return lista;
 }
 
+export const mecanicosOdoo = () => contactosConEtiqueta(env().ODOO_TAG_MECANICO);
+export const ejecutivosOdoo = () => contactosConEtiqueta(env().ODOO_TAG_EJECUTIVO);
+
 export class ErrorUsuario extends Error {}
 
-async function nombreContacto(id: number | null): Promise<string | null> {
+// Los contactos válidos para un rol, según sus etiquetas.
+async function contactosDelRol(rol: Rol, fresco = false): Promise<ContactoOdoo[]> {
+  const ids = { mecanico: env().ODOO_TAG_MECANICO, ejecutivo: env().ODOO_TAG_EJECUTIVO };
+  return (await Promise.all(etiquetasDelRol(rol).map((e) => contactosConEtiqueta(ids[e], fresco)))).flat();
+}
+
+async function nombreContacto(id: number | null, rol: Rol): Promise<string | null> {
   if (!id) return null;
-  cacheMecanicos = undefined;
-  const c = (await mecanicosOdoo()).find((m) => m.id === id);
-  if (!c) throw new ErrorUsuario("Ese contacto no tiene la etiqueta «mecanico» en Odoo");
+  const etiquetas = etiquetasDelRol(rol);
+  const c = (await contactosDelRol(rol, true)).find((m) => m.id === id);
+  if (!c) throw new ErrorUsuario(`Ese contacto no tiene la etiqueta ${textoEtiquetas(etiquetas)} en Odoo`);
   return c.nombre;
 }
 
@@ -64,7 +74,7 @@ export type UsuarioAdmin = Awaited<ReturnType<typeof listarUsuarios>>[number];
 export async function crearUsuario(datos: z.infer<typeof crearSchema>, autor: Usuario): Promise<number> {
   exigirContactoSiMecanico(datos);
   const db = await getDb();
-  const odooPartnerNombre = await nombreContacto(datos.odooPartnerId);
+  const odooPartnerNombre = await nombreContacto(datos.odooPartnerId, datos.rol);
   const filas = await db
     .insert(schema.usuarios)
     .values({
@@ -100,8 +110,41 @@ export class UsuarioAjeno extends Error {}
 
 type Origen = { origen: "cobranzas"; por: string };
 
-export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobranzasSchema>, o: Origen): Promise<{ id: number; creado: boolean }> {
+type Contacto = { id: number; nombre: string } | null;
+type ResultadoContacto = { contacto: Contacto; motivoContacto?: string };
+
+// El contacto «ejecutivo» con el mismo nombre. Si Odoo no responde, el alta sigue sin contacto.
+async function buscarContactoCobrador(nombre: string): Promise<ResultadoContacto> {
+  try {
+    const r = contactoPorNombre(nombre, await contactosDelRol("cobrador", true));
+    return r.contacto ? { contacto: r.contacto } : { contacto: null, motivoContacto: r.motivo };
+  } catch (e) {
+    return { contacto: null, motivoContacto: `no se pudo leer Odoo: ${e instanceof Error ? e.message : String(e)}` };
+  }
+}
+
+export async function crearCobradorDesdeCobranzas(
+  datos: z.infer<typeof altaCobranzasSchema>,
+  o: Origen,
+): Promise<{ id: number; creado: boolean } & ResultadoContacto> {
   const db = await getDb();
+  const [actual] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, datos.usuario));
+  if (actual) {
+    const ya: Contacto = actual.odooPartnerId ? { id: actual.odooPartnerId, nombre: actual.odooPartnerNombre ?? `#${actual.odooPartnerId}` } : null;
+    // Una cuenta de Cobranzas que quedó sin contacto se completa al volver a llamar; las del taller no se tocan.
+    if (ya || actual.origen !== "cobranzas") return { id: actual.id, creado: false, contacto: ya };
+    const r = await buscarContactoCobrador(actual.nombre);
+    if (r.contacto) {
+      await db
+        .update(schema.usuarios)
+        .set({ odooPartnerId: r.contacto.id, odooPartnerNombre: r.contacto.nombre })
+        .where(eq(schema.usuarios.id, actual.id));
+      await registrar(null, "usuario.editar", { detalle: { usuario: actual.usuario, odooPartnerId: r.contacto.id, ...o } });
+    }
+    return { id: actual.id, creado: false, ...r };
+  }
+
+  const r = await buscarContactoCobrador(datos.nombre);
   const filas = await db
     .insert(schema.usuarios)
     .values({
@@ -111,25 +154,33 @@ export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobr
       passwordHash: await hashPassword(datos.password),
       permisosOff: [],
       origen: "cobranzas",
+      odooPartnerId: r.contacto?.id ?? null,
+      odooPartnerNombre: r.contacto?.nombre ?? null,
     })
     .onConflictDoNothing()
     .returning({ id: schema.usuarios.id });
-  if (!filas.length) {
-    const [actual] = await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.usuario, datos.usuario));
-    return { id: actual.id, creado: false };
-  }
-  await registrar(null, "usuario.crear", { detalle: { usuario: datos.usuario, rol: "cobrador", ...o } });
-  return { id: filas[0].id, creado: true };
+  // Dos altas a la vez del mismo usuario: la segunda responde como "ya existía".
+  if (!filas.length) return crearCobradorDesdeCobranzas(datos, o);
+  await registrar(null, "usuario.crear", { detalle: { usuario: datos.usuario, rol: "cobrador", odooPartnerId: r.contacto?.id ?? null, ...o } });
+  return { id: filas[0].id, creado: true, ...r };
 }
 
 export async function estadoUsuario(usuario: string) {
   const db = await getDb();
   const [u] = await db
-    .select({ id: schema.usuarios.id, rol: schema.usuarios.rol, activo: schema.usuarios.activo, origen: schema.usuarios.origen })
+    .select({
+      id: schema.usuarios.id,
+      rol: schema.usuarios.rol,
+      activo: schema.usuarios.activo,
+      origen: schema.usuarios.origen,
+      odooPartnerId: schema.usuarios.odooPartnerId,
+      odooPartnerNombre: schema.usuarios.odooPartnerNombre,
+    })
     .from(schema.usuarios)
     .where(eq(schema.usuarios.usuario, usuario));
   if (!u) throw new UsuarioNoEncontrado("Ese usuario no existe");
-  return { existe: true, ...u };
+  const { odooPartnerId, odooPartnerNombre, ...resto } = u;
+  return { existe: true, ...resto, contacto: odooPartnerId ? { id: odooPartnerId, nombre: odooPartnerNombre ?? `#${odooPartnerId}` } : null };
 }
 
 export async function cambiarDesdeCobranzas(usuario: string, datos: z.infer<typeof cambioCobranzasSchema>, o: Origen) {
@@ -161,7 +212,9 @@ export async function editarUsuario(id: number, datos: z.infer<typeof editarSche
   const [actual] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.id, id));
   if (!actual) throw new ErrorUsuario("Ese usuario no existe");
   const odooPartnerNombre =
-    datos.odooPartnerId === actual.odooPartnerId ? actual.odooPartnerNombre : await nombreContacto(datos.odooPartnerId);
+    datos.odooPartnerId === actual.odooPartnerId && datos.rol === actual.rol
+      ? actual.odooPartnerNombre
+      : await nombreContacto(datos.odooPartnerId, datos.rol);
   await db
     .update(schema.usuarios)
     .set({

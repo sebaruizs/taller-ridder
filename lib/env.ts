@@ -25,6 +25,8 @@ const schema = z.object({
     .transform((v) => v === "true"),
   ODOO_VEHICLE_STATE_PARA_ENTREGAR: z.coerce.number().int().default(1),
   ODOO_TAG_MECANICO: z.coerce.number().int().positive().default(20),
+  // Etiqueta de contactos de los cobradores (ejecutivos de cuenta).
+  ODOO_TAG_EJECUTIVO: z.coerce.number().int().positive().default(24),
   // Sin espacios ni comillas alrededor: pegados así en Easypanel rompen la llamada a Telegram.
   TELEGRAM_BOT_TOKEN: limpio,
   TELEGRAM_CHAT_TALLER: limpio,

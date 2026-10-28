@@ -10,6 +10,31 @@ export const usuarioSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9._-]{3,30}$/, "Usuario: de 3 a 30 caracteres, sin espacios (letras, números, punto, guion)");
 
+// De qué etiquetas de Odoo sale el contacto de cada rol. El jefe (y el admin) puede ser mecánico o ejecutivo.
+export type EtiquetaContacto = "mecanico" | "ejecutivo";
+export function etiquetasDelRol(rol: (typeof ROLES)[number]): EtiquetaContacto[] {
+  if (rol === "mecanico") return ["mecanico"];
+  if (rol === "cobrador") return ["ejecutivo"];
+  return ["mecanico", "ejecutivo"];
+}
+
+export function textoEtiquetas(etiquetas: EtiquetaContacto[]): string {
+  return etiquetas.map((e) => `«${e}»`).join(" o ");
+}
+
+// Para comparar nombres de personas: sin mayúsculas, sin tildes y sin espacios de más.
+export function normalizarNombre(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// El contacto de Odoo que corresponde a un nombre: solo si hay exactamente uno con ese nombre.
+export function contactoPorNombre<T extends { id: number; nombre: string }>(nombre: string, contactos: T[]): { contacto: T } | { contacto: null; motivo: string } {
+  const buscado = normalizarNombre(nombre);
+  const iguales = [...new Map(contactos.filter((c) => normalizarNombre(c.nombre) === buscado).map((c) => [c.id, c])).values()];
+  if (iguales.length === 1) return { contacto: iguales[0] };
+  return { contacto: null, motivo: iguales.length ? `varias coincidencias: ${iguales.map((c) => c.nombre).join(", ")}` : "sin coincidencia" };
+}
+
 export const passwordSchema = z.string().min(8, "La contraseña tiene que tener al menos 8 caracteres").max(200);
 
 export const datosUsuarioSchema = z.object({
