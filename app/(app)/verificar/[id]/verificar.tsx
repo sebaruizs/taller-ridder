@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DetalleOrden } from "@/lib/ordenes";
-import type { LineaRepuesto } from "@/lib/taller";
+import { ESTADOS, type EstadoOrden, type LineaRepuesto } from "@/lib/taller";
 import type { ProductoOdoo } from "@/lib/verificar-servicio";
 
 const gs = (n: number) => `Gs. ${new Intl.NumberFormat("es-PY", { maximumFractionDigits: 0 }).format(Math.round(n))}`;
@@ -26,7 +26,9 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
   const [sinRepuestos, setSinRepuestos] = useState(false);
   const [aprobada, setAprobada] = useState<Aprobada | null>(null);
 
+  // Aprobar solo en «Listo para verificar»; los repuestos se cargan en cualquier estado.
   const editable = orden.estado === "cancelled";
+  const estadoTexto = ESTADOS[orden.estado as EstadoOrden] ?? orden.estado;
   const total = lineas.reduce((s, l) => s + l.total, 0);
   const busqueda = q.trim();
 
@@ -148,7 +150,11 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
             {orden.cliente && <div className="small muted">{orden.cliente}</div>}
             {orden.odometroOrden > 0 && <div className="small muted">Odómetro al finalizar: {new Intl.NumberFormat("es-PY").format(orden.odometroOrden)} km</div>}
           </section>
-          {!editable && <div className="alert alert-warn">Esta orden ya no está en «Listo para verificar».</div>}
+          {!editable && (
+            <div className="alert small" style={{ background: "var(--surface-2)" }}>
+              Esta orden está en «{estadoTexto}». {puedeRepuestos ? "Podés cargar o quitar repuestos; la aprobación se hace cuando pase a «Listo para verificar»." : "La aprobación se hace cuando pase a «Listo para verificar»."}
+            </div>
+          )}
 
           <section className="card stack" style={{ gap: 10 }}>
             <div className="row between">
@@ -162,7 +168,7 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
                   <span style={{ fontWeight: 600 }}>{l.producto}</span>
                   <span className="small muted">{l.cantidad} × {gs(l.costoUnitario)} = {gs(l.total)}</span>
                 </div>
-                {editable && puedeRepuestos && (
+                {puedeRepuestos && (
                   <button type="button" className="btn btn-ghost small" disabled={ocupado} onClick={() => quitar(l)} aria-label={`Quitar ${l.producto}`}>Quitar</button>
                 )}
               </div>
@@ -172,7 +178,7 @@ export function VerificarOrden({ orden, lineasIniciales, puedeRepuestos, puedeAp
         </div>
 
         <div>
-          {editable && puedeRepuestos && (
+          {puedeRepuestos && (
             <form className="card stack" style={{ gap: 12 }} onSubmit={agregar}>
               <strong>Agregar repuesto</strong>
               {producto ? (

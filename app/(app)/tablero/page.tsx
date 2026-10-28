@@ -14,6 +14,7 @@ export default async function PaginaTablero() {
           iniciar: puedeU(u, "ordenes.mover_estado"),
           finalizar: puedeU(u, "ordenes.finalizar"),
           verificar: puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]),
+          repuestos: puedeU(u, "ordenes.editar"),
         }}
       />
     </>

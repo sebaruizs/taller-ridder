@@ -26,7 +26,7 @@ const DESTINO: Partial<Record<Estado, { a: Estado; texto: string }>> = {
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
 const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
 
-export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boolean; finalizar: boolean; verificar: boolean } }) {
+export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boolean; finalizar: boolean; verificar: boolean; repuestos: boolean } }) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [qDebounced, setQDebounced] = useState("");
@@ -220,7 +220,21 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       )}
                     </div>
                     <div style={{ fontWeight: 600, fontSize: 14.5 }}>{o.tipo ?? "Sin tipo"}</div>
-                    <div className="small muted">{o.mecanico ?? "Sin asignar"}</div>
+                    <div className="row between" style={{ gap: 8 }}>
+                      <span className="small muted">{o.mecanico ?? "Sin asignar"}</span>
+                      {/* Repuestos en cualquier estado; en «Listo para verificar» ya se cargan al verificar. */}
+                      {acciones.repuestos && c.estado !== "cancelled" && (
+                        <Link
+                          href={`/verificar/${o.id}`}
+                          className="tiny tablero-repuestos"
+                          draggable={false}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          Repuestos{o.totalRepuestos > 0 ? ` · ${new Intl.NumberFormat("es-PY").format(Math.round(o.totalRepuestos))}` : ""}
+                        </Link>
+                      )}
+                    </div>
                     {moviendo === o.id && <div className="small muted">Moviendo a En proceso…</div>}
                     {confirmar === o.id && (
                       <div className="row" style={{ gap: 8 }} onClick={(e) => e.stopPropagation()}>

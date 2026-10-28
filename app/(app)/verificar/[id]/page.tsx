@@ -16,7 +16,7 @@ export default async function Verificar(props: PageProps<"/verificar/[id]">) {
   if (!orden) notFound();
   return (
     <>
-      <Topbar titulo="Verificar trabajo" volver="/verificar" />
+      <Topbar titulo={orden.estado === "cancelled" ? "Verificar trabajo" : "Repuestos"} volver={orden.estado === "cancelled" ? "/verificar" : `/ordenes/${id}`} />
       <VerificarOrden orden={orden} lineasIniciales={lineas} puedeRepuestos={puedeU(u, "ordenes.editar")} puedeAprobar={puedeU(u, "ordenes.aprobar")} historial={<Historial ordenId={id} />} />
     </>
   );

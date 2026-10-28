@@ -26,6 +26,8 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
   const totalRepuestos = repuestos.reduce((s, l) => s + l.total, 0);
   const volver = sp.de === "reportes" ? "/reportes" : "/tablero";
   const puedeVerificar = orden.estado === "cancelled" && puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]);
+  // Los repuestos se pueden cargar en cualquier estado (en «Listo para verificar» se hace desde Verificar).
+  const puedeRepuestos = orden.estado !== "cancelled" && puedeAlguna(u, ["ordenes.editar"]);
 
   return (
     <>
@@ -40,6 +42,7 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
           <strong>{orden.tipo ?? "Sin tipo"}</strong>
           {orden.descripcion && <div className="small" style={{ whiteSpace: "pre-line" }}>{orden.descripcion}</div>}
           {puedeVerificar && <Link className="btn btn-primary" href={`/verificar/${id}`} style={{ alignSelf: "flex-start" }}>Verificar y cargar repuestos</Link>}
+          {puedeRepuestos && <Link className="btn" href={`/verificar/${id}`} style={{ alignSelf: "flex-start" }}>Cargar repuestos</Link>}
         </section>
 
         <section className="kpis">

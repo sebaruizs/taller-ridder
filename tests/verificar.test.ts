@@ -56,10 +56,12 @@ describe("repuestos de una orden para verificar", () => {
     expect(r.lineas).toHaveLength(1);
   });
 
-  it("no deja cargar repuestos si la orden ya no está para verificar", async () => {
-    const t = armar({ estado: "done" });
-    await expect(agregarRepuesto(t.odoo, 4132, { productoId: 46, cantidad: 1, costoUnitario: 1 })).rejects.toBeInstanceOf(NoVerificable);
-    expect(t.llamadas.some((l) => l.method === "create")).toBe(false);
+  it("deja cargar y quitar repuestos en cualquier estado de la orden", async () => {
+    for (const estado of ["new", "to_be_paid", "running", "done"]) {
+      const t = armar({ estado, lineas: [foco] });
+      expect((await agregarRepuesto(t.odoo, 4132, { productoId: 46, cantidad: 1, costoUnitario: 1 })).lineas).toHaveLength(2);
+      expect((await quitarRepuesto(t.odoo, 4132, 1)).lineas).toHaveLength(1);
+    }
   });
 
   it("solo quita líneas de esa misma orden", async () => {

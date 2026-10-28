@@ -1,4 +1,4 @@
-// Verificación del jefe de taller: repuestos de una orden "Listo para verificar" y aprobación.
+// Verificación del jefe de taller: repuestos de una orden (en cualquier estado) y aprobación ("Listo para verificar").
 import type { Many2one, OdooClient } from "./odoo";
 import {
   ESTADO_AL_APROBAR,
@@ -25,6 +25,12 @@ export async function ordenParaVerificar(odoo: OdooVerificar, ordenId: number): 
   if (!o) throw new NoVerificable("La orden no existe en Odoo");
   if (o.state !== "cancelled") throw new NoVerificable("Esta orden ya no está en «Listo para verificar». Actualizá la lista.");
   return o;
+}
+
+// Los repuestos se pueden cargar en cualquier momento: con la orden nueva, en proceso, bloqueada o ya cerrada.
+async function ordenExistente(odoo: OdooVerificar, ordenId: number): Promise<void> {
+  const [o] = await odoo.read<{ id: number }>(MODELO_ORDEN, [ordenId], ["id"]);
+  if (!o) throw new NoVerificable("La orden no existe en Odoo");
 }
 
 export async function leerRepuestos(odoo: Pick<OdooClient, "searchRead">, ordenId: number): Promise<LineaRepuesto[]> {
@@ -57,7 +63,7 @@ export async function agregarRepuesto(
   ordenId: number,
   datos: { productoId: number; cantidad: number; costoUnitario: number },
 ): Promise<{ lineas: LineaRepuesto[]; producto: string }> {
-  await ordenParaVerificar(odoo, ordenId);
+  await ordenExistente(odoo, ordenId);
   const [prod] = await odoo.searchRead<{ id: number; display_name: string }>(
     "product.product",
     [["id", "=", datos.productoId], ["active", "=", true]],
@@ -71,7 +77,7 @@ export async function agregarRepuesto(
 }
 
 export async function quitarRepuesto(odoo: OdooVerificar, ordenId: number, lineaId: number): Promise<{ lineas: LineaRepuesto[]; quitada: LineaRepuesto }> {
-  await ordenParaVerificar(odoo, ordenId);
+  await ordenExistente(odoo, ordenId);
   const quitada = (await leerRepuestos(odoo, ordenId)).find((l) => l.id === lineaId);
   if (!quitada) throw new NoVerificable("Ese repuesto no es de esta orden");
   await odoo.unlink(MODELO_LINEA, [lineaId]);

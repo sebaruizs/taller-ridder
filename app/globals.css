@@ -398,3 +398,5 @@ textarea.input { min-height: 110px; resize: vertical; }
 .tablero-card[data-abre]:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
 .placa-link { text-decoration: none; color: inherit; }
 .placa-link:hover { border-color: var(--ridder); color: var(--ridder); }
+.tablero-repuestos { color: var(--ridder); text-decoration: none; font-weight: 600; white-space: nowrap; padding: 2px 0; }
+.tablero-repuestos:hover { text-decoration: underline; }
