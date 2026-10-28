@@ -40,7 +40,7 @@ export function GpsTarjeta({ equipos }: { equipos: EquipoGps[] | undefined }) {
   );
 }
 
-// Panel completo en la orden: todos los datos de cada equipo y Bloquear / Desbloquear en el de la chapa exacta.
+// Panel en la orden: por equipo, la chapa y su último reporte; Bloquear / Desbloquear en el de la chapa exacta.
 export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; chapa: string; puedeBloquear: boolean }) {
   const router = useRouter();
   const [equipos, setEquipos] = useState<EquipoGps[] | null>(null);
@@ -156,54 +156,30 @@ function TarjetaEquipo({
   enviando: boolean;
   alTocar: (accion: AccionEncendido) => void;
 }) {
+  // El último reporte del equipo: la última posición, o la última conexión si no hay posición.
+  const reporte = g.ultimoDato ?? g.ultimaConexion;
   return (
     <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.nombre}>
       <span className="gps-tarjeta-tipo">
         <span className="gps-punto" data-en-linea={g.enLinea || undefined} aria-hidden /> {ETIQUETA[g.tipo]}
       </span>
       <strong>{g.nombre}</strong>
-      {g.enLinea ? (
+      {reporte ? (
         <span className="small">
-          Último reporte: <span className="gps-hora">{fechaHora(g.ultimoDato ?? g.ultimaConexion)}</span> <span className="muted">{hace(g.ultimoDato ?? g.ultimaConexion)}</span>
+          Último reporte: <span className="gps-hora">{fechaHora(reporte)}</span> <span className="muted">{hace(reporte)}</span>
         </span>
       ) : (
-        <span className="small rojo" style={{ fontWeight: 600 }}>
-          Fuera de línea{g.ultimaConexion ? ` · ${hace(g.ultimaConexion)}` : ""}
-        </span>
+        <span className="small muted">Sin reportes</span>
       )}
-      <span className="tiny muted">
-        {[
-          g.encendido === null ? null : g.encendido ? "Encendida" : "Apagada",
-          g.tipo === "monedas" ? null : bloqueo(g),
-          g.kmh ? `${g.kmh} km/h` : null,
-          g.bateria === null ? null : `Batería ${g.bateria}%`,
-        ]
-          .filter(Boolean)
-          .join(" · ") || "Sin datos de estado"}
-      </span>
-      <span className="tiny muted">
-        {[g.imei && `IMEI ${g.imei}`, g.modelo, g.protocolo, g.telefono].filter(Boolean).join(" · ")}
-        {g.ubicacion && (
-          <>
-            {" · "}
-            <a href={`https://www.google.com/maps?q=${g.ubicacion.lat},${g.ubicacion.lon}`} target="_blank" rel="noreferrer">
-              Ver en el mapa
-            </a>
-          </>
-        )}
-      </span>
+      {!g.enLinea && <span className="small rojo" style={{ fontWeight: 600 }}>Fuera de línea</span>}
       {g.corta && puedeBloquear && (
         <span className="gps-acciones">
-          {g.bloqueado !== true && (
-            <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>
-              Bloquear
-            </button>
-          )}
-          {g.bloqueado !== false && (
-            <button type="button" className="gps-boton" disabled={enviando} onClick={() => alTocar("desbloquear")}>
-              Desbloquear
-            </button>
-          )}
+          <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>
+            Bloquear
+          </button>
+          <button type="button" className="gps-boton" disabled={enviando} onClick={() => alTocar("desbloquear")}>
+            Desbloquear
+          </button>
         </span>
       )}
     </div>
