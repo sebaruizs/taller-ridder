@@ -43,6 +43,13 @@
       "when": 1793017272355,
       "tag": "0005_tema_por_usuario",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793192997472,
+      "tag": "0006_origen_usuarios",
+      "breakpoints": true
     }
   ]
 }

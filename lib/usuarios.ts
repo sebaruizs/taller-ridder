@@ -86,11 +86,21 @@ export async function crearUsuario(datos: z.infer<typeof crearSchema>, autor: Us
   return filas[0].id;
 }
 
-// Alta que llega por webhook desde Cobranzas: mismo usuario y contraseña, rol cobrador.
+// ---------- API de Cobranzas ----------
+// Alta que llega desde Cobranzas: mismo usuario y contraseña, rol cobrador, origen "cobranzas".
 // Si el usuario ya existe no se toca (puede ser otra persona con el mismo nombre de usuario).
+// Cambiar contraseña o activar/desactivar solo vale para cuentas con origen "cobranzas".
 export const altaCobranzasSchema = z.object({ usuario: usuarioSchema, nombre: z.string().trim().min(2).max(80), password: passwordSchema });
+export const cambioCobranzasSchema = z
+  .object({ password: passwordSchema.optional(), activo: z.boolean().optional() })
+  .refine((d) => d.password !== undefined || d.activo !== undefined, "Mandá password o activo");
 
-export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobranzasSchema>): Promise<{ id: number; creado: boolean }> {
+export class UsuarioNoEncontrado extends Error {}
+export class UsuarioAjeno extends Error {}
+
+type Origen = { origen: "cobranzas"; por: string };
+
+export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobranzasSchema>, o: Origen): Promise<{ id: number; creado: boolean }> {
   const db = await getDb();
   const filas = await db
     .insert(schema.usuarios)
@@ -100,6 +110,7 @@ export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobr
       rol: "cobrador",
       passwordHash: await hashPassword(datos.password),
       permisosOff: [],
+      origen: "cobranzas",
     })
     .onConflictDoNothing()
     .returning({ id: schema.usuarios.id });
@@ -107,8 +118,38 @@ export async function crearCobradorDesdeCobranzas(datos: z.infer<typeof altaCobr
     const [actual] = await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.usuario, datos.usuario));
     return { id: actual.id, creado: false };
   }
-  await registrar(null, "usuario.crear", { detalle: { usuario: datos.usuario, rol: "cobrador", origen: "cobranzas" } });
+  await registrar(null, "usuario.crear", { detalle: { usuario: datos.usuario, rol: "cobrador", ...o } });
   return { id: filas[0].id, creado: true };
+}
+
+export async function estadoUsuario(usuario: string) {
+  const db = await getDb();
+  const [u] = await db
+    .select({ id: schema.usuarios.id, rol: schema.usuarios.rol, activo: schema.usuarios.activo, origen: schema.usuarios.origen })
+    .from(schema.usuarios)
+    .where(eq(schema.usuarios.usuario, usuario));
+  if (!u) throw new UsuarioNoEncontrado("Ese usuario no existe");
+  return { existe: true, ...u };
+}
+
+export async function cambiarDesdeCobranzas(usuario: string, datos: z.infer<typeof cambioCobranzasSchema>, o: Origen) {
+  const db = await getDb();
+  const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, usuario));
+  if (!u) throw new UsuarioNoEncontrado("Ese usuario no existe");
+  if (u.origen !== "cobranzas") throw new UsuarioAjeno("Esa cuenta no se creó desde Cobranzas: se maneja desde Usuarios del taller");
+  await db
+    .update(schema.usuarios)
+    .set({
+      ...(datos.activo !== undefined ? { activo: datos.activo } : {}),
+      ...(datos.password ? { passwordHash: await hashPassword(datos.password), intentosFallidos: 0, bloqueadoHasta: null } : {}),
+    })
+    .where(eq(schema.usuarios.id, u.id));
+  // Igual que desde Usuarios: cambiar la contraseña o desactivar cierra sus sesiones.
+  if (datos.password || datos.activo === false) await db.delete(schema.sesiones).where(eq(schema.sesiones.usuarioId, u.id));
+  await registrar(null, "usuario.editar", {
+    detalle: { usuario, ...(datos.activo !== undefined ? { activo: datos.activo } : {}), cambioPassword: Boolean(datos.password), ...o },
+  });
+  return { id: u.id, rol: u.rol, activo: datos.activo ?? u.activo };
 }
 
 export async function editarUsuario(id: number, datos: z.infer<typeof editarSchema>, autor: Usuario): Promise<void> {

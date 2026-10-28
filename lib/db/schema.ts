@@ -34,6 +34,8 @@ export const usuarios = pgTable("usuarios", {
   permisosOff: jsonb("permisos_off").$type<string[]>().notNull().default([]),
   activo: boolean("activo").notNull().default(true),
   tema: text("tema", { enum: TEMAS }).notNull().default("claro"),
+  // "cobranzas": la cuenta la creó y la mantiene Cobranzas por la API; null: se creó acá.
+  origen: text("origen", { enum: ["cobranzas"] }),
   intentosFallidos: integer("intentos_fallidos").notNull().default(0),
   bloqueadoHasta: timestamp("bloqueado_hasta", { withTimezone: true }),
   creado: timestamp("creado", { withTimezone: true }).notNull().defaultNow(),
