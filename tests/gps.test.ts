@@ -7,8 +7,11 @@ describe("GPS: equipos de cada moto", () => {
   it("lee la chapa y el tipo del nombre en Traccar", () => {
     expect(leerNombre("816ABTI")).toEqual({ chapa: "816ABTI", tipo: "gps" });
     expect(leerNombre("816ABTI-TC")).toEqual({ chapa: "816ABTI", tipo: "tc" });
-    // Con cualquier sufijo ya no es «la chapa sola»: no corta.
-    expect(leerNombre("816abti - tc")).toEqual({ chapa: "816ABTI", tipo: "otro" });
+    // Como en Cobranzas: «-MC» también es el TC, con o sin espacios.
+    expect(leerNombre("816abti - tc")).toEqual({ chapa: "816ABTI", tipo: "tc" });
+    expect(leerNombre("436ABUI-MC")).toEqual({ chapa: "436ABUI", tipo: "tc" });
+    expect(leerNombre("236ABXV-Monedas")).toEqual({ chapa: "236ABXV", tipo: "monedas" });
+    // Con cualquier otro agregado ya no es «la chapa sola»: no corta.
     expect(leerNombre("816ABTI - Repuesto")).toEqual({ chapa: "816ABTI", tipo: "otro" });
     expect(leerNombre("236ABXV - Monedas")).toEqual({ chapa: "236ABXV", tipo: "monedas" });
   });

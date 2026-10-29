@@ -55,16 +55,18 @@ export type EquipoGps = {
 
 const soloLetrasYNumeros = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
-// La chapa y el tipo de equipo según su nombre en Traccar. "gps" es solo el que se llama exactamente
-// como la chapa (sin "-TC" ni " - algo"): es el único al que se le manda el corte.
+// La chapa y el tipo de equipo según su nombre en Traccar, igual que en Cobranzas: "816ABTI - TC", "816ABTI-TC" y
+// "057ABTK-MC" son el TC; "236ABXV - Monedas" o "236ABXV-Moneda", la moneda. "gps" es solo el que se llama
+// exactamente como la chapa (sin agregado): es el único al que se le manda el corte.
 export function leerNombre(nombre: string): { chapa: string; tipo: TipoEquipo } {
-  const [base, ...resto] = nombre.split(" - ");
-  const sufijo = resto.join(" - ").toLowerCase();
-  const tc = /-\s*TC\s*$/i.test(base);
-  const chapa = soloLetrasYNumeros(tc ? base.replace(/-\s*TC\s*$/i, "") : base);
-  if (sufijo.includes("moneda")) return { chapa, tipo: "monedas" };
-  if (tc) return { chapa, tipo: "tc" };
-  return { chapa, tipo: resto.length ? "otro" : "gps" };
+  const t = nombre.trim();
+  const m = t.match(/^(.*?)\s*-\s*(tc|mc|monedas?)\b.*$/i) ?? t.match(/^(.*?)\s+-\s+(.*)$/);
+  if (!m) return { chapa: soloLetrasYNumeros(t), tipo: "gps" };
+  const chapa = soloLetrasYNumeros(m[1]);
+  const extra = m[2].trim();
+  if (/^(tc|mc)$/i.test(extra)) return { chapa, tipo: "tc" };
+  if (/moneda/i.test(extra)) return { chapa, tipo: "monedas" };
+  return { chapa, tipo: "otro" };
 }
 
 const bool = (v: unknown) => (typeof v === "boolean" ? v : null);
