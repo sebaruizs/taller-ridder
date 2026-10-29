@@ -56,6 +56,13 @@ export function GpsTarjeta({
           <span className="gps-tipo">{monedaGoogle}</span>
         </div>
       )}
+      {/* Ni en Traccar ni en el Sheets: sin moneda, punto rojo. */}
+      {!google && !equipos.some((e) => e.tipo === "monedas") && (
+        <div className="gps-equipo" title="Sin equipo de monedas en Traccar ni en el Sheets">
+          <span className="gps-punto" data-color="rojo" aria-hidden />
+          <span className="gps-tipo">{SIN_MONEDA}</span>
+        </div>
+      )}
       {lista.map((g) => {
         // Color según hace cuánto reportó (en el anterior, si es de ahí el último reporte).
         const reporte = !g.enLinea && g.anterior ? g.anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
@@ -184,7 +191,9 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
               <TarjetaEquipo key={tipo} g={g} colores={colores} puedeBloquear={puedeBloquear} enviando={enviando} alTocar={tocar} />
             ) : (
               <div key={tipo} className="gps-tarjeta" data-falta>
-                <span className="gps-tarjeta-tipo">{ETIQUETA[tipo]}</span>
+                <span className="gps-tarjeta-tipo">
+                  {tipo === "monedas" && <span className="gps-punto" data-color="rojo" aria-hidden />} {ETIQUETA[tipo]}
+                </span>
                 <strong>{esperado}</strong>
                 <span className="tiny muted" style={{ fontWeight: 600 }}>No encontrado</span>
               </div>
