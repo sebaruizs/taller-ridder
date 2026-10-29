@@ -46,7 +46,13 @@ export function GpsTarjeta({
     <div className="gps-lista">
       {google && (
         <div className="gps-equipo" title="Según el Sheets de monedas">
-          <span className="gps-punto" data-google aria-hidden />
+          {/* Sin moneda según el Sheets: punto rojo; si tiene, el azul de Ridder. */}
+          <span
+            className="gps-punto"
+            data-google={monedaGoogle !== SIN_MONEDA || undefined}
+            data-color={monedaGoogle === SIN_MONEDA ? "rojo" : undefined}
+            aria-hidden
+          />
           <span className="gps-tipo">{monedaGoogle}</span>
         </div>
       )}
@@ -160,7 +166,13 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
               return (
                 <div key={tipo} className="gps-tarjeta" data-google>
                   <span className="gps-tarjeta-tipo">
-                    <span className="gps-punto" data-google aria-hidden /> {ETIQUETA[tipo]}
+                    <span
+                      className="gps-punto"
+                      data-google={enSheets !== SIN_MONEDA || undefined}
+                      data-color={enSheets === SIN_MONEDA ? "rojo" : undefined}
+                      aria-hidden
+                    />{" "}
+                    {ETIQUETA[tipo]}
                   </span>
                   <strong>{enSheets}</strong>
                   <span className="tiny muted">
