@@ -3,9 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrdenLista } from "@/lib/ordenes";
-import type { EquipoGps } from "@/lib/gps-dominio";
-import { GpsTarjeta } from "@/components/gps-tarjeta";
-import type { ColoresReporte } from "@/lib/ajustes-dominio";
+import { ContenidoTarjetaOrden, useGps } from "@/components/tarjeta-orden";
 
 const COLUMNAS = [
   { estado: "new", titulo: "Nuevo" },
@@ -32,7 +30,6 @@ const DESTINOS: Partial<Record<Estado, { a: Estado; texto: string }[]>> = {
 const TITULO = Object.fromEntries(COLUMNAS.map((c) => [c.estado, c.titulo])) as Record<Estado, string>;
 
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
-const fecha = (f: string | null) => (f ? f.split("-").reverse().join("/") : "—");
 
 export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boolean; finalizar: boolean; verificar: boolean } }) {
   const router = useRouter();
@@ -42,10 +39,6 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const [cols, setCols] = useState<Record<Estado, Columna>>({ new: VACIA, to_be_paid: VACIA, running: VACIA, cancelled: VACIA, done: VACIA });
   const [moviendo, setMoviendo] = useState<number | null>(null);
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
-  // Estado de los GPS: solo de las motos en «En proceso» y «Listo para verificar».
-  const [gps, setGps] = useState<Record<string, EquipoGps[]> | null>(null);
-  const [monedasGoogle, setMonedasGoogle] = useState<Record<string, string>>({});
-  const [colores, setColores] = useState<ColoresReporte | undefined>(undefined);
   const [arrastre, setArrastre] = useState<{ orden: OrdenLista; desde: Estado } | null>(null);
   const [encima, setEncima] = useState<Estado | null>(null);
 
@@ -112,21 +105,9 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   }
 
   // Reportar y verificar necesitan su permiso; los cambios directos, el de mover en el tablero.
-  const chapasGps = [...new Set([...cols.running.ordenes, ...cols.cancelled.ordenes].map((o) => o.chapa).filter((c) => c !== "—"))].sort().join(",");
-  useEffect(() => {
-    if (!chapasGps) return;
-    const ctrl = new AbortController();
-    fetch(`/api/gps?chapas=${encodeURIComponent(chapasGps)}`, { signal: ctrl.signal })
-      .then((r) => r.json())
-      .then((d) => {
-        setGps(d.habilitado ? d.equipos ?? {} : null);
-        setMonedasGoogle(d.monedasGoogle ?? {});
-        if (d.colores) setColores(d.colores);
-      })
-      .catch(() => {});
-    return () => ctrl.abort();
-  }, [chapasGps]);
-  const conGps = (e: Estado) => gps !== null && (e === "running" || e === "cancelled");
+  // Estado de los GPS: solo de las motos en «En proceso» y «Listo para verificar».
+  const gps = useGps([...cols.running.ordenes, ...cols.cancelled.ordenes].map((o) => o.chapa));
+  const conGps = (e: Estado) => e === "running" || e === "cancelled";
 
   const permitido = (de: Estado, a: Estado) =>
     de === "running" && a === "cancelled" ? acciones.finalizar : de === "cancelled" ? acciones.verificar : acciones.iniciar;
@@ -227,34 +208,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
                       setEncima(null);
                     }}
                   >
-                    <div className="row between">
-                      <Link
-                        href={destinoDe(c.estado, o)}
-                        className="placa placa-link"
-                        draggable={false}
-                        onClick={(e) => e.stopPropagation()}
-                        aria-label={`Abrir ${o.chapa}`}
-                      >
-                        {o.chapa}
-                      </Link>
-                      {c.estado === "done" ? (
-                        <span className="badge" title={o.fechaFin ? "Fecha de fin" : "Sin fecha de fin: fecha de inicio"}>{fecha(o.fechaFin ?? o.fecha)}</span>
-                      ) : (
-                        o.dias !== null && <span className={`badge ${o.dias > 7 ? "badge-danger" : ""}`}>{o.dias === 0 ? "Hoy" : o.dias === 1 ? "1 día" : `${o.dias} días`}</span>
-                      )}
-                    </div>
-                    <div style={{ fontWeight: 600, fontSize: 14.5 }}>{o.tipo ?? "Sin tipo"}</div>
-                    <div className="row between" style={{ gap: 8 }}>
-                      <span className="small muted">{o.mecanico ?? "Sin asignar"}</span>
-                      {o.totalRepuestos > 0 && <span className="tiny muted" style={{ whiteSpace: "nowrap" }}>Repuestos · {new Intl.NumberFormat("es-PY").format(Math.round(o.totalRepuestos))}</span>}
-                    </div>
-                    {conGps(c.estado) && (
-                      <GpsTarjeta
-                        equipos={gps?.[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? []}
-                        monedaGoogle={monedasGoogle[o.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")]}
-                        colores={colores}
-                      />
-                    )}
+                    <ContenidoTarjetaOrden o={o} href={destinoDe(c.estado, o)} finalizada={c.estado === "done"} gps={conGps(c.estado) ? gps : null} />
                     {moviendo === o.id && <div className="small muted">Moviendo…</div>}
                   </article>
                 );

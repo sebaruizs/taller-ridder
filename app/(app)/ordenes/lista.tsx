@@ -3,21 +3,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { OrdenLista } from "@/lib/ordenes";
+import { ContenidoTarjetaOrden, useGps } from "@/components/tarjeta-orden";
 
 type Respuesta = { total: number; pagina: number; porPagina: number; ordenes: OrdenLista[] };
 type Tipo = { id: number; name: string };
 
-const DIAS_ALERTA = 7;
-
-// Sin permiso para abrirla, la tarjeta se muestra pero no es un enlace.
-function Tarjeta({ href, children }: { href: string | null; children: React.ReactNode }) {
-  if (!href) return <div className="card stack" style={{ gap: 8 }}>{children}</div>;
-  return <Link href={href} className="card stack" style={{ gap: 8 }}>{children}</Link>;
-}
-
 type Modo = "proceso" | "verificar";
 
-export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean; compras?: boolean };
+// gps: ver el estado de los GPS en las tarjetas (como en el tablero; /api/gps pide ver todas las órdenes).
+export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean; compras?: boolean; gps?: boolean };
 
 export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tienePartner: boolean; accesos: Accesos; modo?: Modo }) {
   const router = useRouter();
@@ -74,6 +68,7 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
   };
 
   const paginas = data ? Math.max(1, Math.ceil(data.total / data.porPagina)) : 1;
+  const gps = useGps((data?.ordenes ?? []).map((o) => o.chapa), Boolean(accesos.gps));
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
@@ -138,24 +133,24 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
         </div>
       )}
 
-      {!!data?.ordenes.length && <div className="grid-ordenes">{data.ordenes.map((o) => (
-        <Tarjeta key={o.id} href={verificar ? `/verificar/${o.id}` : accesos.finalizar ? `/ordenes/${o.id}/finalizar` : null}>
-          <div className="row between">
-            <span className="placa">{o.chapa}</span>
-            {o.dias !== null && (
-              <span className={`badge ${o.dias > DIAS_ALERTA ? "badge-danger" : ""}`}>
-                {o.dias === 0 ? "Hoy" : o.dias === 1 ? "1 día" : `${o.dias} días`}
-              </span>
-            )}
-          </div>
-          <div style={{ fontWeight: 600 }}>{o.tipo ?? "Sin tipo"}</div>
-          {o.descripcion && <div className="small muted" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.descripcion}</div>}
-          <div className="row between small muted">
-            <span>{o.vehiculo.split("/").slice(0, 2).join(" ")}</span>
-            <span>{o.mecanico ?? "Sin asignar"}</span>
-          </div>
-        </Tarjeta>
-      ))}</div>}
+      {/* La misma tarjeta que el tablero. Sin permiso para abrirla, se muestra pero no abre nada. */}
+      {!!data?.ordenes.length && (
+        <div className="grid-ordenes">
+          {data.ordenes.map((o) => {
+            const href = verificar ? `/verificar/${o.id}` : accesos.finalizar ? `/ordenes/${o.id}/finalizar` : null;
+            return (
+              <article
+                key={o.id}
+                className={`card stack${href ? " tablero-card" : ""}`}
+                style={{ gap: 6 }}
+                onClick={href ? () => router.push(href) : undefined}
+              >
+                <ContenidoTarjetaOrden o={o} href={href} gps={gps} />
+              </article>
+            );
+          })}
+        </div>
+      )}
 
       {paginas > 1 && (
         <div className="row between">
