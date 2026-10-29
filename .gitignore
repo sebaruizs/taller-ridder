@@ -46,3 +46,6 @@ next-env.d.ts
 
 # Críticas y archivos de la skill impeccable (locales)
 .impeccable/
+
+# graphify (grafo local del código)
+graphify-out/
