@@ -87,7 +87,7 @@ async function anteriores(imeis: string[]): Promise<DispositivoTraccar[]> {
 }
 
 // Un comando por equipo cada 90 segundos: evita reenviar mientras el anterior sigue en camino o en cola.
-const ultimoComando = new Map<number, number>();
+const ultimoComando = new Map<string, number>();
 const ESPERA_MS = 90_000;
 
 export async function cambiarEncendido(
@@ -98,36 +98,62 @@ export async function cambiarEncendido(
   const equipos = (await estadoGps([d.chapa]))[d.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? [];
   const equipo = equipos.find((e) => e.corta);
   if (!equipo) throw new ErrorGps("Esta moto no tiene en Traccar un GPS con la chapa exacta: no se puede bloquear desde acá", 404);
-  if (d.accion === "bloquear" && equipo.enMovimiento && !d.confirmaEnMovimiento) {
-    throw new ErrorGps(`La moto está en movimiento (${equipo.kmh ?? 0} km/h). Confirmá si igual querés bloquearla.`, 409, { requiereConfirmar: true });
+  // Fuera de línea en el nuevo pero reportando en el Traccar anterior: el comando va al anterior, al mismo IMEI.
+  const enAnterior = Boolean(equipo.anterior);
+  const deviceId = equipo.anterior?.id ?? equipo.id;
+  const enviar = (ruta: string, init: RequestInit = {}) => {
+    if (!enAnterior) return traccar(ruta, init);
+    const cfg = env();
+    if (!cfg.TRACCAR_ANTERIOR_TOKEN) throw new ErrorGps("El GPS reporta en el Traccar anterior y falta TRACCAR_ANTERIOR_TOKEN", 503);
+    return pedir(cfg.TRACCAR_ANTERIOR_URL, cfg.TRACCAR_ANTERIOR_TOKEN, ruta, init, 15_000);
+  };
+  // En movimiento: según la última posición del Traccar donde reporta.
+  const mov = enAnterior ? await movimientoAnterior(deviceId, enviar) : { enMovimiento: equipo.enMovimiento, kmh: equipo.kmh };
+  if (d.accion === "bloquear" && mov.enMovimiento && !d.confirmaEnMovimiento) {
+    throw new ErrorGps(`La moto está en movimiento (${mov.kmh ?? 0} km/h). Confirmá si igual querés bloquearla.`, 409, { requiereConfirmar: true });
   }
-  const antes = ultimoComando.get(equipo.id);
+  const clave = `${enAnterior ? "anterior" : "nuevo"}:${deviceId}`;
+  const antes = ultimoComando.get(clave);
   if (antes && Date.now() - antes < ESPERA_MS) {
     throw new ErrorGps("Ya se mandó un comando a este GPS hace menos de un minuto y medio. Esperá a que el equipo lo confirme.", 429);
   }
-  const tipos = (await (await traccar(`/api/commands/types?deviceId=${equipo.id}`)).json()) as { type: string }[];
+  const tipos = (await (await enviar(`/api/commands/types?deviceId=${deviceId}`)).json()) as { type: string }[];
   if (!tipos.some((t) => t.type === COMANDO[d.accion])) throw new ErrorGps(`El GPS «${equipo.nombre}» no acepta ese comando`, 409);
 
-  ultimoComando.set(equipo.id, Date.now());
-  const r = await traccar("/api/commands/send", {
+  ultimoComando.set(clave, Date.now());
+  const r = await enviar("/api/commands/send", {
     method: "POST",
     // Traccar lo registra como «Ridder taller (<persona>)».
     headers: { "Content-Type": "application/json", "X-Ridder-Usuario": encodeURIComponent(u.nombre) },
-    body: JSON.stringify({ deviceId: equipo.id, type: COMANDO[d.accion] }),
+    body: JSON.stringify({ deviceId, type: COMANDO[d.accion] }),
   }).catch((e) => {
-    ultimoComando.delete(equipo.id);
+    ultimoComando.delete(clave);
     throw e;
   });
   const res = resultadoComando(r.status, d.accion);
+  if (enAnterior) res.mensaje = `Se mandó por el Traccar anterior. ${res.mensaje}`;
 
   await registrar(u.id, d.accion === "bloquear" ? "gps.bloquear" : "gps.desbloquear", {
     ordenId: d.ordenId,
-    detalle: { chapa: d.chapa, equipo: equipo.nombre, deviceId: equipo.id, enCola: res.enCola, enMovimiento: equipo.enMovimiento },
+    detalle: { chapa: d.chapa, equipo: equipo.nombre, deviceId, traccar: enAnterior ? "anterior" : "nuevo", enCola: res.enCola, enMovimiento: mov.enMovimiento },
   });
   if (d.ordenId) {
     await odoo
-      .messagePost(MODELO_ORDEN, d.ordenId, conAutor(payloadNotaEncendido({ autor: u.nombre, accion: d.accion, equipo: equipo.nombre, enCola: res.enCola }), u.odooPartnerId))
+      .messagePost(
+        MODELO_ORDEN,
+        d.ordenId,
+        conAutor(payloadNotaEncendido({ autor: u.nombre, accion: d.accion, equipo: equipo.nombre, enCola: res.enCola, enAnterior }), u.odooPartnerId),
+      )
       .catch((e) => console.error("[gps] nota", e));
   }
   return { ...res, equipo: equipo.nombre };
+}
+
+// Velocidad y movimiento del equipo en el Traccar anterior (su última posición).
+async function movimientoAnterior(deviceId: number, enviar: (ruta: string) => Promise<Response>) {
+  const [dev] = (await (await enviar(`/api/devices?id=${deviceId}`)).json()) as DispositivoTraccar[];
+  if (!dev?.positionId) return { enMovimiento: false, kmh: null };
+  const [p] = (await (await enviar(`/api/positions?id=${dev.positionId}`)).json()) as PosicionTraccar[];
+  const kmh = p ? Math.round(p.speed * 1.852) : null;
+  return { enMovimiento: (kmh ?? 0) > 0 || p?.attributes?.motion === true, kmh };
 }

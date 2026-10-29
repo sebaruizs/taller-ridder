@@ -48,8 +48,9 @@ export type EquipoGps = {
   ubicacion: { lat: number; lon: number } | null;
   // El bloqueo del encendido se manda al equipo con la chapa exacta.
   corta: boolean;
-  // Si está fuera de línea en el nuevo pero el mismo equipo (IMEI) reportó después en el Traccar anterior.
-  anterior: { enLinea: boolean; ultimaConexion: string } | null;
+  // Si está fuera de línea en el nuevo pero el mismo equipo (IMEI) reportó después en el Traccar anterior;
+  // id es el del device allá: ahí se manda el bloqueo.
+  anterior: { id: number; enLinea: boolean; ultimaConexion: string } | null;
 };
 
 const soloLetrasYNumeros = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -124,11 +125,11 @@ export function resultadoComando(status: number, accion: AccionEncendido): { enC
   return { enCola: false, mensaje: `El GPS recibió el ${que}. Se confirma cuando el equipo informe el cambio (hasta unos 3 minutos).` };
 }
 
-export function payloadNotaEncendido(p: { autor: string; accion: AccionEncendido; equipo: string; enCola: boolean }) {
+export function payloadNotaEncendido(p: { autor: string; accion: AccionEncendido; equipo: string; enCola: boolean; enAnterior?: boolean }) {
   const que = p.accion === "bloquear" ? "bloqueó el encendido" : "desbloqueó el encendido";
   return {
     body:
-      `<p><b>${escaparHtml(p.autor)}</b> ${que} de la moto desde la app del taller (GPS «${escaparHtml(p.equipo)}»)` +
+      `<p><b>${escaparHtml(p.autor)}</b> ${que} de la moto desde la app del taller (GPS «${escaparHtml(p.equipo)}»${p.enAnterior ? ", en el Traccar anterior" : ""})` +
       `${p.enCola ? ": quedó en cola porque el GPS estaba desconectado" : ""}.</p>`,
     ...NOTA_INTERNA,
   };
@@ -136,8 +137,8 @@ export function payloadNotaEncendido(p: { autor: string; accion: AccionEncendido
 
 // El dato del Traccar anterior para cada equipo fuera de línea en el nuevo: el mismo IMEI, el device con el
 // lastUpdate más reciente (hay duplicados), y solo si reportó después que en el nuevo.
-export function conTraccarAnterior(porChapa: Record<string, EquipoGps[]>, anteriores: Pick<DispositivoTraccar, "uniqueId" | "status" | "lastUpdate">[]) {
-  const masReciente = new Map<string, Pick<DispositivoTraccar, "status" | "lastUpdate">>();
+export function conTraccarAnterior(porChapa: Record<string, EquipoGps[]>, anteriores: Pick<DispositivoTraccar, "id" | "uniqueId" | "status" | "lastUpdate">[]) {
+  const masReciente = new Map<string, Pick<DispositivoTraccar, "id" | "status" | "lastUpdate">>();
   for (const d of anteriores) {
     if (!d.uniqueId || !d.lastUpdate) continue;
     const ya = masReciente.get(d.uniqueId);
@@ -149,7 +150,7 @@ export function conTraccarAnterior(porChapa: Record<string, EquipoGps[]>, anteri
       const a = !e.enLinea && e.imei ? masReciente.get(e.imei) : undefined;
       if (!a?.lastUpdate) return e;
       const nuevo = e.ultimaConexion ? Date.parse(e.ultimaConexion) : 0;
-      return Date.parse(a.lastUpdate) > nuevo ? { ...e, anterior: { enLinea: a.status === "online", ultimaConexion: a.lastUpdate } } : e;
+      return Date.parse(a.lastUpdate) > nuevo ? { ...e, anterior: { id: a.id, enLinea: a.status === "online", ultimaConexion: a.lastUpdate } } : e;
     });
   }
   return res;

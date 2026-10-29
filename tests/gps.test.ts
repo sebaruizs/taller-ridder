@@ -34,6 +34,7 @@ describe("GPS: equipos de cada moto", () => {
     expect(resultadoComando(200, "bloquear").enCola).toBe(false);
     expect(resultadoComando(202, "desbloquear")).toMatchObject({ enCola: true });
     expect(payloadNotaEncendido({ autor: "Derlis", accion: "bloquear", equipo: "816ABTI", enCola: true }).body).toContain("bloqueó el encendido");
+    expect(payloadNotaEncendido({ autor: "Derlis", accion: "bloquear", equipo: "816ABTI", enCola: false, enAnterior: true }).body).toContain("en el Traccar anterior");
   });
 });
 
@@ -46,11 +47,11 @@ describe("GPS: Traccar anterior", () => {
   it("usa el device más reciente del mismo IMEI y solo si reportó después que en el nuevo", () => {
     const base = equiposPorChapa(["816ABTI"], [nuevo(1, {})], []);
     const r = conTraccarAnterior(base, [
-      { uniqueId: "111", status: "offline", lastUpdate: "2026-10-28T09:00:00Z" },
-      { uniqueId: "111", status: "online", lastUpdate: "2026-10-28T12:00:00Z" },
+      { id: 90, uniqueId: "111", status: "offline", lastUpdate: "2026-10-28T09:00:00Z" },
+      { id: 91, uniqueId: "111", status: "online", lastUpdate: "2026-10-28T12:00:00Z" },
     ]);
-    expect(r["816ABTI"][0].anterior).toEqual({ enLinea: true, ultimaConexion: "2026-10-28T12:00:00Z" });
-    const viejo = conTraccarAnterior(base, [{ uniqueId: "111", status: "offline", lastUpdate: "2026-10-27T09:00:00Z" }]);
+    expect(r["816ABTI"][0].anterior).toEqual({ id: 91, enLinea: true, ultimaConexion: "2026-10-28T12:00:00Z" });
+    const viejo = conTraccarAnterior(base, [{ id: 90, uniqueId: "111", status: "offline", lastUpdate: "2026-10-27T09:00:00Z" }]);
     expect(viejo["816ABTI"][0].anterior).toBeNull();
   });
 });
