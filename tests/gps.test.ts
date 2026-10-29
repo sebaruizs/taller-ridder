@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
+import { conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, sinRepetidos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
 
 const disp = (id: number, name: string, extra: Partial<DispositivoTraccar> = {}): DispositivoTraccar => ({ id, name, status: "online", lastUpdate: "2026-10-28T12:00:00Z", positionId: id * 10, ...extra });
 
@@ -77,6 +77,22 @@ describe("GPS: equipos que solo están en el Traccar anterior", () => {
     // El TC ya estaba en el nuevo: no se duplica. El GPS que corta viene del anterior (el más reciente).
     expect(r["512ABVR"].map((e) => [e.nombre, e.id, e.anterior?.id ?? null])).toEqual([["512ABVR", 71, 71], ["512ABVR-TC", 1, null]]);
     expect(r["512ABVR"][0]).toMatchObject({ corta: true, enLinea: false, bloqueado: false, anterior: { enLinea: true, ultimaConexion: "2026-10-29T12:00:00Z" } });
+  });
+  it("si el nuevo ya tiene ese tipo, no agrega el del anterior aunque se llame distinto; del anterior, uno por tipo", () => {
+    const base = equiposPorChapa(["421ABSM"], [disp(1, "421ABSM-MC")], []);
+    const r = conSoloEnAnterior(
+      base,
+      ["421ABSM"],
+      [disp(70, "421ABSM - TC"), disp(71, "421ABSM", { lastUpdate: "2026-10-01T00:00:00Z" }), disp(72, "421 ABSM - Monedas"), disp(73, "421ABSM-Moneda", { lastUpdate: "2026-10-29T00:00:00Z" })],
+      [],
+    );
+    expect(r["421ABSM"].map((e) => [e.tipo, e.nombre])).toEqual([["gps", "421ABSM"], ["tc", "421ABSM-MC"], ["monedas", "421ABSM-Moneda"]]);
+  });
+  it("con repetidos en el nuevo, si alguno está en línea muestra solo los que están en línea", () => {
+    const r = sinRepetidos(
+      equiposPorChapa(["409ABSM"], [disp(1, "409ABSM", { status: "offline" }), disp(2, "409ABSM"), disp(3, "409ABSM"), disp(4, "409ABSM-TC", { status: "offline" }), disp(5, "409ABSM-TC", { status: "offline" })], []),
+    );
+    expect(r["409ABSM"].map((e) => e.id)).toEqual([2, 3, 4, 5]);
   });
   it("no busca si la chapa ya tiene GPS, TC y moneda en el nuevo", () => {
     const completo = equiposPorChapa(["816ABTI"], [disp(1, "816ABTI"), disp(2, "816ABTI-TC"), disp(3, "816ABTI - Monedas")], []);

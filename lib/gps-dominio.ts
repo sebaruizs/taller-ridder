@@ -3,7 +3,7 @@ import { NOTA_INTERNA, escaparHtml } from "./taller";
 // En Traccar el nombre del equipo es la chapa, con sufijos: "816ABTI", "816ABTI-TC", "236ABXV - Monedas".
 
 export type TipoEquipo = "gps" | "tc" | "monedas" | "otro";
-export const NOMBRE_TIPO: Record<TipoEquipo, string> = { gps: "GPS", tc: "TC", monedas: "Monedas", otro: "Otro" };
+export const NOMBRE_TIPO: Record<TipoEquipo, string> = { gps: "Principal", tc: "TC", monedas: "Monedas", otro: "Otro" };
 
 export type DispositivoTraccar = {
   id: number;
@@ -188,10 +188,18 @@ export function conSoloEnAnterior(
   const viejos = equiposPorChapa(chapas, [...porNombre.values()], posiciones);
   const res: Record<string, EquipoGps[]> = { ...porChapa };
   for (const [chapa, lista] of Object.entries(viejos)) {
-    const ya = new Set((porChapa[chapa] ?? []).map((e) => soloLetrasYNumeros(e.nombre)));
-    const faltan = lista
-      .filter((e) => !ya.has(soloLetrasYNumeros(e.nombre)) && e.ultimaConexion)
-      .map((e) => ({ ...e, enLinea: false, anterior: { id: e.id, enLinea: e.enLinea, ultimaConexion: e.ultimaConexion as string } }));
+    // Solo los tipos que no están en el nuevo (si el nuevo tiene un TC, el del anterior no se busca) y uno por tipo.
+    const nuevos = porChapa[chapa] ?? [];
+    const tipos = new Set(nuevos.map((e) => e.tipo));
+    const nombres = new Set(nuevos.map((e) => soloLetrasYNumeros(e.nombre)));
+    const uno = new Map<string, EquipoGps>();
+    for (const e of lista) {
+      if (!e.ultimaConexion || (e.tipo === "otro" ? nombres.has(soloLetrasYNumeros(e.nombre)) : tipos.has(e.tipo))) continue;
+      const clave = e.tipo === "otro" ? `otro:${soloLetrasYNumeros(e.nombre)}` : e.tipo;
+      const ya = uno.get(clave);
+      if (!ya || (ya.ultimaConexion ?? "") < e.ultimaConexion) uno.set(clave, e);
+    }
+    const faltan = [...uno.values()].map((e) => ({ ...e, enLinea: false, anterior: { id: e.id, enLinea: e.enLinea, ultimaConexion: e.ultimaConexion as string } }));
     if (!faltan.length) continue;
     res[chapa] = [...(porChapa[chapa] ?? []), ...faltan].sort((x, y) => ORDEN_TIPO[x.tipo] - ORDEN_TIPO[y.tipo] || x.nombre.localeCompare(y.nombre));
   }
@@ -204,3 +212,14 @@ export const faltanEquipos = (porChapa: Record<string, EquipoGps[]>, chapas: str
     const tipos = new Set((porChapa[soloLetrasYNumeros(c)] ?? []).map((e) => e.tipo));
     return !tipos.has("gps") || !tipos.has("tc") || !tipos.has("monedas");
   });
+
+// Equipos repetidos en el nuevo (varios con el mismo tipo): si alguno está en línea, solo se muestran los que están
+// en línea; si ninguno, todos.
+export function sinRepetidos(porChapa: Record<string, EquipoGps[]>): Record<string, EquipoGps[]> {
+  const res: Record<string, EquipoGps[]> = {};
+  for (const [chapa, lista] of Object.entries(porChapa)) {
+    const conLinea = new Set(lista.filter((e) => e.tipo !== "otro" && e.enLinea).map((e) => e.tipo));
+    res[chapa] = lista.filter((e) => e.tipo === "otro" || e.enLinea || !conLinea.has(e.tipo));
+  }
+  return res;
+}

@@ -9,6 +9,7 @@ import {
   conTraccarAnterior,
   equiposPorChapa,
   faltanEquipos,
+  sinRepetidos,
   imeisFueraDeLinea,
   payloadNotaEncendido,
   resultadoComando,
@@ -73,7 +74,7 @@ export async function estadoGps(chapas: string[]): Promise<Record<string, Equipo
   const usados = todos.filter((d) => ids.has(d.id));
   const porChapa = equiposPorChapa(chapas, usados, await posiciones(usados.map((d) => d.positionId).filter((p) => p > 0)));
   const conAnterior = conTraccarAnterior(porChapa, await anteriores(imeisFueraDeLinea(porChapa)));
-  return faltanEquipos(conAnterior, chapas) ? soloEnAnterior(conAnterior, chapas) : conAnterior;
+  return sinRepetidos(faltanEquipos(conAnterior, chapas) ? await soloEnAnterior(conAnterior, chapas) : conAnterior);
 }
 
 // Equipos que solo existen en el Traccar anterior, buscados por nombre. Si no responde, se sigue sin ese dato.
