@@ -10,7 +10,7 @@ type Tipo = { id: number; name: string };
 
 type Modo = "proceso" | "verificar";
 
-// gps: ver el estado de los GPS en las tarjetas (como en el tablero; /api/gps pide ver todas las órdenes).
+// gps: ver el estado de los GPS en las tarjetas, como en el tablero (permiso gps.ver).
 export type Accesos = { crear: boolean; tablero: boolean; verificar: boolean; finalizar: boolean; inventario?: boolean; compras?: boolean; gps?: boolean };
 
 export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tienePartner: boolean; accesos: Accesos; modo?: Modo }) {

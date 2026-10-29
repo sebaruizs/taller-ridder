@@ -22,7 +22,7 @@ export default async function Verificar(props: PageProps<"/verificar/[id]">) {
         lineasIniciales={lineas}
         puedeRepuestos={puedeU(u, "ordenes.editar")}
         puedeAprobar={puedeU(u, "ordenes.aprobar")}
-        gps={puedeU(u, "ordenes.ver_todas") && ["running", "cancelled"].includes(orden.estado) ? { puedeBloquear: puedeU(u, "gps.encendido") } : null}
+        gps={puedeU(u, "gps.ver") && ["running", "cancelled"].includes(orden.estado) ? { puedeBloquear: puedeU(u, "gps.encendido") } : null}
         historial={<Historial ordenId={id} />}
       />
     </>

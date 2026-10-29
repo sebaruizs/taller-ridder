@@ -10,7 +10,7 @@ export default async function ParaVerificar() {
       <Topbar titulo="Para verificar" nombre={u.nombre} rol={u.rol} />
       <ListaOrdenes
         tienePartner={Boolean(u.odooPartnerId)}
-        accesos={{ crear: false, tablero: false, verificar: true, finalizar: false, gps: puedeU(u, "ordenes.ver_todas") }}
+        accesos={{ crear: false, tablero: false, verificar: true, finalizar: false, gps: puedeU(u, "gps.ver") }}
         modo="verificar"
       />
     </>

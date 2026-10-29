@@ -17,7 +17,7 @@ export default async function Ordenes() {
           finalizar: puedeU(u, "ordenes.finalizar"),
           inventario: puedeU(u, "inventario.ver"),
           compras: puedeU(u, "compras.ver"),
-          gps: puedeU(u, "ordenes.ver_todas"),
+          gps: puedeU(u, "gps.ver"),
         }}
       />
     </>

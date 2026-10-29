@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ACCIONES, DURACION_SESION_DIAS, inicioDe, limpiarPermisosOff, menuDe, modulosDelRol, moduloDeAccion, pantallasDe, permisosDelRol, puede, puedeU, resumenPermisosOff, type Accion } from "@/lib/permisos";
 import { ROLES } from "@/lib/db/schema";
 
-const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar"];
+const MECANICO: Accion[] = ["ordenes.ver_en_proceso", "ordenes.ver_detalle", "ordenes.finalizar", "gps.ver"];
 const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "ordenes.ver_todas",
   "ordenes.crear",
@@ -68,8 +68,8 @@ describe("permisos por usuario", () => {
   });
 
   it("cada rol solo ofrece los permisos que tiene", () => {
-    expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "aprobar", "encendido", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
+    expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar", "gps"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "aprobar", "gps", "encendido", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -150,6 +150,6 @@ describe("rol cobrador", () => {
   it("entra al tablero y su menú es solo Taller", () => {
     expect(inicioDe(cobrador)).toBe("/tablero");
     expect(menuDe(pantallasDe(cobrador)).map((p) => p.href)).toEqual(["/tablero"]);
-    expect(permisosDelRol("cobrador")).toEqual(["crear", "tablero"]);
+    expect(permisosDelRol("cobrador")).toEqual(["crear", "tablero", "gps"]);
   });
 });

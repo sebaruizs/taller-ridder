@@ -83,7 +83,7 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
 
         {/* Debajo, a todo el ancho: repuestos utilizados (editables para quien puede) e historial, como en Odoo. */}
         {/* GPS solo con la moto en el taller: En proceso o Listo para verificar. */}
-        {puedeU(u, "ordenes.ver_todas") && ["running", "cancelled"].includes(orden.estado) && (
+        {puedeU(u, "gps.ver") && ["running", "cancelled"].includes(orden.estado) && (
           <PanelGps ordenId={id} chapa={orden.chapa} puedeBloquear={puedeU(u, "gps.encendido")} />
         )}
         <CajaRepuestos ordenId={id} lineasIniciales={repuestos} editable={editarRepuestos} />

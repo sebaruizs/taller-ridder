@@ -23,7 +23,7 @@ export default async function Finalizar(props: PageProps<"/ordenes/[id]/finaliza
         orden={orden}
         mecanico={u.nombre}
         repuestos={repuestos}
-        gps={puedeU(u, "ordenes.ver_todas") ? { puedeBloquear: puedeU(u, "gps.encendido") } : null}
+        gps={puedeU(u, "gps.ver") ? { puedeBloquear: puedeU(u, "gps.encendido") } : null}
         historial={<Historial ordenId={orden.id} />}
       />
     </>
