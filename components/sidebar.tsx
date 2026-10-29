@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Rol } from "@/lib/db/schema";
 import { SECCIONES, menuDe, type Pantalla } from "@/lib/permisos";
+import { MarcarAsistencia } from "@/components/asistencias";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
 
@@ -70,6 +71,10 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
             </section>
           );
         })}
+        <MarcarAsistencia className="side-link">
+          <svg className="side-icono" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
+          Marcar asistencia
+        </MarcarAsistencia>
       </nav>
       <div className="side-user">
         <div className="side-user-fila" ref={menuRef}>

@@ -90,6 +90,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `TRACCAR_URL`, `TRACCAR_TOKEN` | GPS: Traccar y el token del usuario «Ridder taller» (vacío = sin GPS en el tablero) |
 | `TRACCAR_ANTERIOR_URL`, `TRACCAR_ANTERIOR_TOKEN` | Traccar anterior, solo lectura (vacío = no se consulta) |
 | `MONEDAS_SHEET_CSV_URL` | Google Sheets de monedas publicado como CSV (vacío = no se usa) |
+| `ASISTENCIAS_URL`, `ASISTENCIAS_SECRET` | «Marcar asistencia»: entra a Asistencias con el mismo usuario por un link firmado de 2 minutos (`GET /api/asistencias/marcar`). El secreto es `WEBHOOK_SECRET_TALLER` allá. Vacías = no aparece |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"

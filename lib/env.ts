@@ -45,6 +45,9 @@ const schema = z.object({
   TRACCAR_ANTERIOR_TOKEN: limpio,
   // Google Sheets de monedas publicado como CSV (Archivo > Compartir > Publicar en la web > CSV). Vacío = no se usa.
   MONEDAS_SHEET_CSV_URL: limpio,
+  // Asistencias: con las dos, el menú muestra «Marcar asistencia» (entra allá con el mismo usuario). Vacías = no aparece.
+  ASISTENCIAS_URL: limpio,
+  ASISTENCIAS_SECRET: limpio,
 });
 
 export type Env = z.infer<typeof schema>;
