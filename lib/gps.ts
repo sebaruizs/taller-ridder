@@ -5,8 +5,10 @@ import { registrar, type Usuario } from "./auth";
 import { MODELO_ORDEN, conAutor } from "./taller";
 import {
   COMANDO,
+  conSoloEnAnterior,
   conTraccarAnterior,
   equiposPorChapa,
+  faltanEquipos,
   imeisFueraDeLinea,
   payloadNotaEncendido,
   resultadoComando,
@@ -70,7 +72,29 @@ export async function estadoGps(chapas: string[]): Promise<Record<string, Equipo
   const ids = new Set(Object.values(previo).flat().map((e) => e.id));
   const usados = todos.filter((d) => ids.has(d.id));
   const porChapa = equiposPorChapa(chapas, usados, await posiciones(usados.map((d) => d.positionId).filter((p) => p > 0)));
-  return conTraccarAnterior(porChapa, await anteriores(imeisFueraDeLinea(porChapa)));
+  const conAnterior = conTraccarAnterior(porChapa, await anteriores(imeisFueraDeLinea(porChapa)));
+  return faltanEquipos(conAnterior, chapas) ? soloEnAnterior(conAnterior, chapas) : conAnterior;
+}
+
+// Equipos que solo existen en el Traccar anterior, buscados por nombre. Si no responde, se sigue sin ese dato.
+let cacheAnterior: { hasta: number; lista: DispositivoTraccar[] } | undefined;
+async function soloEnAnterior(porChapa: Record<string, EquipoGps[]>, chapas: string[]) {
+  const cfg = env();
+  if (!cfg.TRACCAR_ANTERIOR_TOKEN) return porChapa;
+  const pedirAnterior = (ruta: string) => pedir(cfg.TRACCAR_ANTERIOR_URL, cfg.TRACCAR_ANTERIOR_TOKEN as string, ruta, {}, 10_000);
+  try {
+    if (!cacheAnterior || cacheAnterior.hasta < Date.now()) {
+      cacheAnterior = { hasta: Date.now() + 60_000, lista: (await (await pedirAnterior("/api/devices")).json()) as DispositivoTraccar[] };
+    }
+    const sinPosiciones = conSoloEnAnterior(porChapa, chapas, cacheAnterior.lista, []);
+    const ids = Object.values(sinPosiciones).flat().filter((e) => e.anterior?.id === e.id).map((e) => e.id);
+    const posIds = cacheAnterior.lista.filter((d) => ids.includes(d.id) && d.positionId > 0).map((d) => `id=${d.positionId}`);
+    const pos = posIds.length ? ((await (await pedirAnterior(`/api/positions?${posIds.join("&")}`)).json()) as PosicionTraccar[]) : [];
+    return conSoloEnAnterior(porChapa, chapas, cacheAnterior.lista, pos);
+  } catch (e) {
+    console.error("[gps] Traccar anterior (por nombre)", e instanceof Error ? e.message : e);
+    return porChapa;
+  }
 }
 
 // Traccar anterior: solo lectura, una consulta con todos los IMEI. Si no responde, se sigue sin ese dato.
@@ -95,6 +119,7 @@ export async function cambiarEncendido(
   u: Usuario,
 ): Promise<{ mensaje: string; enCola: boolean; equipo: string }> {
   cacheEquipos = undefined;
+  cacheAnterior = undefined;
   const equipos = (await estadoGps([d.chapa]))[d.chapa.toUpperCase().replace(/[^A-Z0-9]/g, "")] ?? [];
   const equipo = equipos.find((e) => e.corta);
   if (!equipo) throw new ErrorGps("Esta moto no tiene en Traccar un GPS con la chapa exacta: no se puede bloquear desde acá", 404);

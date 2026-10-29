@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conTraccarAnterior, equiposPorChapa, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
+import { conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
 
 const disp = (id: number, name: string, extra: Partial<DispositivoTraccar> = {}): DispositivoTraccar => ({ id, name, status: "online", lastUpdate: "2026-10-28T12:00:00Z", positionId: id * 10, ...extra });
 
@@ -53,6 +53,31 @@ describe("GPS: Traccar anterior", () => {
     expect(r["816ABTI"][0].anterior).toEqual({ id: 91, enLinea: true, ultimaConexion: "2026-10-28T12:00:00Z" });
     const viejo = conTraccarAnterior(base, [{ id: 90, uniqueId: "111", status: "offline", lastUpdate: "2026-10-27T09:00:00Z" }]);
     expect(viejo["816ABTI"][0].anterior).toBeNull();
+  });
+});
+
+describe("GPS: equipos que solo están en el Traccar anterior", () => {
+  it("agrega por nombre los que faltan en el nuevo, marcados del anterior", () => {
+    const base = equiposPorChapa(["512ABVR"], [disp(1, "512ABVR-TC", { status: "offline" })], []);
+    expect(faltanEquipos(base, ["512ABVR"])).toBe(true);
+    const r = conSoloEnAnterior(
+      base,
+      ["512ABVR"],
+      [
+        disp(70, "512ABVR", { lastUpdate: "2026-10-27T09:00:00Z", status: "offline" }),
+        disp(71, "512ABVR", { lastUpdate: "2026-10-29T12:00:00Z" }),
+        disp(72, "512ABVR-TC"),
+        disp(73, "999XXX"),
+      ],
+      [{ id: 710, deviceId: 71, fixTime: "2026-10-29T12:00:00Z", speed: 0, attributes: { blocked: false } }],
+    );
+    // El TC ya estaba en el nuevo: no se duplica. El GPS que corta viene del anterior (el más reciente).
+    expect(r["512ABVR"].map((e) => [e.nombre, e.id, e.anterior?.id ?? null])).toEqual([["512ABVR", 71, 71], ["512ABVR-TC", 1, null]]);
+    expect(r["512ABVR"][0]).toMatchObject({ corta: true, enLinea: false, bloqueado: false, anterior: { enLinea: true, ultimaConexion: "2026-10-29T12:00:00Z" } });
+  });
+  it("no busca si la chapa ya tiene GPS, TC y moneda en el nuevo", () => {
+    const completo = equiposPorChapa(["816ABTI"], [disp(1, "816ABTI"), disp(2, "816ABTI-TC"), disp(3, "816ABTI - Monedas")], []);
+    expect(faltanEquipos(completo, ["816ABTI"])).toBe(false);
   });
 });
 

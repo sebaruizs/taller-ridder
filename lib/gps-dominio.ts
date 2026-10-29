@@ -167,3 +167,38 @@ export function muestraMonedaGoogle(equipos: EquipoGps[], monedaEnSheets: string
   const moneda = equipos.find((e) => e.tipo === "monedas");
   return !moneda || (!moneda.enLinea && !moneda.anterior);
 }
+
+// Equipos que no están en el nuevo y sí en el Traccar anterior (por nombre): se agregan marcados como del
+// anterior, así se ven y el bloqueo va allá. Si hay duplicados con el mismo nombre, el que reportó último.
+export function conSoloEnAnterior(
+  porChapa: Record<string, EquipoGps[]>,
+  chapas: string[],
+  dispositivos: DispositivoTraccar[],
+  posiciones: PosicionTraccar[],
+): Record<string, EquipoGps[]> {
+  const porNombre = new Map<string, DispositivoTraccar>();
+  for (const d of dispositivos) {
+    if (!d.lastUpdate) continue;
+    const nombre = soloLetrasYNumeros(d.name);
+    const ya = porNombre.get(nombre);
+    if (!ya || (ya.lastUpdate ?? "") < d.lastUpdate) porNombre.set(nombre, d);
+  }
+  const viejos = equiposPorChapa(chapas, [...porNombre.values()], posiciones);
+  const res: Record<string, EquipoGps[]> = { ...porChapa };
+  for (const [chapa, lista] of Object.entries(viejos)) {
+    const ya = new Set((porChapa[chapa] ?? []).map((e) => soloLetrasYNumeros(e.nombre)));
+    const faltan = lista
+      .filter((e) => !ya.has(soloLetrasYNumeros(e.nombre)) && e.ultimaConexion)
+      .map((e) => ({ ...e, enLinea: false, anterior: { id: e.id, enLinea: e.enLinea, ultimaConexion: e.ultimaConexion as string } }));
+    if (!faltan.length) continue;
+    res[chapa] = [...(porChapa[chapa] ?? []), ...faltan].sort((x, y) => ORDEN_TIPO[x.tipo] - ORDEN_TIPO[y.tipo] || x.nombre.localeCompare(y.nombre));
+  }
+  return res;
+}
+
+// Hay que buscar en el Traccar anterior si a alguna chapa le falta el GPS, el TC o la moneda en el nuevo.
+export const faltanEquipos = (porChapa: Record<string, EquipoGps[]>, chapas: string[]) =>
+  chapas.some((c) => {
+    const tipos = new Set((porChapa[soloLetrasYNumeros(c)] ?? []).map((e) => e.tipo));
+    return !tipos.has("gps") || !tipos.has("tc") || !tipos.has("monedas");
+  });
