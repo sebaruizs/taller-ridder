@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
 
 // "Marcar asistencia": link firmado que vale 2 minutos y abre en Asistencias la sesión de este mismo usuario.
 // Firma: HMAC-SHA256(ASISTENCIAS_SECRET, "taller|<usuario>|<vence>"); el secreto es WEBHOOK_SECRET_TALLER allá.
-export async function GET(req: Request) {
+export async function GET() {
   const u = await usuarioActual();
-  if (!u) return NextResponse.redirect(new URL("/ingresar", req.url), 303);
+  // Location relativa: detrás del proxy req.url trae el host interno del contenedor, no el dominio.
+  if (!u) return new NextResponse(null, { status: 303, headers: { Location: "/ingresar" } });
   const { ASISTENCIAS_URL, ASISTENCIAS_SECRET } = env();
   if (!ASISTENCIAS_URL || !ASISTENCIAS_SECRET) return NextResponse.json({ error: "Asistencias no está configurado" }, { status: 404 });
   const usuario = u.usuario.toLowerCase();
