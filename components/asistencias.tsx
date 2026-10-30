@@ -12,5 +12,5 @@ export function AsistenciasProvider({ activo, children }: { activo: boolean; chi
 export function MarcarAsistencia({ className, children = "Marcar asistencia" }: { className: string; children?: React.ReactNode }) {
   const activo = useContext(AsistenciasContext);
   if (!activo) return null;
-  return <a href="/api/asistencias/marcar" className={className}>{children}</a>;
+  return <a href="/api/asistencias/marcar" target="_blank" rel="noopener" className={className}>{children}</a>;
 }
