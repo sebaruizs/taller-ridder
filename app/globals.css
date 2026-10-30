@@ -92,6 +92,7 @@ a { color: inherit; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .btn-ghost { background: transparent; border-color: transparent; }
+.btn-peligro { color: var(--danger); border-color: var(--danger); background: transparent; }
 .btn-block { width: 100%; }
 .btn-lg { min-height: 56px; font-size: 17px; }
 

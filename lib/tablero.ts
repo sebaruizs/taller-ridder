@@ -36,3 +36,16 @@ export async function moverOrden(odoo: OdooTablero, ordenId: number, de: EstadoO
 export function iniciarOrden(odoo: OdooTablero, ordenId: number, autor: string, autorPartnerId: number | null = null) {
   return moverOrden(odoo, ordenId, "new", "running", autor, autorPartnerId);
 }
+
+// Borra la orden en Odoo; sus repuestos se borran con ella. Las finalizadas quedan como historial.
+export async function eliminarOrden(odoo: Pick<OdooClient, "read" | "unlink">, ordenId: number) {
+  const [o] = await odoo.read<{ id: number; state: EstadoOrden; vehicle_id: Many2one; service_type_id: Many2one }>(MODELO_ORDEN, [ordenId], ["id", "state", "vehicle_id", "service_type_id"]);
+  if (!o) throw new NoVerificable("La orden no existe en Odoo");
+  if (o.state === "done") throw new NoVerificable("Las órdenes finalizadas no se pueden eliminar");
+  await odoo.unlink(MODELO_ORDEN, [ordenId]);
+  return {
+    chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : `#${ordenId}`,
+    estado: o.state,
+    tipo: o.service_type_id ? o.service_type_id[1] : null,
+  };
+}

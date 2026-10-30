@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { exigir } from "@/lib/auth";
+import { exigir, registrar } from "@/lib/auth";
 import { errorJson, json, manejar } from "@/lib/api";
 import { detalleOrden } from "@/lib/ordenes";
 import { puedeAlguna, puedeU } from "@/lib/permisos";
@@ -7,6 +7,7 @@ import { reporteDeOrden } from "@/lib/reportes";
 import { leerRepuestos } from "@/lib/verificar";
 import { leerHistorial } from "@/lib/historial";
 import { odoo } from "@/lib/odoo";
+import { eliminarOrden } from "@/lib/tablero";
 
 const id = z.coerce.number().int().positive();
 
@@ -28,4 +29,12 @@ export const GET = manejar(async (_req, ctx: RouteContext<"/api/ordenes/[id]">) 
     leerHistorial(orden.id).catch(() => null),
   ]);
   return json({ orden, reporte, repuestos, historial });
+});
+
+export const DELETE = manejar(async (_req, ctx: RouteContext<"/api/ordenes/[id]">) => {
+  const u = await exigir("ordenes.eliminar");
+  const ordenId = id.parse((await ctx.params).id);
+  const r = await eliminarOrden(odoo, ordenId);
+  await registrar(u.id, "orden.eliminar", { ordenId, detalle: r });
+  return json(r);
 });

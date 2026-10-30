@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { iniciarOrden, moverOrden, movimientoValido } from "@/lib/tablero";
+import { eliminarOrden, iniciarOrden, moverOrden, movimientoValido } from "@/lib/tablero";
 import { NoVerificable } from "@/lib/verificar";
 import { COLUMNAS_TABLERO, dominioOrdenes, payloadNotaCambioEstado } from "@/lib/taller";
 
@@ -90,5 +90,25 @@ describe("mover En proceso → Bloqueado", () => {
     const t = odooCon("cancelled");
     await expect(moverOrden(t.odoo, 4366, "running", "to_be_paid", "Derlis")).rejects.toBeInstanceOf(NoVerificable);
     expect(t.llamadas).toHaveLength(0);
+  });
+});
+
+describe("eliminar orden", () => {
+  const odooCon = (estado: string | null) => ({
+    read: vi.fn(async () => (estado ? [{ id: 4366, state: estado, vehicle_id: [9, "Kenton/GTR150 SE/409ABSM"], service_type_id: [3, "Service"] }] : [])) as never,
+    unlink: vi.fn(async () => true),
+  });
+
+  it("borra la orden en Odoo y devuelve qué se borró", async () => {
+    const o = odooCon("running");
+    expect(await eliminarOrden(o, 4366)).toEqual({ chapa: "409ABSM", estado: "running", tipo: "Service" });
+    expect(o.unlink).toHaveBeenCalledWith("fleet.vehicle.log.services", [4366]);
+  });
+
+  it("no borra las finalizadas ni las que ya no existen", async () => {
+    const fin = odooCon("done");
+    await expect(eliminarOrden(fin, 4366)).rejects.toThrow(NoVerificable);
+    expect(fin.unlink).not.toHaveBeenCalled();
+    await expect(eliminarOrden(odooCon(null), 4366)).rejects.toThrow("no existe");
   });
 });

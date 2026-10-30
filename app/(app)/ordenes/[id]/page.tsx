@@ -13,6 +13,7 @@ import { Topbar } from "@/components/topbar";
 import { Historial } from "@/components/historial";
 import { CajaRepuestos } from "@/components/repuestos-orden";
 import { PanelGps } from "@/components/gps-tarjeta";
+import { EliminarOrden } from "@/components/eliminar-orden";
 
 const claseEstado = (e: string) => (e === "done" ? "badge-ok" : e === "cancelled" ? "badge-warn" : e === "to_be_paid" ? "badge-danger" : "");
 
@@ -51,9 +52,8 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
                 <dt>Odómetro</dt><dd>{orden.odometroOrden ? `${cantidad(orden.odometroOrden)} km` : "—"}</dd>
               </dl>
               {puedeVerificar && <Link className="btn btn-primary" href={`/verificar/${id}`} style={{ alignSelf: "flex-start" }}>Verificar y aprobar</Link>}
+              {orden.estado !== "done" && puedeU(u, "ordenes.eliminar") && <EliminarOrden ordenId={id} chapa={orden.chapa} />}
             </section>
-
-
           </div>
 
           <div className="stack" style={{ gap: 14 }}>
