@@ -1,5 +1,6 @@
 // Verificación del jefe de taller: repuestos de una orden (en cualquier estado) y aprobación ("Listo para verificar").
 import type { Many2one, OdooClient } from "./odoo";
+import { choferQueCorresponde } from "./chofer-orden";
 import {
   ESTADO_AL_APROBAR,
   MODELO_LINEA,
@@ -18,10 +19,18 @@ export type OdooVerificar = Pick<OdooClient, "read" | "searchRead" | "create" | 
 
 export class NoVerificable extends Error {}
 
-type OrdenVerif = { id: number; state: EstadoOrden; vehicle_id: Many2one; service_type_id: Many2one; total_products_cost: number };
+type OrdenVerif = {
+  id: number;
+  state: EstadoOrden;
+  vehicle_id: Many2one;
+  service_type_id: Many2one;
+  total_products_cost: number;
+  purchaser_id?: Many2one;
+  date?: string | false;
+};
 
 export async function ordenParaVerificar(odoo: OdooVerificar, ordenId: number): Promise<OrdenVerif> {
-  const [o] = await odoo.read<OrdenVerif>(MODELO_ORDEN, [ordenId], ["id", "state", "vehicle_id", "service_type_id", "total_products_cost"]);
+  const [o] = await odoo.read<OrdenVerif>(MODELO_ORDEN, [ordenId], ["id", "state", "vehicle_id", "service_type_id", "total_products_cost", "purchaser_id", "date"]);
   if (!o) throw new NoVerificable("La orden no existe en Odoo");
   if (o.state !== "cancelled") throw new NoVerificable("Esta orden ya no está en «Listo para verificar». Actualizá la lista.");
   return o;
@@ -116,8 +125,15 @@ export async function aprobarOrden(deps: DepsAprobar, ordenId: number, confirmaS
   const lineas = await leerRepuestos(odoo, ordenId);
   if (!lineas.length && !confirmaSinRepuestos) throw new NoVerificable("Cargá los repuestos o confirmá que no se usó ninguno");
 
+  // Si llegó sin chofer (por ejemplo, pasada a «Listo para verificar» desde Odoo): el que tenía la moto en la
+  // fecha de la orden; si nunca tuvo, queda vacío.
+  const choferId = !orden.purchaser_id && orden.vehicle_id ? await choferQueCorresponde(odoo, orden.vehicle_id[0], orden.date ?? false) : null;
   const [actual] = await odoo.read<{ total_products_cost: number }>(MODELO_ORDEN, [ordenId], ["total_products_cost"]);
-  await odoo.write(MODELO_ORDEN, [ordenId], { amount: actual?.total_products_cost || 0, state: ESTADO_AL_APROBAR });
+  await odoo.write(MODELO_ORDEN, [ordenId], {
+    amount: actual?.total_products_cost || 0,
+    state: ESTADO_AL_APROBAR,
+    ...(choferId ? { purchaser_id: choferId } : {}),
+  });
 
   const chapa = orden.vehicle_id ? chapaDe({ license_plate: false, display_name: orden.vehicle_id[1] }) : `#${ordenId}`;
   const tipo = orden.service_type_id ? orden.service_type_id[1] : null;

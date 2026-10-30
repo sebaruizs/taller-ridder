@@ -9,10 +9,11 @@ const ORDEN = {
   state: "running",
   purchaser_id: [2560, "Elias"],
   total_products_cost: 160000,
+  date: "2026-10-20",
 };
 const VEHICULO = { id: 82, display_name: "Buler/Faiter/230ABPT", license_plate: "230ABPT", driver_id: [2560, "Elias"], state_id: [2, "En taller"], odometer: 15000 };
 
-function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, string]; sinChofer?: boolean; fallar?: (method: string, model: string, args: unknown[]) => boolean } = {}) {
+function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, string]; sinChofer?: boolean; asignaciones?: { driver_id: [number, string]; date_start: string }[]; fallar?: (method: string, model: string, args: unknown[]) => boolean } = {}) {
   let estado: EstadoFinalizacion = {
     id: 1, ordenId: 4358, odometro: 15230, observacion: "cambié cadena",
     camposOk: false, fotosOk: false, attachmentIds: [], notaOk: false, estadoOk: false, telegramOk: false,
@@ -28,7 +29,11 @@ function armar(opts: { fotos?: number; estadoOrden?: string; vendor?: [number, s
   };
   const odoo: Deps["odoo"] = {
     read: vi.fn(async (model: string, ids: number[]) => { registrar("read", model, ids); return [{ ...ORDEN, state: opts.estadoOrden ?? "running", vendor_id: opts.vendor ?? false, ...(opts.sinChofer ? { purchaser_id: false } : {}) }]; }) as never,
-    searchRead: vi.fn(async (model: string) => { registrar("searchRead", model); return [opts.sinChofer ? { ...VEHICULO, driver_id: false } : VEHICULO]; }) as never,
+    searchRead: vi.fn(async (model: string) => {
+      registrar("searchRead", model);
+      if (model === "fleet.vehicle.assignation.log") return opts.asignaciones ?? [];
+      return [opts.sinChofer ? { ...VEHICULO, driver_id: false } : VEHICULO];
+    }) as never,
     write: vi.fn(async (model: string, ids: number[], vals: Record<string, unknown>) => { registrar("write", model, ids, vals); return true; }),
     create: vi.fn(async (model: string, vals: Record<string, unknown>) => { registrar("create", model, vals); return ++sigAtt; }),
     messagePost: vi.fn(async (model: string, id: number, kw: Record<string, unknown>) => { registrar("messagePost", model, id, kw); return 1; }),
@@ -113,6 +118,22 @@ describe("finalizar", () => {
     const w = t.escrituras().filter((l) => l.method === "write");
     expect(w[1]).toMatchObject({ model: "fleet.vehicle.log.services", args: [[4358], { state: "cancelled" }] });
     expect(w[2]).toMatchObject({ model: "fleet.vehicle", args: [[82], { state_id: 1 }] });
+  });
+
+  it("orden sin chofer: le pone el que tenía la moto en la fecha de la orden; si nunca tuvo, ninguno", async () => {
+    const t = armar({ sinChofer: true, asignaciones: [{ driver_id: [1410, "Cristhian"], date_start: "2026-10-25" }, { driver_id: [2497, "Octavio"], date_start: "2026-10-01" }] });
+    await ejecutarFinalizacion(t.estado, t.deps);
+    expect(t.escrituras()[0].args[1]).toMatchObject({ purchaser_id: 2497 });
+    const nunca = armar({ sinChofer: true });
+    await ejecutarFinalizacion(nunca.estado, nunca.deps);
+    expect(nunca.escrituras()[0].args[1]).not.toHaveProperty("purchaser_id");
+  });
+
+  it("orden con chofer: no consulta el historial ni lo cambia", async () => {
+    const t = armar({ asignaciones: [{ driver_id: [1410, "Cristhian"], date_start: "2026-10-01" }] });
+    await ejecutarFinalizacion(t.estado, t.deps);
+    expect(t.llamadas.some((l) => l.model === "fleet.vehicle.assignation.log")).toBe(false);
+    expect(t.escrituras()[0].args[1]).not.toHaveProperty("purchaser_id");
   });
 
   it("moto con chofer: pasa a Listo para verificar sin tocar el vehículo", async () => {

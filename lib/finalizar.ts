@@ -1,5 +1,6 @@
 // Finalización por pasos. Cada paso se marca al terminar; un reintento sigue desde el que falló.
 import type { Many2one, OdooClient } from "./odoo";
+import { choferQueCorresponde } from "./chofer-orden";
 import {
   MODELO_ORDEN,
   MODELO_VEHICULO,
@@ -85,7 +86,7 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
   const f = { ...fin };
 
   const [orden] = await odoo.read<OrdenOdoo>(MODELO_ORDEN, [f.ordenId], [
-    "id", "vehicle_id", "service_type_id", "description", "state", "purchaser_id", "vendor_id", "total_products_cost",
+    "id", "vehicle_id", "service_type_id", "description", "state", "purchaser_id", "vendor_id", "total_products_cost", "date",
   ]);
   if (!orden || !orden.vehicle_id) throw new FinalizarError("lectura", "La orden no existe en Odoo");
   const [vehiculo] = await odoo.searchRead<VehiculoOdoo>(
@@ -121,10 +122,13 @@ export async function ejecutarFinalizacion(fin: EstadoFinalizacion, deps: Deps):
 
   if (!f.camposOk) {
     await paso("campos", async () => {
-      const vals = payloadCamposFinalizar(orden as OrdenOdoo, vehiculo, {
+      // Orden sin chofer: el que tenía la moto en la fecha de la orden; si nunca tuvo, queda vacío.
+      const choferId = orden.purchaser_id ? null : await choferQueCorresponde(odoo, vehiculo.id, (orden as OrdenOdoo).date ?? false);
+      const vals = payloadCamposFinalizar(orden as OrdenOdoo, {
         odometro: f.odometro,
         partnerMecanico: deps.mecanico.partnerId,
         observacion: f.observacion,
+        choferId,
       }, config.hoy);
       await odoo.write(MODELO_ORDEN, [f.ordenId], vals);
       return { camposOk: true };

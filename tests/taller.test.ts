@@ -11,6 +11,7 @@ import {
   ESTADO_AL_REPORTAR,
   hoyAsuncion,
   mensajeTelegramFinalizado,
+  choferEnFecha,
   payloadCamposFinalizar,
   textoOdometro,
   payloadNotaFinalizacion,
@@ -70,33 +71,33 @@ describe("dominio de órdenes en proceso", () => {
 describe("payload de campos al finalizar", () => {
   it("escribe odómetro, mecánico, costo = repuestos y fecha de fin", () => {
     expect(
-      payloadCamposFinalizar(orden(), vehiculo(), { odometro: 15230, partnerMecanico: 77, observacion: "" }, "2026-10-24"),
+      payloadCamposFinalizar(orden(), { odometro: 15230, partnerMecanico: 77, observacion: "", choferId: null }, "2026-10-24"),
     ).toEqual({ odometer: 15230, amount: 327500, service_end_date: "2026-10-24", vendor_id: 77 });
   });
 
-  it("completa el chofer desde el vehículo si la orden no lo tenía", () => {
-    const vals = payloadCamposFinalizar(orden(), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: null, observacion: "" }, "2026-10-24");
+  it("completa el chofer que corresponde si la orden no lo tenía", () => {
+    const vals = payloadCamposFinalizar(orden(), { odometro: 1, partnerMecanico: null, observacion: "", choferId: 2560 }, "2026-10-24");
     expect(vals.purchaser_id).toBe(2560);
     expect(vals).not.toHaveProperty("vendor_id");
   });
 
   it("si la orden no tenía mecánico, queda asignada al que reporta", () => {
-    const vals = payloadCamposFinalizar(orden({ vendor_id: false }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "" }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden({ vendor_id: false }), { odometro: 1, partnerMecanico: 1685, observacion: "", choferId: null }, "2026-10-24");
     expect(vals.vendor_id).toBe(1685);
   });
 
   it("si la orden ya tenía mecánico asignado, no lo cambia", () => {
-    const vals = payloadCamposFinalizar(orden({ vendor_id: [2068, "Kevin"] }), vehiculo(), { odometro: 1, partnerMecanico: 1685, observacion: "" }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden({ vendor_id: [2068, "Kevin"] }), { odometro: 1, partnerMecanico: 1685, observacion: "", choferId: null }, "2026-10-24");
     expect(vals).not.toHaveProperty("vendor_id");
   });
 
   it("no pisa el chofer que ya tenía la orden", () => {
-    const vals = payloadCamposFinalizar(orden({ purchaser_id: [1, "Otro"] }), vehiculo({ driver_id: [2560, "Elias"] }), { odometro: 1, partnerMecanico: 5, observacion: "" }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden({ purchaser_id: [1, "Otro"] }), { odometro: 1, partnerMecanico: 5, observacion: "", choferId: 2560 }, "2026-10-24");
     expect(vals).not.toHaveProperty("purchaser_id");
   });
 
   it("costo 0 cuando no hay repuestos", () => {
-    expect(payloadCamposFinalizar(orden({ total_products_cost: 0 }), vehiculo(), { odometro: 1, partnerMecanico: 5, observacion: "" }, "x").amount).toBe(0);
+    expect(payloadCamposFinalizar(orden({ total_products_cost: 0 }), { odometro: 1, partnerMecanico: 5, observacion: "", choferId: null }, "x").amount).toBe(0);
   });
 });
 
@@ -224,9 +225,27 @@ describe("antigüedad del chofer como cliente", () => {
   });
 });
 
+describe("chofer que corresponde a una orden sin chofer", () => {
+  const asig = [
+    { driver_id: [1410, "Cristhian"] as [number, string], date_start: "2026-10-20" },
+    { driver_id: [2497, "Octavio"] as [number, string], date_start: "2026-10-01" },
+    { driver_id: [1665, "Rodrigo"] as [number, string], date_start: "2026-03-31" },
+  ];
+  it("el de la última asignación que empezó el día de la orden o antes", () => {
+    expect(choferEnFecha(asig, "2026-10-29")).toBe(1410);
+    expect(choferEnFecha(asig, "2026-10-20")).toBe(1410);
+    expect(choferEnFecha(asig, "2026-10-19")).toBe(2497);
+  });
+  it("si nunca tuvo chofer (o todos empezaron después), ninguno", () => {
+    expect(choferEnFecha([], "2026-10-29")).toBeNull();
+    expect(choferEnFecha(asig, "2026-01-01")).toBeNull();
+    expect(choferEnFecha([{ driver_id: false, date_start: "2026-01-01" }], "2026-10-29")).toBeNull();
+  });
+});
+
 describe("odómetro 0 (sin dato)", () => {
   it("no escribe el odómetro en Odoo y la nota dice «sin odómetro»", () => {
-    const vals = payloadCamposFinalizar(orden(), vehiculo(), { odometro: 0, partnerMecanico: null, observacion: "" }, "2026-10-24");
+    const vals = payloadCamposFinalizar(orden(), { odometro: 0, partnerMecanico: null, observacion: "", choferId: null }, "2026-10-24");
     expect(vals).not.toHaveProperty("odometer");
     expect(textoOdometro(0)).toBe("sin odómetro");
     expect(textoOdometro(15230)).toBe("15.230 km");

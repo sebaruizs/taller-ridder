@@ -4,7 +4,7 @@ import { mensajeTelegramVerificado, payloadNotaVerificacion } from "@/lib/taller
 
 type Linea = { id: number; product_id: [number, string]; quantity: number; unit_cost: number; total_cost: number };
 
-function armar(opts: { estado?: string; lineas?: Linea[]; fallar?: (method: string) => boolean } = {}) {
+function armar(opts: { estado?: string; lineas?: Linea[]; chofer?: [number, string] | false; asignaciones?: { driver_id: [number, string]; date_start: string }[]; fallar?: (method: string) => boolean } = {}) {
   let lineas = [...(opts.lineas ?? [])];
   let sig = 900;
   const llamadas: { method: string; model: string; args: unknown[] }[] = [];
@@ -16,11 +16,12 @@ function armar(opts: { estado?: string; lineas?: Linea[]; fallar?: (method: stri
   const odoo: OdooVerificar = {
     read: vi.fn(async (model: string, ids: number[]) => {
       reg("read", model, ids);
-      return [{ id: 4132, state: opts.estado ?? "cancelled", vehicle_id: [82, "Kenton/GTR150 LTD/472ABSN"], service_type_id: [23, "Mantenimiento"], total_products_cost: total() }];
+      return [{ id: 4132, state: opts.estado ?? "cancelled", vehicle_id: [82, "Kenton/GTR150 LTD/472ABSN"], service_type_id: [23, "Mantenimiento"], total_products_cost: total(), purchaser_id: opts.chofer ?? [2560, "Elias"], date: "2026-10-20" }];
     }) as never,
     searchRead: vi.fn(async (model: string, domain: unknown) => {
       reg("searchRead", model, domain);
       if (model === "product.product") return [{ id: 46, display_name: "Foco H4 - Narva" }];
+      if (model === "fleet.vehicle.assignation.log") return opts.asignaciones ?? [];
       return lineas;
     }) as never,
     create: vi.fn(async (model: string, vals: Record<string, unknown>) => {
@@ -93,6 +94,15 @@ describe("aprobar", () => {
     expect(nota.body).toContain("2 × Foco H4 - Narva — Gs. 40.000");
     expect(t.llamadas.some((l) => l.method === "telegram" && l.model === "TALLER")).toBe(true);
     expect(r).toMatchObject({ chapa: "472ABSN", avisos: [] });
+  });
+
+  it("si la orden llegó sin chofer, le pone el que corresponde a la fecha; si nunca tuvo, queda vacío", async () => {
+    const t = armar({ lineas: [foco], chofer: false, asignaciones: [{ driver_id: [1410, "Cristhian"], date_start: "2026-10-05" }] });
+    await aprobarOrden(t.deps, 4132, false);
+    expect(t.llamadas.find((l) => l.method === "write")!.args[1]).toEqual({ amount: 40000, state: "done", purchaser_id: 1410 });
+    const nunca = armar({ lineas: [foco], chofer: false });
+    await aprobarOrden(nunca.deps, 4132, false);
+    expect(nunca.llamadas.find((l) => l.method === "write")!.args[1]).toEqual({ amount: 40000, state: "done" });
   });
 
   it("sin repuestos exige confirmación explícita", async () => {

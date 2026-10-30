@@ -3,6 +3,7 @@ import type { Domain, Many2one } from "./odoo";
 
 export const MODELO_ORDEN = "fleet.vehicle.log.services";
 export const MODELO_VEHICULO = "fleet.vehicle";
+export const MODELO_ASIGNACION = "fleet.vehicle.assignation.log";
 
 export const ESTADOS = {
   running: "En proceso",
@@ -144,18 +145,30 @@ export type DatosFinalizar = {
   odometro: number;
   partnerMecanico: number | null;
   observacion: string;
+  /** El chofer que tenía la moto en la fecha de la orden (choferEnFecha); null si nunca tuvo. */
+  choferId: number | null;
 };
+
+// El chofer que corresponde a una orden sin chofer: el de la última asignación de la moto que empezó el día
+// de la orden o antes. null si nunca tuvo: la orden queda sin chofer. (Antes lo hacía n8n, «Asignar chofer a moto sin chofer».)
+export type AsignacionChofer = { driver_id: Many2one; date_start: string | false };
+export function choferEnFecha(asignaciones: AsignacionChofer[], fecha: string | false): number | null {
+  const hasta = fecha ? fecha.slice(0, 10) : "9999-12-31";
+  const validas = asignaciones.filter((a) => a.driver_id && a.date_start && a.date_start.slice(0, 10) <= hasta);
+  validas.sort((a, b) => (b.date_start as string).localeCompare(a.date_start as string));
+  return validas[0]?.driver_id ? validas[0].driver_id[0] : null;
+}
 
 // Paso 1: odómetro, costo = repuestos, fecha de fin; mecánico y chofer solo si faltaban.
 // Odómetro 0 = sin dato: no se escribe (Odoo no deja vaciar el odómetro del servicio).
-export function payloadCamposFinalizar(orden: OrdenOdoo, vehiculo: VehiculoOdoo, datos: DatosFinalizar, hoy: string) {
+export function payloadCamposFinalizar(orden: OrdenOdoo, datos: DatosFinalizar, hoy: string) {
   const vals: Record<string, unknown> = {
     ...(datos.odometro > 0 ? { odometer: datos.odometro } : {}),
     amount: orden.total_products_cost || 0,
     service_end_date: hoy,
   };
   if (!orden.vendor_id && datos.partnerMecanico) vals.vendor_id = datos.partnerMecanico;
-  if (!orden.purchaser_id && vehiculo.driver_id) vals.purchaser_id = vehiculo.driver_id[0];
+  if (!orden.purchaser_id && datos.choferId) vals.purchaser_id = datos.choferId;
   return vals;
 }
 
