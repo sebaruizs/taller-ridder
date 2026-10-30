@@ -427,6 +427,8 @@ textarea.input { min-height: 110px; resize: vertical; }
 .lineas-opciones button { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; background: none; border: 0; border-bottom: 1px solid var(--line); font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .lineas-opciones button:hover { background: var(--surface-2); }
 .lineas-opciones > span { padding: 8px 10px; }
+.lineas-opciones .lineas-crear { color: var(--ridder); font-weight: 600; border-bottom: 0; }
+.lineas-producto-nuevo { margin-top: 10px; border-color: var(--ridder); }
 .lineas-total { text-align: right; padding-top: 10px; }
 .lineas-caja .tabla-scroll { overflow: visible; }
 @media (max-width: 1023px) { .lineas-caja .tabla-scroll { overflow-x: auto; } }

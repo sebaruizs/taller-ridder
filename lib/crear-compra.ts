@@ -1,6 +1,7 @@
 // Compra nueva en Odoo: crear → confirmar → (opcional) recibir. Se puede reintentar sin duplicar.
-import type { OdooClient } from "./odoo";
+import type { Domain, Many2one, OdooClient } from "./odoo";
 import { conAutor } from "./taller";
+import { ProductoDuplicado, type ProductoExistente } from "./crear-producto";
 import { origenApp, payloadCompra, payloadNotaCompra, payloadNotaRecepcion, type DatosCompra } from "./compras-dominio";
 
 export type OdooCompras = Pick<OdooClient, "searchRead" | "create" | "boton" | "messagePost">;
@@ -78,4 +79,55 @@ export async function crearCompra(d: DatosCompra, odoo: OdooCompras, autor: Auto
     }
   }
   return { compraId: compra.id, numero: compra.name, recibida, avisos };
+}
+
+// Productos para cargar en una compra, con el último precio pagado (o el costo si nunca se compró).
+export async function productosCompra(odoo: Pick<OdooClient, "searchRead">, domain: Domain, limit = 15) {
+  const productos = await odoo.searchRead<{ id: number; display_name: string; standard_price: number; qty_available: number; uom_po_id: Many2one }>(
+    "product.product",
+    [...domain, ["purchase_ok", "=", true], ["active", "=", true]],
+    ["id", "display_name", "standard_price", "qty_available", "uom_po_id"],
+    { limit, order: "name asc", context: { lang: "es_419" } },
+  );
+  if (!productos.length) return [];
+  const ultimas = await odoo.searchRead<{ product_id: Many2one; price_unit: number }>(
+    "purchase.order.line",
+    [["product_id", "in", productos.map((p) => p.id)], ["state", "in", ["purchase", "done"]]],
+    ["product_id", "price_unit"],
+    { limit: 200, order: "id desc" },
+  );
+  const ultimoPrecio = new Map<number, number>();
+  for (const l of ultimas) if (l.product_id && !ultimoPrecio.has(l.product_id[0])) ultimoPrecio.set(l.product_id[0], l.price_unit);
+  return productos.map((p) => ({
+    id: p.id,
+    nombre: p.display_name,
+    precio: ultimoPrecio.get(p.id) ?? p.standard_price,
+    precioOrigen: ultimoPrecio.has(p.id) ? "última compra" : "costo",
+    stock: p.qty_available,
+    unidad: p.uom_po_id ? p.uom_po_id[1] : null,
+  }));
+}
+
+export type ProductoCompra = Awaited<ReturnType<typeof productosCompra>>[number];
+
+export type ProductoNuevoEnCompra =
+  | { creado: true; producto: ProductoCompra; avisos: string[] }
+  | { creado: false; existentes: ProductoExistente[]; productos: ProductoCompra[] };
+
+// Alta de un producto desde «Nueva compra»: lo devuelve listo para agregar como línea.
+// Si ya existe, devuelve los existentes que se pueden comprar para agregarlos en su lugar.
+export async function productoNuevoEnCompra(
+  crear: () => Promise<{ productoId: number; avisos: string[] }>,
+  odoo: Pick<OdooClient, "searchRead">,
+): Promise<ProductoNuevoEnCompra> {
+  try {
+    const { productoId, avisos } = await crear();
+    const [producto] = await productosCompra(odoo, [["id", "=", productoId]], 1);
+    if (!producto) throw new CompraInvalida("El producto se creó pero Odoo no lo deja comprar. Revisalo en Inventario.");
+    return { creado: true, producto, avisos };
+  } catch (e) {
+    if (!(e instanceof ProductoDuplicado)) throw e;
+    const ids = e.existentes.map((p) => p.id);
+    return { creado: false, existentes: e.existentes, productos: await productosCompra(odoo, [["id", "in", ids]], ids.length) };
+  }
 }

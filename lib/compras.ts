@@ -2,6 +2,7 @@ import "server-only";
 import { odoo, type Many2one } from "./odoo";
 import { POR_PAGINA_COMPRAS, dominioCompras, type FiltroRecepcion } from "./compras-dominio";
 import { hoyAsuncion } from "./taller";
+import { productosCompra } from "./crear-compra";
 
 type CompraOdoo = {
   id: number;
@@ -129,31 +130,8 @@ export async function detalleCompra(id: number) {
 
 export type DetalleCompra = NonNullable<Awaited<ReturnType<typeof detalleCompra>>>;
 
-// Productos para cargar en una compra, con el último precio pagado (o el costo si nunca se compró).
-export async function buscarProductosCompra(q: string) {
-  const productos = await odoo.searchRead<{ id: number; display_name: string; standard_price: number; qty_available: number; uom_po_id: Many2one }>(
-    "product.product",
-    ["|", ["name", "ilike", q], ["default_code", "ilike", q], ["purchase_ok", "=", true], ["active", "=", true]],
-    ["id", "display_name", "standard_price", "qty_available", "uom_po_id"],
-    { limit: 15, order: "name asc", context: { lang: "es_419" } },
-  );
-  if (!productos.length) return [];
-  const ultimas = await odoo.searchRead<{ product_id: Many2one; price_unit: number }>(
-    "purchase.order.line",
-    [["product_id", "in", productos.map((p) => p.id)], ["state", "in", ["purchase", "done"]]],
-    ["product_id", "price_unit"],
-    { limit: 200, order: "id desc" },
-  );
-  const ultimoPrecio = new Map<number, number>();
-  for (const l of ultimas) if (l.product_id && !ultimoPrecio.has(l.product_id[0])) ultimoPrecio.set(l.product_id[0], l.price_unit);
-  return productos.map((p) => ({
-    id: p.id,
-    nombre: p.display_name,
-    precio: ultimoPrecio.get(p.id) ?? p.standard_price,
-    precioOrigen: ultimoPrecio.has(p.id) ? "última compra" : "costo",
-    stock: p.qty_available,
-    unidad: p.uom_po_id ? p.uom_po_id[1] : null,
-  }));
-}
+export type { ProductoCompra } from "./crear-compra";
 
-export type ProductoCompra = Awaited<ReturnType<typeof buscarProductosCompra>>[number];
+export function buscarProductosCompra(q: string) {
+  return productosCompra(odoo, ["|", ["name", "ilike", q], ["default_code", "ilike", q]]);
+}

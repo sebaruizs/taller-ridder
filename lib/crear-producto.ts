@@ -1,4 +1,5 @@
 // Alta de productos en Odoo desde Inventario. Sin estado propio: todo queda en Odoo.
+import { z } from "zod";
 import type { Domain, Many2one, OdooClient } from "./odoo";
 import { NOTA_INTERNA, conAutor, escaparHtml } from "./taller";
 
@@ -10,6 +11,16 @@ export type DatosProducto = {
   precio: number;
   proveedorId: number | null;
 };
+
+// Lo que llega del formulario de alta (Inventario y «Nueva compra»).
+export const esquemaProducto = z.object({
+  nombre: z.string().trim().min(3, "Escribí el nombre del producto").max(120),
+  categoriaId: z.number({ error: "Elegí la categoría" }).int().positive("Elegí la categoría"),
+  codigo: z.string().trim().max(40).nullable().default(null),
+  costo: z.number({ error: "Ingresá el costo" }).min(0, "El costo no puede ser negativo").max(1_000_000_000),
+  precio: z.number({ error: "Ingresá el precio de venta" }).min(0, "El precio no puede ser negativo").max(1_000_000_000),
+  proveedorId: z.number().int().positive().nullable().default(null),
+});
 
 // Configuración que se copia del último producto cargado (impuestos, ruta de compra, facturación).
 export type Plantilla = {

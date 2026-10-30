@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { dominioCompras, origenApp, payloadCompra, payloadNotaCompra, type DatosCompra } from "@/lib/compras-dominio";
-import { CompraInvalida, crearCompra, recibirCompra, type OdooCompras } from "@/lib/crear-compra";
+import { CompraInvalida, crearCompra, productoNuevoEnCompra, productosCompra, recibirCompra, type OdooCompras } from "@/lib/crear-compra";
+import { ProductoDuplicado, crearProducto, type DepsProducto } from "@/lib/crear-producto";
+import { puedeU } from "@/lib/permisos";
 
 const datos = (d: Partial<DatosCompra> = {}): DatosCompra => ({
   clave: "11111111-1111-4111-8111-111111111111",
@@ -118,5 +120,90 @@ describe("compras: alta en Odoo", () => {
   it("recibir una compra ya recibida da error claro", async () => {
     const t = armar({ existente: { state: "purchase", receipt_status: "full" } });
     await expect(recibirCompra(t.odoo, 120, autor)).rejects.toThrow("No hay nada pendiente de recibir");
+  });
+});
+
+// Odoo de solo lectura para los productos de una compra: product.product y las últimas líneas compradas.
+function lectura(productos: { id: number; display_name: string; standard_price: number; uom_po_id: [number, string] | false }[], ultimas: { product_id: [number, string]; price_unit: number }[] = []) {
+  const llamadas: { model: string; domain: unknown }[] = [];
+  const odoo = {
+    searchRead: vi.fn(async (model: string, domain: unknown) => {
+      llamadas.push({ model, domain });
+      if (model === "product.product") {
+        const id = (domain as unknown[]).find((c) => Array.isArray(c) && c[0] === "id") as [string, string, number | number[]] | undefined;
+        const ids = id ? ([] as number[]).concat(id[2]) : null;
+        return productos.filter((p) => !ids || ids.includes(p.id)).map((p) => ({ ...p, qty_available: 0 }));
+      }
+      if (model === "purchase.order.line") return ultimas;
+      return [];
+    }) as never,
+  };
+  return { odoo, llamadas };
+}
+
+const NUEVO = { id: 901, display_name: "Pastilla de freno - GTR", standard_price: 35000, uom_po_id: [1, "Unidades"] as [number, string] };
+
+describe("compras: productos", () => {
+  it("busca solo productos activos que se pueden comprar, con el último precio pagado", async () => {
+    const t = lectura([NUEVO, { ...NUEVO, id: 902, display_name: "Pastilla de freno - Leopard" }], [{ product_id: [902, "x"], price_unit: 30000 }]);
+    const r = await productosCompra(t.odoo, ["|", ["name", "ilike", "pastilla"], ["default_code", "ilike", "pastilla"]]);
+    expect(t.llamadas[0].domain).toEqual(["|", ["name", "ilike", "pastilla"], ["default_code", "ilike", "pastilla"], ["purchase_ok", "=", true], ["active", "=", true]]);
+    expect(r).toEqual([
+      { id: 901, nombre: "Pastilla de freno - GTR", precio: 35000, precioOrigen: "costo", stock: 0, unidad: "Unidades" },
+      { id: 902, nombre: "Pastilla de freno - Leopard", precio: 30000, precioOrigen: "última compra", stock: 0, unidad: "Unidades" },
+    ]);
+  });
+});
+
+describe("compras: crear producto nuevo sin salir de la compra", () => {
+  it("lo crea y lo devuelve listo para agregar como línea, con el costo como precio", async () => {
+    const t = lectura([NUEVO]);
+    const r = await productoNuevoEnCompra(async () => ({ productoId: 901, avisos: [] }), t.odoo);
+    expect(r).toEqual({ creado: true, avisos: [], producto: { id: 901, nombre: "Pastilla de freno - GTR", precio: 35000, precioOrigen: "costo", stock: 0, unidad: "Unidades" } });
+  });
+
+  it("con el alta real: el proveedor de la compra queda cargado en el producto", async () => {
+    const creados: { model: string; vals: Record<string, unknown> }[] = [];
+    const deps: DepsProducto = {
+      odoo: {
+        searchRead: vi.fn(async (model: string) => (model === "product.category" ? [{ id: 9 }] : model === "res.partner" ? [{ id: 2376, name: "Chacomer" }] : [])) as never,
+        read: vi.fn(async () => [{ product_tmpl_id: [900, "x"] }]) as never,
+        create: vi.fn(async (model: string, vals: Record<string, unknown>) => { creados.push({ model, vals }); return model === "product.product" ? 901 : 1; }),
+        messagePost: vi.fn(async () => 1),
+      },
+      autor: "Derlis",
+    };
+    const datosProducto = { nombre: "Pastilla de freno - GTR", categoriaId: 9, codigo: null, costo: 35000, precio: 40000, proveedorId: 2376 };
+    const r = await productoNuevoEnCompra(() => crearProducto(datosProducto, deps), lectura([NUEVO]).odoo);
+    expect(r.creado && r.producto.id).toBe(901);
+    expect(creados.map((c) => c.model)).toEqual(["product.product", "product.supplierinfo"]);
+    expect(creados[0].vals).toMatchObject({ purchase_ok: true, standard_price: 35000, list_price: 40000 });
+    expect(creados[1].vals).toEqual({ product_tmpl_id: 900, partner_id: 2376, price: 35000, min_qty: 1 });
+  });
+
+  it("si ya existe, ofrece agregar el existente que se puede comprar en vez de duplicarlo", async () => {
+    const existentes = [
+      { id: 901, nombre: "Pastilla de freno - GTR", codigo: null },
+      { id: 950, nombre: "Pastilla de freno - GTR (vieja)", codigo: null },
+    ];
+    const t = lectura([NUEVO]);
+    const r = await productoNuevoEnCompra(async () => { throw new ProductoDuplicado(existentes); }, t.odoo);
+    expect(r).toEqual({ creado: false, existentes, productos: [expect.objectContaining({ id: 901, precio: 35000 })] });
+    expect(t.llamadas[0].domain).toEqual([["id", "in", [901, 950]], ["purchase_ok", "=", true], ["active", "=", true]]);
+  });
+
+  it("si el producto creado no se puede comprar, da un error claro", async () => {
+    await expect(productoNuevoEnCompra(async () => ({ productoId: 999, avisos: [] }), lectura([]).odoo)).rejects.toThrow("no lo deja comprar");
+  });
+
+  it("otros errores del alta se propagan", async () => {
+    await expect(productoNuevoEnCompra(async () => { throw new Error("Odoo caído"); }, lectura([]).odoo)).rejects.toThrow("Odoo caído");
+  });
+
+  it("solo puede crear productos desde la compra quien también tiene «Crear productos»", () => {
+    expect(puedeU({ rol: "jefe" }, "compras.crear") && puedeU({ rol: "jefe" }, "inventario.crear")).toBe(true);
+    const sinCrear = { rol: "jefe" as const, permisosOff: ["crear_productos"] };
+    expect(puedeU(sinCrear, "compras.crear")).toBe(true);
+    expect(puedeU(sinCrear, "inventario.crear")).toBe(false);
   });
 });

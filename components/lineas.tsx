@@ -15,12 +15,15 @@ export function BuscadorProducto<T extends { id: number; nombre: string }>({
   alElegir,
   alCerrar,
   vacio = "No hay productos con ese nombre.",
+  extra,
 }: {
   url: (q: string) => string;
   detalle: (p: T) => React.ReactNode;
   alElegir: (p: T) => void;
   alCerrar: () => void;
   vacio?: string;
+  // Opción al final de la lista (por ejemplo «Crear producto nuevo»), con lo que se buscó.
+  extra?: (q: string) => React.ReactNode;
 }) {
   const [q, setQ] = useState("");
   const [resultados, setResultados] = useState<{ q: string; lista: T[] } | null>(null);
@@ -62,6 +65,7 @@ export function BuscadorProducto<T extends { id: number; nombre: string }>({
               <span className="small muted">{detalle(p)}</span>
             </button>
           ))}
+          {extra?.(busqueda)}
         </div>
       )}
     </div>
