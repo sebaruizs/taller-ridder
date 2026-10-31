@@ -17,6 +17,7 @@ import {
   payloadNotaFinalizacion,
   payloadNuevaOrden,
   payloadNotaNuevaOrden,
+  payloadNotaRepuesto,
   mensajeTelegramNuevaOrden,
   type OrdenOdoo,
   type VehiculoOdoo,
@@ -249,5 +250,16 @@ describe("odómetro 0 (sin dato)", () => {
     expect(vals).not.toHaveProperty("odometer");
     expect(textoOdometro(0)).toBe("sin odómetro");
     expect(textoOdometro(15230)).toBe("15.230 km");
+  });
+});
+
+describe("nota de repuestos", () => {
+  it("dice quién agregó, quitó o cambió el repuesto, sin empezar con el nombre", () => {
+    const agregar = payloadNotaRepuesto("Sebastián", { tipo: "agregar", producto: "Aceite 20w50", cantidad: 2, costoUnitario: 27500 }).body;
+    expect(agregar).toMatch(/^<p>Repuesto agregado por <b>Sebastián<\/b>: Aceite 20w50, 2 × .*27\.500 = .*55\.000 \(app del taller\)\.<\/p>$/);
+    expect(payloadNotaRepuesto("Derlis", { tipo: "quitar", producto: "Filtro", cantidad: 1, costoUnitario: 10000 }).body).toContain("Repuesto quitado por <b>Derlis</b>: Filtro");
+    const editar = payloadNotaRepuesto("Derlis", { tipo: "editar", producto: "Filtro", antes: { cantidad: 1, costoUnitario: 10000 }, despues: { cantidad: 2, costoUnitario: 9000 } }).body;
+    expect(editar).toContain("Repuesto cambiado por <b>Derlis</b>: Filtro, 1 × ");
+    expect(editar).toContain(" → 2 × ");
   });
 });

@@ -255,6 +255,27 @@ export function payloadNotaVerificacion(p: { autor: string; lineas: LineaRepuest
   };
 }
 
+// Quién cargó, quitó o cambió un repuesto: Odoo solo registra el cambio de costo a nombre del usuario de la API.
+// Empieza con «Repuesto…» y no con el nombre, para que no se confunda con el reporte del mecánico.
+type CambioRepuesto =
+  | { tipo: "agregar"; producto: string; cantidad: number; costoUnitario: number }
+  | { tipo: "quitar"; producto: string; cantidad: number; costoUnitario: number }
+  | { tipo: "editar"; producto: string; antes: { cantidad: number; costoUnitario: number }; despues: { cantidad: number; costoUnitario: number } };
+
+const lineaTexto = (l: { cantidad: number; costoUnitario: number }) => `${cantidadTexto(l.cantidad)} × ${formatoGs(l.costoUnitario)}`;
+
+export function payloadNotaRepuesto(autor: string, c: CambioRepuesto) {
+  const quien = `<b>${escaparHtml(autor)}</b>`;
+  const producto = escaparHtml(c.producto);
+  const texto =
+    c.tipo === "agregar"
+      ? `Repuesto agregado por ${quien}: ${producto}, ${lineaTexto(c)} = ${formatoGs(c.cantidad * c.costoUnitario)}`
+      : c.tipo === "quitar"
+        ? `Repuesto quitado por ${quien}: ${producto}, ${lineaTexto(c)}`
+        : `Repuesto cambiado por ${quien}: ${producto}, ${lineaTexto(c.antes)} → ${lineaTexto(c.despues)}`;
+  return { body: `<p>${texto} (app del taller).</p>`, ...NOTA_INTERNA };
+}
+
 export function mensajeTelegramVerificado(p: { autor: string; chapa: string; tipo: string | null; lineas: LineaRepuesto[] }): string {
   const lineas = p.lineas.length
     ? p.lineas.map((l) => `• ${cantidadTexto(l.cantidad)} × ${l.producto}`).join("\n")

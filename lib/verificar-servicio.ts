@@ -3,7 +3,7 @@ import { odoo } from "./odoo";
 import { env } from "./env";
 import { enviarTelegram } from "./telegram";
 import { registrar, type Usuario } from "./auth";
-import { formatoGs, totalRepuestos } from "./taller";
+import { MODELO_ORDEN, conAutor, formatoGs, payloadNotaRepuesto, totalRepuestos } from "./taller";
 import { NoVerificable, agregarRepuesto, aprobarOrden, editarRepuesto, quitarRepuesto } from "./verificar";
 
 export type ProductoOdoo = { id: number; nombre: string; costo: number; unidad: string | null };
@@ -16,6 +16,15 @@ export async function buscarProductos(q: string): Promise<ProductoOdoo[]> {
     { limit: 15, order: "name asc", context: { lang: "es_419" } },
   );
   return filas.map((p) => ({ id: p.id, nombre: p.display_name, costo: p.standard_price || 0, unidad: p.uom_id ? p.uom_id[1] : null }));
+}
+
+// La nota no es crítica: si falla, el repuesto queda cargado igual.
+async function notaRepuesto(ordenId: number, u: Usuario, cambio: Parameters<typeof payloadNotaRepuesto>[1]) {
+  try {
+    await odoo.messagePost(MODELO_ORDEN, ordenId, conAutor(payloadNotaRepuesto(u.nombre, cambio), u.odooPartnerId));
+  } catch (e) {
+    console.error("No se pudo publicar la nota del repuesto", e);
+  }
 }
 
 // Una operación a la vez por orden: evita repuestos duplicados por doble toque.
@@ -34,6 +43,7 @@ async function conCandado<T>(ordenId: number, fn: () => Promise<T>): Promise<T> 
 export function agregarRepuestoComo(ordenId: number, datos: { productoId: number; cantidad: number; costoUnitario: number }, u: Usuario) {
   return conCandado(ordenId, async () => {
     const r = await agregarRepuesto(odoo, ordenId, datos);
+    await notaRepuesto(ordenId, u, { tipo: "agregar", producto: r.producto, cantidad: datos.cantidad, costoUnitario: datos.costoUnitario });
     await registrar(u.id, "orden.repuesto_agregar", { ordenId, detalle: { ...datos, producto: r.producto } });
     return r.lineas;
   });
@@ -42,6 +52,7 @@ export function agregarRepuestoComo(ordenId: number, datos: { productoId: number
 export function quitarRepuestoComo(ordenId: number, lineaId: number, u: Usuario) {
   return conCandado(ordenId, async () => {
     const r = await quitarRepuesto(odoo, ordenId, lineaId);
+    await notaRepuesto(ordenId, u, { tipo: "quitar", producto: r.quitada.producto, cantidad: r.quitada.cantidad, costoUnitario: r.quitada.costoUnitario });
     await registrar(u.id, "orden.repuesto_quitar", { ordenId, detalle: { ...r.quitada } });
     return r.lineas;
   });
@@ -50,6 +61,7 @@ export function quitarRepuestoComo(ordenId: number, lineaId: number, u: Usuario)
 export function editarRepuestoComo(ordenId: number, lineaId: number, datos: { cantidad: number; costoUnitario: number }, u: Usuario) {
   return conCandado(ordenId, async () => {
     const r = await editarRepuesto(odoo, ordenId, lineaId, datos);
+    await notaRepuesto(ordenId, u, { tipo: "editar", producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos });
     await registrar(u.id, "orden.repuesto_editar", {
       ordenId,
       detalle: { lineaId, producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos },
