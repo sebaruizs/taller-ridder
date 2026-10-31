@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { OrdenLista } from "@/lib/ordenes";
+import { MOVIMIENTOS } from "@/lib/taller";
 import { ContenidoTarjetaOrden, useGps } from "@/components/tarjeta-orden";
 
 const COLUMNAS = [
@@ -16,17 +17,23 @@ const COLUMNAS = [
 type Estado = (typeof COLUMNAS)[number]["estado"];
 type Columna = { ordenes: OrdenLista[]; total: number; pagina: number; porPagina: number; cargando: boolean; error: string | null };
 
-// Movimientos posibles. Nuevo → En proceso y En proceso ↔ Bloqueado son directos; los otros dos
-// abren el formulario que hace el cambio (el reporte del mecánico y la verificación con repuestos).
-const DESTINOS: Partial<Record<Estado, { a: Estado; texto: string }[]>> = {
-  new: [{ a: "running", texto: "Soltá para pasar a En proceso" }],
-  running: [
-    { a: "cancelled", texto: "Soltá para cargar el reporte del trabajo" },
-    { a: "to_be_paid", texto: "Soltá para bloquear" },
-  ],
-  to_be_paid: [{ a: "running", texto: "Soltá para volver a En proceso" }],
-  cancelled: [{ a: "done", texto: "Soltá para verificar y cargar repuestos" }],
+// Movimientos posibles: los directos (lib/taller, también volver atrás) y los dos que abren un formulario
+// (el reporte del mecánico y la verificación con repuestos).
+const TEXTO_DESTINO: Partial<Record<Estado, string>> = {
+  new: "Soltá para volver a Nuevo",
+  to_be_paid: "Soltá para bloquear",
+  running: "Soltá para pasar a En proceso",
 };
+const DESTINOS = Object.fromEntries(
+  COLUMNAS.map(({ estado: de }) => [
+    de,
+    [
+      ...(MOVIMIENTOS[de] ?? []).map((a) => ({ a: a as Estado, texto: TEXTO_DESTINO[a as Estado] ?? `Soltá para pasar a ${a}` })),
+      ...(de === "running" ? [{ a: "cancelled" as Estado, texto: "Soltá para cargar el reporte del trabajo" }] : []),
+      ...(de === "cancelled" ? [{ a: "done" as Estado, texto: "Soltá para verificar y cargar repuestos" }] : []),
+    ],
+  ]),
+) as Record<Estado, { a: Estado; texto: string }[]>;
 const TITULO = Object.fromEntries(COLUMNAS.map((c) => [c.estado, c.titulo])) as Record<Estado, string>;
 
 const VACIA: Columna = { ordenes: [], total: 0, pagina: 0, porPagina: 30, cargando: true, error: null };
@@ -110,7 +117,7 @@ export function Tablero({ acciones }: { acciones: { crear: boolean; iniciar: boo
   const conGps = (e: Estado) => e === "running" || e === "cancelled";
 
   const permitido = (de: Estado, a: Estado) =>
-    de === "running" && a === "cancelled" ? acciones.finalizar : de === "cancelled" ? acciones.verificar : acciones.iniciar;
+    de === "running" && a === "cancelled" ? acciones.finalizar : de === "cancelled" && a === "done" ? acciones.verificar : acciones.iniciar;
   const destinosDe = (de: Estado) => (DESTINOS[de] ?? []).filter((d) => permitido(de, d.a));
   const puedeMover = (de: Estado) => destinosDe(de).length > 0;
 

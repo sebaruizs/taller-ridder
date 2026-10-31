@@ -131,6 +131,19 @@ a { color: inherit; }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 
+/* Etapas de la orden en su detalle: la actual en negro, las alcanzables con borde de color. */
+.etapas-caja { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%; }
+.etapas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+.etapa {
+  min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface-2); color: var(--ink-2); font-weight: 600; font-size: 13px; white-space: nowrap;
+}
+.etapa[aria-current="step"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.etapa[data-disponible] { background: var(--surface); border-color: var(--accent); color: var(--ink); cursor: pointer; }
+.etapa[data-disponible]:hover { background: var(--accent); color: var(--accent-ink); }
+.etapa:disabled:not([aria-current]) { opacity: 0.55; cursor: default; }
+@media (max-width: 640px) { .etapas-caja { align-items: stretch; width: 100%; } .etapas { justify-content: flex-start; } }
+
 .badge { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 .badge-danger { background: var(--danger-soft); color: var(--danger); }
 

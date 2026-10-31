@@ -14,6 +14,7 @@ import { Historial } from "@/components/historial";
 import { CajaRepuestos } from "@/components/repuestos-orden";
 import { PanelGps } from "@/components/gps-tarjeta";
 import { EliminarOrden } from "@/components/eliminar-orden";
+import { EtapasOrden } from "@/components/etapas-orden";
 
 const claseEstado = (e: string) => (e === "done" ? "badge-ok" : e === "cancelled" ? "badge-warn" : e === "to_be_paid" ? "badge-danger" : "");
 
@@ -30,6 +31,12 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
   const puedeVerificar = orden.estado === "cancelled" && puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]);
 
   const editarRepuestos = puedeU(u, "ordenes.editar");
+  // Las mismas reglas que el tablero para cambiar de etapa.
+  const acciones = {
+    iniciar: puedeU(u, "ordenes.mover_estado"),
+    finalizar: puedeU(u, "ordenes.finalizar"),
+    verificar: puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"]),
+  };
 
   return (
     <>
@@ -40,7 +47,11 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
             <section className="card stack" style={{ gap: 8 }}>
               <div className="row between wrap-row" style={{ gap: 10 }}>
                 <span className="placa placa-lg">{orden.chapa}</span>
-                <span className={`badge ${claseEstado(orden.estado)}`}>{ESTADOS[orden.estado as EstadoOrden] ?? orden.estado}</span>
+                {acciones.iniciar || acciones.finalizar || acciones.verificar ? (
+                  <EtapasOrden ordenId={id} estado={orden.estado} acciones={acciones} />
+                ) : (
+                  <span className={`badge ${claseEstado(orden.estado)}`}>{ESTADOS[orden.estado as EstadoOrden] ?? orden.estado}</span>
+                )}
               </div>
               <div className="small muted">{orden.vehiculo}</div>
               <strong>{orden.tipo ?? "Sin tipo"}</strong>

@@ -69,13 +69,18 @@ describe("filtros de órdenes para Cobranzas", () => {
 });
 
 describe("bloquear y desbloquear desde el tablero", () => {
-  it("solo permite Nuevo → En proceso y En proceso ↔ Bloqueado", () => {
+  it("permite Nuevo → En proceso, En proceso ↔ Bloqueado y volver a etapas anteriores, salvo desde Finalizado", () => {
     expect(movimientoValido("running", "to_be_paid")).toBe(true);
     expect(movimientoValido("to_be_paid", "running")).toBe(true);
     expect(movimientoValido("new", "running")).toBe(true);
     expect(movimientoValido("new", "to_be_paid")).toBe(false);
     expect(movimientoValido("running", "done")).toBe(false);
     expect(movimientoValido("cancelled", "done")).toBe(false);
+    expect(movimientoValido("running", "cancelled")).toBe(false);
+    expect(movimientoValido("cancelled", "running")).toBe(true);
+    expect(movimientoValido("cancelled", "to_be_paid")).toBe(true);
+    expect(movimientoValido("running", "new")).toBe(true);
+    expect(movimientoValido("done", "cancelled")).toBe(false);
   });
 });
 

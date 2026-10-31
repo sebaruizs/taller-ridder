@@ -1,20 +1,10 @@
 import type { Many2one, OdooClient } from "./odoo";
-import { ESTADOS, MODELO_ORDEN, chapaDe, conAutor, payloadNotaCambioEstado, type EstadoOrden } from "./taller";
+import { ESTADOS, MODELO_ORDEN, chapaDe, conAutor, movimientoValido, payloadNotaCambioEstado, type EstadoOrden } from "./taller";
+
+export { MOVIMIENTOS, movimientoValido } from "./taller";
 import { NoVerificable } from "./verificar";
 
 type OdooTablero = Pick<OdooClient, "read" | "write" | "messagePost">;
-
-// Cambios de estado directos del tablero. Reportar (En proceso → Listo para verificar) y aprobar
-// tienen su propio formulario y no pasan por acá.
-export const MOVIMIENTOS: Partial<Record<EstadoOrden, readonly EstadoOrden[]>> = {
-  new: ["running"],
-  running: ["to_be_paid"],
-  to_be_paid: ["running"],
-};
-
-export function movimientoValido(de: EstadoOrden, a: EstadoOrden): boolean {
-  return MOVIMIENTOS[de]?.includes(a) ?? false;
-}
 
 // La nota de seguimiento no es crítica: si falla, el cambio de estado queda igual.
 export async function moverOrden(odoo: OdooTablero, ordenId: number, de: EstadoOrden, a: EstadoOrden, autor: string, autorPartnerId: number | null = null) {

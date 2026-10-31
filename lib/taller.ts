@@ -14,6 +14,20 @@ export const ESTADOS = {
 } as const;
 export type EstadoOrden = keyof typeof ESTADOS;
 
+// Cambios de estado directos (tablero y detalle de la orden). Reportar (En proceso → Listo para verificar) y aprobar
+// tienen su propio formulario y no pasan por acá. Hacia atrás se puede volver a cualquier etapa anterior, salvo
+// desde Finalizado.
+export const MOVIMIENTOS: Partial<Record<EstadoOrden, readonly EstadoOrden[]>> = {
+  new: ["running"],
+  running: ["to_be_paid", "new"],
+  to_be_paid: ["running", "new"],
+  cancelled: ["running", "to_be_paid", "new"],
+};
+
+export function movimientoValido(de: EstadoOrden, a: EstadoOrden): boolean {
+  return MOVIMIENTOS[de]?.includes(a) ?? false;
+}
+
 export const CAMPOS_ORDEN = [
   "id",
   "vehicle_id",
