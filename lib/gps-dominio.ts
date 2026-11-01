@@ -14,8 +14,10 @@ export type DispositivoTraccar = {
   positionId: number;
   phone?: string | null;
   model?: string | null;
+  groupId?: number;
   attributes?: Record<string, unknown>;
 };
+export type GrupoTraccar = { id: number; name: string; groupId?: number; attributes?: Record<string, unknown> };
 export type PosicionTraccar = {
   id: number;
   deviceId: number;
@@ -97,6 +99,23 @@ export function estadoEquipo(d: DispositivoTraccar, p: PosicionTraccar | undefin
     corta: tipo === "gps",
     anterior: null,
   };
+}
+
+// Saca los equipos que están dentro de un grupo archivado (o de un grupo cuyo grupo de arriba lo está).
+export function sinGruposArchivados(dispositivos: DispositivoTraccar[], grupos: GrupoTraccar[]): DispositivoTraccar[] {
+  const porId = new Map(grupos.map((g) => [g.id, g]));
+  const archivado = new Map<number, boolean>();
+  const esArchivado = (id: number | undefined, vistos = new Set<number>()): boolean => {
+    if (!id || vistos.has(id)) return false;
+    const ya = archivado.get(id);
+    if (ya !== undefined) return ya;
+    const g = porId.get(id);
+    vistos.add(id);
+    const r = !!g && (g.attributes?.["ridder.archived"] === true || esArchivado(g.groupId, vistos));
+    archivado.set(id, r);
+    return r;
+  };
+  return dispositivos.filter((d) => !esArchivado(d.groupId));
 }
 
 const ORDEN_TIPO: Record<TipoEquipo, number> = { gps: 0, tc: 1, monedas: 2, otro: 3 };
@@ -213,13 +232,22 @@ export const faltanEquipos = (porChapa: Record<string, EquipoGps[]>, chapas: str
     return !tipos.has("gps") || !tipos.has("tc") || !tipos.has("monedas");
   });
 
-// Equipos repetidos en el nuevo (varios con el mismo tipo): si alguno está en línea, solo se muestran los que están
-// en línea; si ninguno, todos.
+// Equipos repetidos (varios con el mismo tipo): si alguno está en línea (en el nuevo o en el anterior), solo se
+// muestran los que están en línea; si ninguno, solo el que reportó más reciente.
+const reporta = (e: EquipoGps) => e.enLinea || e.anterior?.enLinea === true;
+const ultimoReporte = (e: EquipoGps) => [e.ultimaConexion, e.anterior?.ultimaConexion].reduce<string>((m, f) => (f && f > m ? f : m), "");
+
 export function sinRepetidos(porChapa: Record<string, EquipoGps[]>): Record<string, EquipoGps[]> {
   const res: Record<string, EquipoGps[]> = {};
   for (const [chapa, lista] of Object.entries(porChapa)) {
-    const conLinea = new Set(lista.filter((e) => e.tipo !== "otro" && e.enLinea).map((e) => e.tipo));
-    res[chapa] = lista.filter((e) => e.tipo === "otro" || e.enLinea || !conLinea.has(e.tipo));
+    const masReciente = new Map<TipoEquipo, EquipoGps>();
+    for (const e of lista) {
+      if (e.tipo === "otro") continue;
+      const ya = masReciente.get(e.tipo);
+      if (!ya || ultimoReporte(e) > ultimoReporte(ya)) masReciente.set(e.tipo, e);
+    }
+    const conLinea = new Set(lista.filter((e) => e.tipo !== "otro" && reporta(e)).map((e) => e.tipo));
+    res[chapa] = lista.filter((e) => e.tipo === "otro" || (conLinea.has(e.tipo) ? reporta(e) : masReciente.get(e.tipo) === e));
   }
   return res;
 }

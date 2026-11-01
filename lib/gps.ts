@@ -9,6 +9,7 @@ import {
   conTraccarAnterior,
   equiposPorChapa,
   faltanEquipos,
+  sinGruposArchivados,
   sinRepetidos,
   imeisFueraDeLinea,
   payloadNotaEncendido,
@@ -16,6 +17,7 @@ import {
   type AccionEncendido,
   type DispositivoTraccar,
   type EquipoGps,
+  type GrupoTraccar,
   type PosicionTraccar,
 } from "./gps-dominio";
 
@@ -52,11 +54,21 @@ async function pedir(base: string, token: string, ruta: string, init: RequestIni
   return r;
 }
 
-// La lista de equipos cambia poco: se guarda medio minuto.
+// La lista de equipos cambia poco: se guarda medio minuto. Sin los de grupos archivados (solo en el nuevo).
 let cacheEquipos: { hasta: number; lista: DispositivoTraccar[] } | undefined;
 async function dispositivos(): Promise<DispositivoTraccar[]> {
   if (cacheEquipos && cacheEquipos.hasta > Date.now()) return cacheEquipos.lista;
-  const lista = (await (await traccar("/api/devices")).json()) as DispositivoTraccar[];
+  const [todos, grupos] = await Promise.all([
+    traccar("/api/devices").then((r) => r.json() as Promise<DispositivoTraccar[]>),
+    // Si los grupos no responden, se sigue sin ese filtro.
+    traccar("/api/groups")
+      .then((r) => r.json() as Promise<GrupoTraccar[]>)
+      .catch((e) => {
+        console.error("No se pudieron leer los grupos de Traccar", e);
+        return [] as GrupoTraccar[];
+      }),
+  ]);
+  const lista = sinGruposArchivados(todos, grupos);
   cacheEquipos = { hasta: Date.now() + 30_000, lista };
   return lista;
 }

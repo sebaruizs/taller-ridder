@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, sinRepetidos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
+import { sinGruposArchivados, conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, sinRepetidos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
 
 const disp = (id: number, name: string, extra: Partial<DispositivoTraccar> = {}): DispositivoTraccar => ({ id, name, status: "online", lastUpdate: "2026-10-28T12:00:00Z", positionId: id * 10, ...extra });
 
@@ -38,6 +38,23 @@ describe("GPS: equipos de cada moto", () => {
     expect(resultadoComando(202, "desbloquear")).toMatchObject({ enCola: true });
     expect(payloadNotaEncendido({ autor: "Derlis", accion: "bloquear", equipo: "816ABTI", enCola: true }).body).toContain("bloqueó el encendido");
     expect(payloadNotaEncendido({ autor: "Derlis", accion: "bloquear", equipo: "816ABTI", enCola: false, enAnterior: true }).body).toContain("en el Traccar anterior");
+  });
+});
+
+describe("GPS: grupos archivados", () => {
+  it("saca los equipos de un grupo archivado o con un grupo de arriba archivado", () => {
+    const grupos = [
+      { id: 1, name: "Activas" },
+      { id: 2, name: "Bajas", attributes: { "ridder.archived": true } },
+      { id: 3, name: "Bajas 2025", groupId: 2 },
+      { id: 4, name: "Ciclo A", groupId: 5 },
+      { id: 5, name: "Ciclo B", groupId: 4 },
+    ];
+    const r = sinGruposArchivados(
+      [disp(1, "816ABTI", { groupId: 1 }), disp(2, "817ABTI", { groupId: 2 }), disp(3, "818ABTI", { groupId: 3 }), disp(4, "819ABTI"), disp(5, "820ABTI", { groupId: 4 }), disp(6, "821ABTI", { groupId: 99 })],
+      grupos,
+    );
+    expect(r.map((d) => d.id)).toEqual([1, 4, 5, 6]);
   });
 });
 
@@ -92,7 +109,22 @@ describe("GPS: equipos que solo están en el Traccar anterior", () => {
     const r = sinRepetidos(
       equiposPorChapa(["409ABSM"], [disp(1, "409ABSM", { status: "offline" }), disp(2, "409ABSM"), disp(3, "409ABSM"), disp(4, "409ABSM-TC", { status: "offline" }), disp(5, "409ABSM-TC", { status: "offline" })], []),
     );
-    expect(r["409ABSM"].map((e) => e.id)).toEqual([2, 3, 4, 5]);
+    expect(r["409ABSM"].map((e) => e.id)).toEqual([2, 3, 4]);
+  });
+  it("si ninguno reporta, deja solo el más reciente (contando lo del Traccar anterior)", () => {
+    const base = equiposPorChapa(
+      ["409ABSM"],
+      [
+        disp(1, "409ABSM", { status: "offline", lastUpdate: null }),
+        disp(2, "409ABSM", { status: "offline", lastUpdate: "2026-10-30T09:00:00Z" }),
+        disp(3, "409ABSM", { status: "offline", lastUpdate: "2026-10-01T00:00:00Z" }),
+      ],
+      [],
+    );
+    expect(sinRepetidos(base)["409ABSM"].map((e) => e.id)).toEqual([2]);
+    // El del anterior en línea cuenta como que reporta.
+    const conAnterior = { "409ABSM": base["409ABSM"].map((e) => (e.id === 3 ? { ...e, anterior: { id: 90, enLinea: true, ultimaConexion: "2026-10-30T10:00:00Z" } } : e)) };
+    expect(sinRepetidos(conAnterior)["409ABSM"].map((e) => e.id)).toEqual([3]);
   });
   it("no busca si la chapa ya tiene GPS, TC y moneda en el nuevo", () => {
     const completo = equiposPorChapa(["816ABTI"], [disp(1, "816ABTI"), disp(2, "816ABTI-TC"), disp(3, "816ABTI - Monedas")], []);
