@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { urlGoogleMaps, urlMapa, sinGruposArchivados, conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, sinRepetidos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
+import { urlGoogleMaps, sinGruposArchivados, conSoloEnAnterior, conTraccarAnterior, equiposPorChapa, faltanEquipos, sinRepetidos, muestraMonedaGoogle, imeisFueraDeLinea, leerNombre, payloadNotaEncendido, resultadoComando, type DispositivoTraccar } from "@/lib/gps-dominio";
 
 const disp = (id: number, name: string, extra: Partial<DispositivoTraccar> = {}): DispositivoTraccar => ({ id, name, status: "online", lastUpdate: "2026-10-28T12:00:00Z", positionId: id * 10, ...extra });
 
@@ -144,11 +144,8 @@ describe("GPS: Moneda Google", () => {
 });
 
 describe("mapa de la ubicación", () => {
-  it("centra el mapa en el equipo con el marcador y arma el enlace a Google Maps", () => {
+  it("arma el enlace a Google Maps", () => {
     const u = { lat: -25.2637, lon: -57.5759 };
-    expect(urlMapa(u)).toBe(
-      "https://www.openstreetmap.org/export/embed.html?bbox=-57.579900,-25.267700,-57.571900,-25.259700&layer=mapnik&marker=-25.2637,-57.5759",
-    );
     expect(urlGoogleMaps(u)).toBe("https://www.google.com/maps/search/?api=1&query=-25.2637,-57.5759");
   });
 });

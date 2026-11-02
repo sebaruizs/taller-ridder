@@ -6,7 +6,8 @@ import type { ColoresReporte } from "@/lib/ajustes-dominio";
 const num = (s: string) => Number(s.replace(",", "."));
 
 // Colores del último reporte del GPS: hasta cuántas horas es verde y desde cuántas es rojo.
-export function FormAjustes({ inicial }: { inicial: ColoresReporte }) {
+// children: las otras secciones de Ajustes (los lugares del mapa), cada una con su propio guardar.
+export function FormAjustes({ inicial, children }: { inicial: ColoresReporte; children?: React.ReactNode }) {
   const router = useRouter();
   const [amarillo, setAmarillo] = useState(String(inicial.amarilloDesdeHoras));
   const [rojo, setRojo] = useState(String(inicial.rojoDesdeHoras));
@@ -39,6 +40,7 @@ export function FormAjustes({ inicial }: { inicial: ColoresReporte }) {
 
   return (
     <main className="wrap">
+      {children}
       <form className="stack form-angosto" style={{ gap: 14 }} onSubmit={guardar}>
         <section className="card stack" style={{ gap: 12 }}>
           <strong>Colores del último reporte del GPS</strong>

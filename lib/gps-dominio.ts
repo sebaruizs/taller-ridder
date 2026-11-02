@@ -101,11 +101,7 @@ export function estadoEquipo(d: DispositivoTraccar, p: PosicionTraccar | undefin
   };
 }
 
-// Mapa de OpenStreetMap embebido con un marcador en la ubicación (unos 500 m alrededor) y el enlace a Google Maps.
-export function urlMapa({ lat, lon }: { lat: number; lon: number }, margen = 0.004): string {
-  const bbox = [lon - margen, lat - margen, lon + margen, lat + margen].map((n) => n.toFixed(6)).join(",");
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat},${lon}`;
-}
+// Enlace para abrir la ubicación en Google Maps.
 export const urlGoogleMaps = ({ lat, lon }: { lat: number; lon: number }) => `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
 
 // Saca los equipos que están dentro de un grupo archivado (o de un grupo cuyo grupo de arriba lo está).

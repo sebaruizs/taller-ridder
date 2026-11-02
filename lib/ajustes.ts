@@ -2,7 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "./db";
 import { registrar, type Usuario } from "./auth";
-import { CLAVE_COLORES, leerColores, type ColoresReporte } from "./ajustes-dominio";
+import { CLAVE_COLORES, CLAVE_LUGARES, leerColores, leerLugares, type ColoresReporte, type LugarMapa } from "./ajustes-dominio";
 
 export async function coloresReporte(): Promise<ColoresReporte> {
   const db = await getDb();
@@ -15,4 +15,17 @@ export async function guardarColoresReporte(c: ColoresReporte, u: Usuario): Prom
   const antes = await coloresReporte();
   await db.insert(schema.config).values({ clave: CLAVE_COLORES, valor: c }).onConflictDoUpdate({ target: schema.config.clave, set: { valor: c } });
   await registrar(u.id, "config.editar", { detalle: { clave: CLAVE_COLORES, antes, despues: c } });
+}
+
+export async function lugaresMapa(): Promise<LugarMapa[]> {
+  const db = await getDb();
+  const [fila] = await db.select().from(schema.config).where(eq(schema.config.clave, CLAVE_LUGARES));
+  return leerLugares(fila?.valor);
+}
+
+export async function guardarLugaresMapa(lugares: LugarMapa[], u: Usuario): Promise<void> {
+  const db = await getDb();
+  const antes = await lugaresMapa();
+  await db.insert(schema.config).values({ clave: CLAVE_LUGARES, valor: lugares }).onConflictDoUpdate({ target: schema.config.clave, set: { valor: lugares } });
+  await registrar(u.id, "config.editar", { detalle: { clave: CLAVE_LUGARES, antes, despues: lugares } });
 }

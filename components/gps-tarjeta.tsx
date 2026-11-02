@@ -2,8 +2,9 @@
 import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { SIN_MONEDA } from "@/lib/monedas-dominio";
-import { NOMBRE_TIPO, muestraMonedaGoogle, urlGoogleMaps, urlMapa, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
-import { COLORES_POR_DEFECTO, colorReporte, type ColoresReporte } from "@/lib/ajustes-dominio";
+import { NOMBRE_TIPO, muestraMonedaGoogle, urlGoogleMaps, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
+import { COLORES_POR_DEFECTO, colorReporte, type ColoresReporte, type LugarMapa } from "@/lib/ajustes-dominio";
+import { Mapa } from "./mapa";
 
 // GPS de una moto (Traccar): resumen en la tarjeta del tablero y panel completo en la orden,
 // donde quien puede bloquea o desbloquea el encendido.
@@ -97,6 +98,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
   const [enviando, setEnviando] = useState(false);
   // El equipo cuya ubicación se muestra en el mapa (al tocar su tarjeta).
   const [enMapa, setEnMapa] = useState<number | null>(null);
+  const [lugares, setLugares] = useState<LugarMapa[]>([]);
   const clave = chapa.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
   // Cada vuelta vuelve a leer Traccar (al abrir, con «Actualizar» y después de bloquear o desbloquear).
@@ -114,6 +116,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
         setEquipos(d.equipos[clave] ?? []);
         setEnSheets(d.monedasGoogle?.[clave] ?? null);
         if (d.colores) setColores(d.colores);
+        if (d.lugares) setLugares(d.lugares);
         setEstado("listo");
       })
       .catch((e) => e.name !== "AbortError" && setEstado("error"));
@@ -226,7 +229,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
             ))}
         </div>
       )}
-      {estado === "listo" && <MapaEquipo g={equipos?.find((e) => e.id === enMapa)} alCerrar={() => setEnMapa(null)} />}
+      {estado === "listo" && <MapaEquipo g={equipos?.find((e) => e.id === enMapa)} lugares={lugares} alCerrar={() => setEnMapa(null)} />}
       {aviso && <div className={`alert small ${aviso.ok ? "alert-ok" : "alert-warn"}`} role="status" style={{ marginTop: 10 }}>{aviso.msg}</div>}
       {estado === "listo" && puedeBloquear && equipos && !equipos.some((g) => g.corta) && (
         <span className="tiny muted" style={{ marginTop: 8 }}>Ningún equipo se llama exactamente {chapa}: no se puede bloquear desde acá.</span>
@@ -312,8 +315,8 @@ function TarjetaEquipo({
   );
 }
 
-// Última ubicación que mandó el equipo, en un mapa de OpenStreetMap con el marcador.
-function MapaEquipo({ g, alCerrar }: { g: EquipoGps | undefined; alCerrar: () => void }) {
+// Última ubicación que mandó el equipo en el mapa, junto con los lugares de Ajustes (la oficina…).
+function MapaEquipo({ g, lugares, alCerrar }: { g: EquipoGps | undefined; lugares: LugarMapa[]; alCerrar: () => void }) {
   if (!g?.ubicacion) return null;
   return (
     <div className="gps-mapa">
@@ -330,7 +333,10 @@ function MapaEquipo({ g, alCerrar }: { g: EquipoGps | undefined; alCerrar: () =>
           </button>
         </span>
       </div>
-      <iframe title={`Ubicación de ${g.nombre}`} src={urlMapa(g.ubicacion)} loading="lazy" referrerPolicy="no-referrer" />
+      <Mapa
+        titulo={`Ubicación de ${g.nombre}`}
+        puntos={[{ ...g.ubicacion, nombre: g.nombre, tipo: "equipo" }, ...lugares.map((l) => ({ ...l, tipo: "lugar" as const }))]}
+      />
     </div>
   );
 }
