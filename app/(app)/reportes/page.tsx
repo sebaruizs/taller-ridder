@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { z } from "zod";
 import { exigirPagina } from "@/lib/auth";
+import { puedeU } from "@/lib/permisos";
 import { listarReportes, type Reporte } from "@/lib/reportes";
 import { mecanicosOdoo } from "@/lib/usuarios";
 import { ESTADOS, type EstadoOrden } from "@/lib/taller";
 import { fechaHora } from "@/lib/historial-formato";
 import { cantidad, fecha } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
+import { CambiarMecanico } from "@/components/cambiar-mecanico";
 
 const FECHA_RE = /^\d{4}-\d{2}-\d{2}$/;
 const filtros = z.object({
@@ -54,6 +56,12 @@ export default async function Reportes(props: PageProps<"/reportes">) {
   ]);
   const paginas = Math.max(1, Math.ceil(lista.total / lista.porPagina));
   const hayFiltros = Boolean(f.q || f.mec || f.desde || f.hasta);
+  // El jefe corrige desde acá quién hizo el trabajo; los demás solo lo ven.
+  const cambiaMecanico = puedeU(u, "reportes.cambiar_mecanico") && mecanicos.length > 0;
+  const Mecanico = ({ r }: { r: Reporte }) =>
+    cambiaMecanico ? (
+      <CambiarMecanico ordenId={r.ordenId} chapa={r.chapa} mecanico={r.mecanico} mecanicoId={r.mecanicoId} mecanicos={mecanicos} />
+    ) : null;
 
   return (
     <>
@@ -84,7 +92,7 @@ export default async function Reportes(props: PageProps<"/reportes">) {
                 {lista.reportes.map((r) => (
                   <tr key={r.ordenId}>
                     <td style={{ whiteSpace: "nowrap" }}>{cuando(r)}</td>
-                    <td>{r.mecanico ? <span className="badge">{r.mecanico}</span> : <span className="muted">—</span>}</td>
+                    <td>{cambiaMecanico ? <Mecanico r={r} /> : r.mecanico ? <span className="badge">{r.mecanico}</span> : <span className="muted">—</span>}</td>
                     <td><Link href={`/ordenes/${r.ordenId}?de=reportes`} className="placa placa-sm placa-link">{r.chapa}</Link></td>
                     <td className="num">{r.odometro ? cantidad(r.odometro) : "—"}</td>
                     <td><Fotos r={r} /></td>
@@ -106,7 +114,7 @@ export default async function Reportes(props: PageProps<"/reportes">) {
                     <span className="small muted">{cuando(r)}</span>
                   </div>
                   <div className="row between small">
-                    <strong>{r.mecanico ?? "Sin mecánico"}</strong>
+                    {cambiaMecanico ? <Mecanico r={r} /> : <strong>{r.mecanico ?? "Sin mecánico"}</strong>}
                     <span className="muted">{r.odometro ? `${cantidad(r.odometro)} km` : ""}</span>
                   </div>
                   {r.observacion && <div className="small" style={{ whiteSpace: "pre-line" }}>{r.observacion}</div>}

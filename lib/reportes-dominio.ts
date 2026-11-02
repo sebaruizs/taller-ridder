@@ -21,7 +21,12 @@ export type MensajeOrden = { id: number; date: string; body: string | false; att
 const sinEspacios = (t: string) => t.replace(/\s+/g, " ").trim().toLowerCase();
 
 // Busca en el chatter de una orden la nota del reporte y las fotos. Gana lo más nuevo.
-export function leerReporte(mensajes: MensajeOrden[], mecanico: string | null) {
+// mecanico: el de la orden, o la lista de nombres de mecánicos (si el jefe corrigió el mecánico, la nota del
+// formulario de n8n empieza con el nombre del que reportó, que ya no es el de la orden).
+export function leerReporte(mensajes: MensajeOrden[], mecanico: string | null | (string | null)[]) {
+  const nombres = (Array.isArray(mecanico) ? mecanico : [mecanico])
+    .filter((n): n is string => !!n?.trim())
+    .sort((a, b) => b.length - a.length);
   const orden = [...mensajes].sort((a, b) => b.id - a.id);
   let observacion: string | null = null;
   let fecha: string | null = null;
@@ -35,8 +40,9 @@ export function leerReporte(mensajes: MensajeOrden[], mecanico: string | null) {
       break;
     }
     // Formulario de n8n: "<Mecánico> <observación>"
-    if (mecanico && sinEspacios(texto).startsWith(sinEspacios(mecanico))) {
-      observacion = texto.replace(/\s+/g, " ").trim().slice(mecanico.replace(/\s+/g, " ").trim().length).trim();
+    const quien = nombres.find((n) => sinEspacios(texto).startsWith(sinEspacios(n)));
+    if (quien) {
+      observacion = texto.replace(/\s+/g, " ").trim().slice(quien.replace(/\s+/g, " ").trim().length).trim();
       fecha = m.date;
       break;
     }

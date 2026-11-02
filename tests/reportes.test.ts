@@ -38,6 +38,18 @@ describe("reportes de mecánicos", () => {
     expect(r).toEqual({ observacion: "Cambio de aceite\nFrenos", fecha: "2026-10-24 19:25:11", fotos: [11] });
   });
 
+  it("si el jefe corrigió el mecánico, igual lee la nota de n8n del que reportó y saltea la nota del cambio", () => {
+    const r = leerReporte(
+      [
+        { id: 3, date: "2026-10-26 12:57:54", body: "<p>Diego Armando Samudio Ayala Cambio de Zapata trasera</p>", attachment_ids: [] },
+        { id: 9, date: "2026-11-02 10:00:00", body: "<p>Mecánico del trabajo cambiado por <b>Jefe</b>: de Diego Armando Samudio Ayala a <b>Angel</b>.</p>", attachment_ids: [] },
+      ],
+      ["Angel", "Diego Armando Samudio Ayala", "Diego", null],
+    );
+    expect(r.observacion).toBe("Cambio de Zapata trasera");
+    expect(r.fecha).toBe("2026-10-26 12:57:54");
+  });
+
   it("sin nota de reporte queda en null (orden cerrada a mano en Odoo)", () => {
     expect(leerReporte([], "Angel").observacion).toBeNull();
   });

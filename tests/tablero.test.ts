@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { eliminarOrden, iniciarOrden, moverOrden, movimientoValido } from "@/lib/tablero";
+import { cambiarMecanico, eliminarOrden, iniciarOrden, moverOrden, movimientoValido } from "@/lib/tablero";
 import { NoVerificable } from "@/lib/verificar";
 import { COLUMNAS_TABLERO, dominioOrdenes, payloadNotaCambioEstado } from "@/lib/taller";
 
@@ -115,5 +115,37 @@ describe("eliminar orden", () => {
     await expect(eliminarOrden(fin, 4366)).rejects.toThrow(NoVerificable);
     expect(fin.unlink).not.toHaveBeenCalled();
     await expect(eliminarOrden(odooCon(null), 4366)).rejects.toThrow("no existe");
+  });
+});
+
+describe("cambiar el mecánico de un trabajo", () => {
+  const conMecanico = (vendor: [number, string] | false, fallarNota = false) => {
+    const llamadas: { method: string; args: unknown[] }[] = [];
+    return {
+      llamadas,
+      read: vi.fn(async () => [{ id: 4366, vendor_id: vendor, vehicle_id: [9, "Kenton/GTR150 SE/409ABSM"] }]) as never,
+      write: vi.fn(async (...args: unknown[]) => { llamadas.push({ method: "write", args }); return true; }),
+      messagePost: vi.fn(async (...args: unknown[]) => {
+        llamadas.push({ method: "messagePost", args });
+        if (fallarNota) throw new Error("caído");
+        return 1;
+      }),
+    };
+  };
+
+  it("cambia vendor_id y deja la nota a nombre de quien lo cambió", async () => {
+    const o = conMecanico([2006, "Diego"]);
+    expect(await cambiarMecanico(o, 4366, { id: 2010, nombre: "Angel" }, "Jefe", 1685)).toEqual({ chapa: "409ABSM", de: "Diego", a: "Angel", aviso: null });
+    expect(o.write).toHaveBeenCalledWith("fleet.vehicle.log.services", [4366], { vendor_id: 2010 });
+    const [, , nota] = (o.messagePost.mock.calls[0] as unknown[]) as [string, number, { body: string; author_id: number }];
+    expect(nota.author_id).toBe(1685);
+    expect(nota.body).toBe("<p>Mecánico del trabajo cambiado por <b>Jefe</b>: de Diego a <b>Angel</b>.</p>");
+  });
+
+  it("si la nota falla el cambio queda y avisa; si ya es ese mecánico no escribe", async () => {
+    expect((await cambiarMecanico(conMecanico(false, true), 4366, { id: 2010, nombre: "Angel" }, "Jefe")).aviso).toMatch(/caído/);
+    const igual = conMecanico([2010, "Angel"]);
+    await expect(cambiarMecanico(igual, 4366, { id: 2010, nombre: "Angel" }, "Jefe")).rejects.toThrow(NoVerificable);
+    expect(igual.write).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,7 @@
 import "server-only";
 import { odoo, type Many2one } from "./odoo";
 import { MODELO_ORDEN, chapaDe } from "./taller";
+import { mecanicosOdoo } from "./usuarios";
 import { POR_PAGINA_REPORTES, dominioReportes, leerReporte, type MensajeOrden } from "./reportes-dominio";
 
 type OrdenReporte = {
@@ -13,15 +14,19 @@ type OrdenReporte = {
   service_type_id: Many2one;
 };
 
+// Nombres de todos los mecánicos, para reconocer la nota de n8n aunque se haya corregido el mecánico de la orden.
+const nombresMecanicos = async () => (await mecanicosOdoo().catch(() => [])).map((m) => m.nombre);
+
 export async function listarReportes(f: { q?: string; mecanicoId?: number; desde?: string; hasta?: string; pagina: number }) {
   const domain = dominioReportes(f);
-  const [total, ordenes] = await Promise.all([
+  const [total, ordenes, nombres] = await Promise.all([
     odoo.searchCount(MODELO_ORDEN, domain),
     odoo.searchRead<OrdenReporte>(MODELO_ORDEN, domain, ["id", "vehicle_id", "vendor_id", "odometer", "service_end_date", "state", "service_type_id"], {
       limit: POR_PAGINA_REPORTES,
       offset: (f.pagina - 1) * POR_PAGINA_REPORTES,
       order: "service_end_date desc, id desc",
     }),
+    nombresMecanicos(),
   ]);
   const ids = ordenes.map((o) => o.id);
   const mensajes = ids.length
@@ -37,12 +42,13 @@ export async function listarReportes(f: { q?: string; mecanicoId?: number; desde
 
   const reportes = ordenes.map((o) => {
     const mecanico = o.vendor_id ? o.vendor_id[1] : null;
-    const r = leerReporte(porOrden.get(o.id) ?? [], mecanico);
+    const r = leerReporte(porOrden.get(o.id) ?? [], [mecanico, ...nombres]);
     return {
       ordenId: o.id,
       fecha: r.fecha,
       dia: o.service_end_date || null,
       mecanico,
+      mecanicoId: o.vendor_id ? o.vendor_id[0] : null,
       chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : "—",
       tipo: o.service_type_id ? o.service_type_id[1] : null,
       odometro: o.odometer,
@@ -58,13 +64,16 @@ export async function listarReportes(f: { q?: string; mecanicoId?: number; desde
 
 // El reporte (observación, fotos, hora) de una sola orden, para su detalle.
 export async function reporteDeOrden(ordenId: number, mecanico: string | null) {
-  const mensajes = await odoo.searchRead<MensajeOrden>(
-    "mail.message",
-    [["model", "=", MODELO_ORDEN], ["res_id", "=", ordenId], ["message_type", "=", "comment"]],
-    ["id", "date", "body", "attachment_ids"],
-    { limit: 200, order: "id desc" },
-  );
-  return leerReporte(mensajes, mecanico);
+  const [mensajes, nombres] = await Promise.all([
+    odoo.searchRead<MensajeOrden>(
+      "mail.message",
+      [["model", "=", MODELO_ORDEN], ["res_id", "=", ordenId], ["message_type", "=", "comment"]],
+      ["id", "date", "body", "attachment_ids"],
+      { limit: 200, order: "id desc" },
+    ),
+    nombresMecanicos(),
+  ]);
+  return leerReporte(mensajes, [mecanico, ...nombres]);
 }
 
 export type Reporte = Awaited<ReturnType<typeof listarReportes>>["reportes"][number];

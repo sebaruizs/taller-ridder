@@ -468,6 +468,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .gps-tarjeta[data-activa] { box-shadow: 0 0 0 2px var(--ridder); }
 .gps-mapa { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .gps-mapa .row { flex-wrap: wrap; gap: 8px; }
+.cambiar-mecanico { min-height: 34px; padding: 4px 8px; font-size: 13px; max-width: 220px; }
 .lugares-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .lugares-lista li { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .mapa { width: 100%; border: 1px solid var(--line); border-radius: 10px; z-index: 0; }

@@ -16,6 +16,7 @@ export const ACCIONES = {
   "vehiculos.buscar": ["jefe", "cobrador", "admin"],
   "vehiculos.historial": ["jefe", "admin"],
   "reportes.ver": ["jefe", "admin"],
+  "reportes.cambiar_mecanico": ["jefe", "admin"],
   // Ver el estado de los GPS (Traccar) y la moneda de cada moto.
   "gps.ver": ["mecanico", "jefe", "cobrador", "admin"],
   // Bloquear o desbloquear el encendido de la moto por GPS (Traccar).
@@ -62,6 +63,7 @@ export const PERMISOS = {
   mover_tablero: { modulo: "taller", nombre: "Mover en el tablero", detalle: "Pasar órdenes de Nuevo a En proceso", acciones: ["ordenes.mover_estado"] },
   repuestos: { modulo: "taller", nombre: "Cargar repuestos", detalle: "Agregar y quitar repuestos al verificar", acciones: ["ordenes.editar"] },
   reportes: { modulo: "taller", nombre: "Reportes de mecánicos", detalle: "Lista de todos los trabajos reportados, con fotos y observación", acciones: ["reportes.ver"] },
+  cambiar_mecanico: { modulo: "taller", nombre: "Cambiar el mecánico", detalle: "Corregir en Reportes qué mecánico hizo el trabajo (queda en el historial)", acciones: ["reportes.cambiar_mecanico"] },
   aprobar: { modulo: "taller", nombre: "Aprobar verificación", detalle: "Cerrar la orden: pasa a Finalizado", acciones: ["ordenes.aprobar"] },
   eliminar: { modulo: "taller", nombre: "Eliminar órdenes", detalle: "Borrar órdenes de Odoo, salvo las finalizadas", acciones: ["ordenes.eliminar"] },
   gps: { modulo: "taller", nombre: "Ver GPS", detalle: "Estado de los GPS y la moneda de cada moto en las tarjetas", acciones: ["gps.ver"] },

@@ -151,6 +151,14 @@ export function textoOVacio(v: string | false | null | undefined): string {
   return s || "—";
 }
 
+// Nota al cambiar el mecánico de un trabajo. No empieza con un nombre: si no, se leería como el reporte del mecánico.
+export function payloadNotaCambioMecanico(p: { autor: string; de: string | null; a: string }) {
+  return {
+    body: `<p>Mecánico del trabajo cambiado por <b>${escaparHtml(p.autor)}</b>: de ${escaparHtml(p.de ?? "sin asignar")} a <b>${escaparHtml(p.a)}</b>.</p>`,
+    ...NOTA_INTERNA,
+  };
+}
+
 export function escaparHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }

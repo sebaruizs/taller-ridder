@@ -1,5 +1,5 @@
 import type { Many2one, OdooClient } from "./odoo";
-import { ESTADOS, MODELO_ORDEN, chapaDe, conAutor, movimientoValido, payloadNotaCambioEstado, type EstadoOrden } from "./taller";
+import { ESTADOS, MODELO_ORDEN, chapaDe, conAutor, movimientoValido, payloadNotaCambioEstado, payloadNotaCambioMecanico, type EstadoOrden } from "./taller";
 
 export { MOVIMIENTOS, movimientoValido } from "./taller";
 import { NoVerificable } from "./verificar";
@@ -38,4 +38,27 @@ export async function eliminarOrden(odoo: Pick<OdooClient, "read" | "unlink">, o
     estado: o.state,
     tipo: o.service_type_id ? o.service_type_id[1] : null,
   };
+}
+
+// Corrige quién hizo el trabajo (vendor_id). Deja una nota en la orden a nombre de quien lo cambió; si la nota
+// falla, el cambio queda igual y se avisa.
+export async function cambiarMecanico(
+  odoo: OdooTablero,
+  ordenId: number,
+  mecanico: { id: number; nombre: string },
+  autor: string,
+  autorPartnerId: number | null = null,
+) {
+  const [o] = await odoo.read<{ id: number; vendor_id: Many2one; vehicle_id: Many2one }>(MODELO_ORDEN, [ordenId], ["id", "vendor_id", "vehicle_id"]);
+  if (!o) throw new NoVerificable("La orden no existe en Odoo");
+  if (o.vendor_id && o.vendor_id[0] === mecanico.id) throw new NoVerificable(`Ya figura ${mecanico.nombre} como mecánico`);
+  const de = o.vendor_id ? o.vendor_id[1] : null;
+  await odoo.write(MODELO_ORDEN, [ordenId], { vendor_id: mecanico.id });
+  let aviso: string | null = null;
+  try {
+    await odoo.messagePost(MODELO_ORDEN, ordenId, conAutor(payloadNotaCambioMecanico({ autor, de, a: mecanico.nombre }), autorPartnerId));
+  } catch (e) {
+    aviso = `No se pudo publicar la nota en la orden: ${e instanceof Error ? e.message : String(e)}`;
+  }
+  return { chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : `#${ordenId}`, de, a: mecanico.nombre, aviso };
 }
