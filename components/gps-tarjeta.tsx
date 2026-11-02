@@ -1,8 +1,8 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { SIN_MONEDA } from "@/lib/monedas-dominio";
-import { NOMBRE_TIPO, muestraMonedaGoogle, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
+import { NOMBRE_TIPO, muestraMonedaGoogle, urlGoogleMaps, urlMapa, type AccionEncendido, type EquipoGps } from "@/lib/gps-dominio";
 import { COLORES_POR_DEFECTO, colorReporte, type ColoresReporte } from "@/lib/ajustes-dominio";
 
 // GPS de una moto (Traccar): resumen en la tarjeta del tablero y panel completo en la orden,
@@ -95,6 +95,8 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
   const [estado, setEstado] = useState<"cargando" | "listo" | "apagado" | "error">("cargando");
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // El equipo cuya ubicación se muestra en el mapa (al tocar su tarjeta).
+  const [enMapa, setEnMapa] = useState<number | null>(null);
   const clave = chapa.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
   // Cada vuelta vuelve a leer Traccar (al abrir, con «Actualizar» y después de bloquear o desbloquear).
@@ -188,7 +190,16 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
                 </div>
               );
             return g ? (
-              <TarjetaEquipo key={tipo} g={g} colores={colores} puedeBloquear={puedeBloquear} enviando={enviando} alTocar={tocar} />
+              <TarjetaEquipo
+                key={tipo}
+                g={g}
+                colores={colores}
+                puedeBloquear={puedeBloquear}
+                enviando={enviando}
+                alTocar={tocar}
+                enMapa={enMapa === g.id}
+                alVerMapa={() => setEnMapa((id) => (id === g.id ? null : g.id))}
+              />
             ) : (
               <div key={tipo} className="gps-tarjeta" data-falta>
                 <span className="gps-tarjeta-tipo">
@@ -202,10 +213,20 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
           {equipos
             .filter((e) => e.tipo === "otro")
             .map((g) => (
-              <TarjetaEquipo key={g.id} g={g} colores={colores} puedeBloquear={false} enviando={enviando} alTocar={tocar} />
+              <TarjetaEquipo
+                key={g.id}
+                g={g}
+                colores={colores}
+                puedeBloquear={false}
+                enviando={enviando}
+                alTocar={tocar}
+                enMapa={enMapa === g.id}
+                alVerMapa={() => setEnMapa((id) => (id === g.id ? null : g.id))}
+              />
             ))}
         </div>
       )}
+      {estado === "listo" && <MapaEquipo g={equipos?.find((e) => e.id === enMapa)} alCerrar={() => setEnMapa(null)} />}
       {aviso && <div className={`alert small ${aviso.ok ? "alert-ok" : "alert-warn"}`} role="status" style={{ marginTop: 10 }}>{aviso.msg}</div>}
       {estado === "listo" && puedeBloquear && equipos && !equipos.some((g) => g.corta) && (
         <span className="tiny muted" style={{ marginTop: 8 }}>Ningún equipo se llama exactamente {chapa}: no se puede bloquear desde acá.</span>
@@ -222,12 +243,16 @@ function TarjetaEquipo({
   puedeBloquear,
   enviando,
   alTocar,
+  enMapa,
+  alVerMapa,
 }: {
   g: EquipoGps;
   colores: ColoresReporte;
   puedeBloquear: boolean;
   enviando: boolean;
   alTocar: (accion: AccionEncendido) => void;
+  enMapa: boolean;
+  alVerMapa: () => void;
 }) {
   // El último reporte del equipo: la última posición, o la última conexión si no hay posición.
   // Fuera de línea en el nuevo pero reportando en el Traccar anterior: se muestra ese reporte, marcado.
@@ -235,8 +260,25 @@ function TarjetaEquipo({
   const reporte = anterior ? anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
   // Verde / amarillo / rojo según hace cuánto reportó (umbrales de Ajustes).
   const color = colorReporte(reporte, colores) ?? undefined;
+  // Con ubicación, tocar la tarjeta muestra (o esconde) el mapa; los botones de bloqueo no lo abren.
+  const conMapa = g.ubicacion
+    ? {
+        role: "button",
+        tabIndex: 0,
+        "aria-pressed": enMapa,
+        "data-mapa": "",
+        "data-activa": enMapa || undefined,
+        onClick: alVerMapa,
+        onKeyDown: (e: KeyboardEvent) => {
+          if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) {
+            e.preventDefault();
+            alVerMapa();
+          }
+        },
+      }
+    : {};
   return (
-    <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.nombre}>
+    <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.ubicacion ? `${g.nombre} · Tocá para ver la ubicación` : g.nombre} {...conMapa}>
       <span className="gps-tarjeta-tipo">
         <span className="gps-punto" data-color={color} aria-hidden /> {ETIQUETA[g.tipo]}
         {anterior && <span className="badge badge-warn gps-anterior">Traccar anterior</span>}
@@ -257,7 +299,7 @@ function TarjetaEquipo({
         <span className="small muted">Sin reportes</span>
       )}
       {g.corta && puedeBloquear && (
-        <span className="gps-acciones">
+        <span className="gps-acciones" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
           <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>
             Bloquear
           </button>
@@ -266,6 +308,29 @@ function TarjetaEquipo({
           </button>
         </span>
       )}
+    </div>
+  );
+}
+
+// Última ubicación que mandó el equipo, en un mapa de OpenStreetMap con el marcador.
+function MapaEquipo({ g, alCerrar }: { g: EquipoGps | undefined; alCerrar: () => void }) {
+  if (!g?.ubicacion) return null;
+  return (
+    <div className="gps-mapa">
+      <div className="row between">
+        <span className="small">
+          <strong>{g.nombre}</strong> · ubicación del <span className="gps-hora">{fechaHora(g.ultimoDato)}</span>
+        </span>
+        <span className="row" style={{ gap: 12 }}>
+          <a className="lineas-agregar" href={urlGoogleMaps(g.ubicacion)} target="_blank" rel="noopener noreferrer">
+            Abrir en Google Maps
+          </a>
+          <button type="button" className="lineas-agregar" onClick={alCerrar}>
+            Cerrar
+          </button>
+        </span>
+      </div>
+      <iframe title={`Ubicación de ${g.nombre}`} src={urlMapa(g.ubicacion)} loading="lazy" referrerPolicy="no-referrer" />
     </div>
   );
 }
