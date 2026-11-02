@@ -72,8 +72,22 @@ export function valoresTracking(t: ValorTracking): { de: string; a: string } {
   return { de: t.old_value_char || "—", a: t.new_value_char || "—" };
 }
 
+// Odoo guarda el nombre de la etapa que tenía en ese momento y en inglés para el usuario de la API
+// («New», «Running», «Listo para entrega»): se muestran con los nombres del taller.
+const ETAPAS: Record<string, string> = {
+  New: "Nuevo",
+  Running: "En proceso",
+  "Listo para entrega": "Bloqueado",
+  "To Be Paid": "Bloqueado",
+  Cancelled: "Listo para verificar",
+  Done: "Finalizado",
+};
+const etapa = (v: string) => ETAPAS[v.trim()] ?? v.trim();
+
 export function cambioDe(t: ValorTracking): Cambio {
-  return { campo: nombreCampo(t), ...valoresTracking(t) };
+  const campo = nombreCampo(t);
+  const v = valoresTracking(t);
+  return campo === "Etapa" ? { campo, de: etapa(v.de), a: etapa(v.a) } : { campo, ...v };
 }
 
 // Odoo guarda en UTC ("2026-10-24 16:10:44"); se muestra en hora de Asunción.

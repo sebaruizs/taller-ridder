@@ -8,7 +8,7 @@ export const MODELO_ASIGNACION = "fleet.vehicle.assignation.log";
 export const ESTADOS = {
   running: "En proceso",
   cancelled: "Listo para verificar",
-  to_be_paid: "Bloqueado", // en Odoo todavía se llama «Listo para entrega»
+  to_be_paid: "Bloqueado", // antes «Listo para entrega» en Odoo
   done: "Finalizado",
   new: "Nuevo",
 } as const;

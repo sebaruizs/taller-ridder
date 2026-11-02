@@ -16,9 +16,11 @@ describe("historial de Odoo", () => {
     expect(htmlATexto(false)).toBe("");
   });
 
-  it("cambio de etapa como en Odoo", () => {
-    const t = { ...base, field_id: [10526, "Stage (Services for vehicles)"] as [number, string], old_value_char: "Running", new_value_char: "Listo para entrega" };
-    expect(cambioDe(t)).toEqual({ campo: "Etapa", de: "Running", a: "Listo para entrega" });
+  it("cambio de etapa con los nombres del taller (también los nombres viejos de Odoo)", () => {
+    const etapa = (de: string, a: string) => cambioDe({ ...base, field_id: [10526, "Stage (Services for vehicles)"], old_value_char: de, new_value_char: a });
+    expect(etapa("Running", "Listo para entrega")).toEqual({ campo: "Etapa", de: "En proceso", a: "Bloqueado" });
+    expect(etapa("New", "Bloqueado")).toEqual({ campo: "Etapa", de: "Nuevo", a: "Bloqueado" });
+    expect(etapa("Listo para verificar", "Finalizado")).toEqual({ campo: "Etapa", de: "Listo para verificar", a: "Finalizado" });
   });
 
   it("cambio de costo en guaraníes", () => {
