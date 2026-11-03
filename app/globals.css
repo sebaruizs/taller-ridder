@@ -290,14 +290,15 @@ textarea.input { min-height: 110px; resize: vertical; }
   }
   .contenido .topbar {
     position: static; background: transparent; color: var(--ink);
-    max-width: 1160px; margin: 0 auto; padding: 30px 32px 16px;
+    max-width: none; margin: 0; padding: 30px 32px 16px;
   }
   .contenido .topbar h1 { font-size: 26px; letter-spacing: -0.02em; }
   .contenido .topbar .sub { color: var(--ink-3); }
   .contenido .topbar .logo, .contenido .topbar nav { display: none; }
   .contenido .topbar .topbar-accion { display: inline-flex; margin-left: auto; }
   .contenido .topbar .volver { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
-  .contenido .wrap { max-width: 1160px; padding-left: 32px; padding-right: 32px; padding-bottom: 48px; }
+  /* En la PC todas las pantallas usan el ancho completo de la ventana. */
+  .contenido .wrap { max-width: none; padding-left: 32px; padding-right: 32px; padding-bottom: 48px; }
   .contenido .bottom-bar { position: static; background: none; backdrop-filter: none; border: 0; padding: 0; margin-top: 8px; }
   .contenido .bottom-bar > div { max-width: none; margin: 0; }
   .contenido .bottom-bar > .accion-corta { max-width: 240px; }
@@ -309,9 +310,6 @@ textarea.input { min-height: 110px; resize: vertical; }
   .grid-ordenes { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
   .grid-ordenes .card:hover { border-color: var(--ridder); }
 
-  .contenido .wrap.tablero-wrap, .contenido .wrap.wrap-ancho { max-width: none; }
-  /* el tablero ocupa todo el ancho: el encabezado también, así título y botón quedan alineados con las columnas */
-  .contenido .topbar:has(+ .tablero-wrap), .contenido .topbar:has(+ .wrap-ancho) { max-width: none; }
   .kpis { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
   .kpi strong { font-size: 24px; }
   .filtros-inv { flex-direction: row; align-items: center; }
@@ -327,7 +325,11 @@ textarea.input { min-height: 110px; resize: vertical; }
 
   .finalizar-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
   .fotos { grid-template-columns: repeat(4, 1fr); }
-  .form-angosto { max-width: 600px; }
+  /* Formularios cortos (cuenta, ajustes, usuarios, producto nuevo): un ancho cómodo para leer, no estirados. */
+  .form-angosto { max-width: 720px; }
+}
+@media (min-width: 1600px) {
+  .contenido .topbar, .contenido .wrap { padding-left: 48px; padding-right: 48px; }
 }
 
 /* Precio editable */
