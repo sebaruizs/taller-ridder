@@ -52,6 +52,8 @@ export function Mapa({
           attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         }).addTo(mapa.current);
         mapa.current.on("click", (e) => tocar.current?.({ lat: Number(e.latlng.lat.toFixed(6)), lon: Number(e.latlng.lng.toFixed(6)) }));
+        // El equipo va en su propio panel, arriba de las etiquetas de los lugares: si la moto está en la oficina, se ve igual.
+        mapa.current.createPane("equipo").style.zIndex = "650";
         capa.current = L.layerGroup().addTo(mapa.current);
       }
       const lista = JSON.parse(clave) as PuntoMapa[];
@@ -59,11 +61,14 @@ export function Mapa({
       for (const p of lista) {
         const marca =
           p.tipo === "equipo"
-            ? L.circleMarker([p.lat, p.lon], { radius: 9, weight: 3, color: "#fff", fillColor: "#1f5bd8", fillOpacity: 1 })
+            ? L.marker([p.lat, p.lon], {
+                pane: "equipo",
+                icon: L.divIcon({ className: "mapa-equipo", html: "<span></span>", iconSize: [22, 22], iconAnchor: [11, 11] }),
+              })
             : L.marker([p.lat, p.lon], {
                 icon: L.divIcon({ className: "mapa-lugar", html: `<span>${escapar(p.nombre)}</span>`, iconSize: undefined, iconAnchor: [0, 0] }),
               });
-        marca.bindTooltip(escapar(p.nombre)).addTo(capa.current!);
+        marca.bindTooltip(escapar(p.nombre), p.tipo === "equipo" ? { pane: "tooltipPane" } : undefined).addTo(capa.current!);
       }
       // Encuadre: el equipo y los lugares cercanos; sin equipo, todos los lugares.
       const equipo = lista.find((p) => p.tipo === "equipo");
