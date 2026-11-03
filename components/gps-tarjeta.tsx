@@ -96,7 +96,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
   const [estado, setEstado] = useState<"cargando" | "listo" | "apagado" | "error">("cargando");
   const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
   const [enviando, setEnviando] = useState(false);
-  // El equipo cuya ubicación se muestra en el mapa (al tocar su tarjeta).
+  // El equipo destacado en el mapa (al tocar su tarjeta); sin destacar, el mapa muestra todos.
   const [enMapa, setEnMapa] = useState<number | null>(null);
   const [lugares, setLugares] = useState<LugarMapa[]>([]);
   const clave = chapa.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -229,7 +229,7 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
             ))}
         </div>
       )}
-      {estado === "listo" && <MapaEquipo g={equipos?.find((e) => e.id === enMapa)} lugares={lugares} alCerrar={() => setEnMapa(null)} />}
+      {estado === "listo" && equipos && <MapaEquipos equipos={equipos} lugares={lugares} destacado={enMapa} alDestacar={(id) => setEnMapa((x) => (x === id ? null : id))} />}
       {aviso && <div className={`alert small ${aviso.ok ? "alert-ok" : "alert-warn"}`} role="status" style={{ marginTop: 10 }}>{aviso.msg}</div>}
       {estado === "listo" && puedeBloquear && equipos && !equipos.some((g) => g.corta) && (
         <span className="tiny muted" style={{ marginTop: 8 }}>Ningún equipo se llama exactamente {chapa}: no se puede bloquear desde acá.</span>
@@ -263,7 +263,7 @@ function TarjetaEquipo({
   const reporte = anterior ? anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
   // Verde / amarillo / rojo según hace cuánto reportó (umbrales de Ajustes).
   const color = colorReporte(reporte, colores) ?? undefined;
-  // Con ubicación, tocar la tarjeta muestra (o esconde) el mapa; los botones de bloqueo no lo abren.
+  // Con ubicación, tocar la tarjeta la destaca en el mapa (otra vez, deja de destacarla); los botones de bloqueo no.
   const conMapa = g.ubicacion
     ? {
         role: "button",
@@ -281,9 +281,11 @@ function TarjetaEquipo({
       }
     : {};
   return (
-    <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.ubicacion ? `${g.nombre} · Tocá para ver la ubicación` : g.nombre} {...conMapa}>
+    <div className="gps-tarjeta" data-principal={g.corta || undefined} title={g.ubicacion ? `${g.nombre} · Tocá para ubicarlo en el mapa` : g.nombre} {...conMapa}>
       <span className="gps-tarjeta-tipo">
         <span className="gps-punto" data-color={color} aria-hidden /> {ETIQUETA[g.tipo]}
+        {/* El color con que figura en el mapa. */}
+        {g.ubicacion && <span className="mapa-color" style={{ "--c": COLOR_MAPA[g.tipo] } as React.CSSProperties} title="Color en el mapa" aria-hidden />}
         {anterior && <span className="badge badge-warn gps-anterior">Traccar anterior</span>}
       </span>
       <strong>{g.nombre}</strong>
@@ -315,27 +317,54 @@ function TarjetaEquipo({
   );
 }
 
-// Última ubicación que mandó el equipo en el mapa, junto con los lugares de Ajustes (la oficina…).
-function MapaEquipo({ g, lugares, alCerrar }: { g: EquipoGps | undefined; lugares: LugarMapa[]; alCerrar: () => void }) {
-  if (!g?.ubicacion) return null;
+// Color de cada equipo en el mapa (el rojo queda para los lugares de Ajustes).
+const COLOR_MAPA: Record<EquipoGps["tipo"], string> = { gps: "#1b76ff", tc: "#7c3aed", monedas: "#f59e0b", otro: "#0f766e" };
+
+// Mapa abierto con la última ubicación de cada equipo que la tenga, cada uno con su color, y los lugares de
+// Ajustes (la oficina…). Tocar un equipo (en su tarjeta o en la leyenda) lo destaca y centra el mapa ahí.
+function MapaEquipos({
+  equipos,
+  lugares,
+  destacado,
+  alDestacar,
+}: {
+  equipos: EquipoGps[];
+  lugares: LugarMapa[];
+  destacado: number | null;
+  alDestacar: (id: number) => void;
+}) {
+  const conUbicacion = equipos.filter((e): e is EquipoGps & { ubicacion: { lat: number; lon: number } } => !!e.ubicacion);
+  if (!conUbicacion.length) return null;
+  const elegido = conUbicacion.find((e) => e.id === destacado);
   return (
     <div className="gps-mapa">
       <div className="row between">
-        <span className="small">
-          <strong>{g.nombre}</strong> · ubicación del <span className="gps-hora">{fechaHora(g.ultimoDato)}</span>
-        </span>
-        <span className="row" style={{ gap: 12 }}>
-          <a className="lineas-agregar" href={urlGoogleMaps(g.ubicacion)} target="_blank" rel="noopener noreferrer">
-            Abrir en Google Maps
+        <div className="mapa-leyenda small">
+          {conUbicacion.map((e) => (
+            <button key={e.id} type="button" aria-pressed={e.id === destacado} onClick={() => alDestacar(e.id)} title={e.nombre}>
+              <span className="mapa-color" style={{ "--c": COLOR_MAPA[e.tipo] } as React.CSSProperties} aria-hidden />
+              {ETIQUETA[e.tipo]} <span className="gps-hora tiny muted">{fechaHora(e.ultimoDato)}</span>
+            </button>
+          ))}
+        </div>
+        {elegido && (
+          <a className="lineas-agregar" href={urlGoogleMaps(elegido.ubicacion)} target="_blank" rel="noopener noreferrer">
+            Abrir {ETIQUETA[elegido.tipo]} en Google Maps
           </a>
-          <button type="button" className="lineas-agregar" onClick={alCerrar}>
-            Cerrar
-          </button>
-        </span>
+        )}
       </div>
       <Mapa
-        titulo={`Ubicación de ${g.nombre}`}
-        puntos={[{ ...g.ubicacion, nombre: g.nombre, tipo: "equipo" }, ...lugares.map((l) => ({ ...l, tipo: "lugar" as const }))]}
+        titulo={`Ubicación de los GPS de ${conUbicacion[0].nombre}`}
+        puntos={[
+          ...lugares.map((l) => ({ ...l, tipo: "lugar" as const })),
+          ...conUbicacion.map((e) => ({
+            ...e.ubicacion,
+            nombre: `${ETIQUETA[e.tipo]} · ${e.nombre}`,
+            tipo: "equipo" as const,
+            color: COLOR_MAPA[e.tipo],
+            destacado: e.id === destacado,
+          })),
+        ]}
       />
     </div>
   );

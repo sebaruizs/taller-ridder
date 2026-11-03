@@ -6,7 +6,8 @@ import "leaflet/dist/leaflet.css";
 // Mapa de OpenStreetMap (Leaflet) con el equipo y los lugares fijos (oficina, taller…).
 // Leaflet usa window: se carga en el navegador, después de montar.
 
-export type PuntoMapa = { lat: number; lon: number; nombre: string; tipo: "equipo" | "lugar" };
+// color: el del equipo (Chapa, TC, Moneda…); destacado: el que se tocó, más grande y al frente, y el mapa se centra ahí.
+export type PuntoMapa = { lat: number; lon: number; nombre: string; tipo: "equipo" | "lugar"; color?: string; destacado?: boolean };
 
 // Los lugares a más de esta distancia del equipo se dibujan igual, pero no se usan para encuadrar.
 const CERCA_KM = 30;
@@ -63,16 +64,27 @@ export function Mapa({
           p.tipo === "equipo"
             ? L.marker([p.lat, p.lon], {
                 pane: "equipo",
-                icon: L.divIcon({ className: "mapa-equipo", html: "<span></span>", iconSize: [22, 22], iconAnchor: [11, 11] }),
+                zIndexOffset: p.destacado ? 1000 : 0,
+                icon: L.divIcon({
+                  className: p.destacado ? "mapa-equipo mapa-destacado" : "mapa-equipo",
+                  html: `<span style="--c:${p.color && /^#[0-9a-f]{3,8}$/i.test(p.color) ? p.color : "var(--ridder)"}"></span>`,
+                  iconSize: [22, 22],
+                  iconAnchor: [11, 11],
+                }),
               })
             : L.marker([p.lat, p.lon], {
                 icon: L.divIcon({ className: "mapa-lugar", html: `<span>${escapar(p.nombre)}</span>`, iconSize: undefined, iconAnchor: [0, 0] }),
               });
         marca.bindTooltip(escapar(p.nombre), p.tipo === "equipo" ? { pane: "tooltipPane" } : undefined).addTo(capa.current!);
       }
-      // Encuadre: el equipo y los lugares cercanos; sin equipo, todos los lugares.
-      const equipo = lista.find((p) => p.tipo === "equipo");
-      const visibles = equipo ? lista.filter((p) => p.tipo === "equipo" || distanciaKm(equipo, p) <= CERCA_KM) : lista;
+      // Encuadre: el destacado; si no hay, los equipos y los lugares cerca de ellos; sin equipos, todos los lugares.
+      const destacado = lista.find((p) => p.destacado);
+      const equipos = lista.filter((p) => p.tipo === "equipo");
+      const visibles = destacado
+        ? [destacado]
+        : equipos.length
+          ? lista.filter((p) => p.tipo === "equipo" || equipos.some((e) => distanciaKm(e, p) <= CERCA_KM))
+          : lista;
       if (visibles.length === 1) mapa.current.setView([visibles[0].lat, visibles[0].lon], 16);
       else if (visibles.length > 1) mapa.current.fitBounds(L.latLngBounds(visibles.map((p) => [p.lat, p.lon])), { padding: [40, 40], maxZoom: 16 });
     });

@@ -475,11 +475,16 @@ textarea.input { min-height: 110px; resize: vertical; }
 .mapa-lugar span { display: inline-block; transform: translate(-50%, -100%); margin-top: -6px; padding: 2px 6px; border-radius: 6px; background: var(--danger); opacity: .92; color: #fff; font-size: 12px; font-weight: 600; line-height: 1.2; font-family: var(--font-sans), system-ui, sans-serif; white-space: nowrap; box-shadow: 0 1px 4px rgba(0,0,0,.3); }
 .mapa-lugar span::after { content: ""; position: absolute; left: 50%; bottom: -5px; margin-left: -5px; border: 5px solid transparent; border-bottom: 0; border-top-color: var(--danger); }
 .mapa-lugar { background: none; border: 0; }
-/* La moto: punto azul con borde blanco y un halo que late, arriba de todo. */
+/* Cada equipo con su color (Chapa, TC, Moneda…), borde blanco, arriba de todo; el que se tocó, más grande y con un halo que late. */
 .mapa-equipo { background: none; border: 0; }
-.mapa-equipo span { display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--ridder); border: 3px solid #fff; box-shadow: 0 0 0 2px var(--ridder), 0 2px 6px rgba(0,0,0,.4); animation: mapa-latido 1.8s ease-out infinite; }
-@keyframes mapa-latido { 0% { box-shadow: 0 0 0 2px var(--ridder), 0 0 0 2px rgba(27,118,255,.5); } 100% { box-shadow: 0 0 0 2px var(--ridder), 0 0 0 16px rgba(27,118,255,0); } }
-@media (prefers-reduced-motion: reduce) { .mapa-equipo span { animation: none; } }
+.mapa-equipo span { display: block; width: 18px; height: 18px; margin: 2px; border-radius: 50%; background: var(--c); border: 3px solid #fff; box-shadow: 0 1px 5px rgba(0,0,0,.45); }
+.mapa-destacado span { width: 22px; height: 22px; margin: 0; animation: mapa-latido 1.8s ease-out infinite; }
+@keyframes mapa-latido { 0% { box-shadow: 0 1px 5px rgba(0,0,0,.45), 0 0 0 0 color-mix(in srgb, var(--c) 55%, transparent); } 100% { box-shadow: 0 1px 5px rgba(0,0,0,.45), 0 0 0 16px transparent; } }
+@media (prefers-reduced-motion: reduce) { .mapa-destacado span { animation: none; } }
+.mapa-leyenda { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.mapa-leyenda button { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; }
+.mapa-leyenda button[aria-pressed="true"] { font-weight: 700; }
+.mapa-color { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--c); border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.25); flex: none; }
 .mapa-lugar span { position: relative; }
 .placa-link:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
 /* Finalizar: en el celular, datos, odómetro, observación y fotos en ese orden;
