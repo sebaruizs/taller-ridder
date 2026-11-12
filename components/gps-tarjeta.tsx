@@ -99,6 +99,9 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
   // El equipo destacado en el mapa (al tocar su tarjeta); sin destacar, el mapa muestra todos.
   const [enMapa, setEnMapa] = useState<number | null>(null);
   const [lugares, setLugares] = useState<LugarMapa[]>([]);
+  // Lo que se está por mandar al GPS: se confirma en la pantalla, no con el cartel del navegador.
+  // enMovimiento: el servidor avisó que la moto se está moviendo y pide confirmar de nuevo.
+  const [porConfirmar, setPorConfirmar] = useState<{ accion: AccionEncendido; enMovimiento?: string } | null>(null);
   const clave = chapa.toUpperCase().replace(/[^A-Z0-9]/g, "");
 
   // Cada vuelta vuelve a leer Traccar (al abrir, con «Actualizar» y después de bloquear o desbloquear).
@@ -133,11 +136,9 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
         body: JSON.stringify({ chapa, accion, ordenId, confirmaEnMovimiento }),
       });
       const d = await r.json().catch(() => ({}));
-      if (r.status === 409 && d.requiereConfirmar) {
-        if (confirm(`${d.error}\n\n¿Bloquear igual?`)) return mandar(accion, true);
-        return;
-      }
+      if (r.status === 409 && d.requiereConfirmar) return setPorConfirmar({ accion, enMovimiento: d.error });
       if (!r.ok) return setAviso({ ok: false, msg: d.error ?? "No se pudo mandar el comando al GPS" });
+      setPorConfirmar(null);
       setAviso({ ok: !d.enCola, msg: d.mensaje });
       // El GPS informa el cambio en unos minutos: se vuelve a leer.
       setTimeout(leer, 20_000);
@@ -150,8 +151,8 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
   }
 
   function tocar(accion: AccionEncendido) {
-    const texto = accion === "bloquear" ? `¿Bloquear el encendido de ${chapa}? La moto no va a poder arrancar.` : `¿Desbloquear el encendido de ${chapa}?`;
-    if (confirm(texto)) void mandar(accion);
+    setAviso(null);
+    setPorConfirmar({ accion });
   }
 
   return (
@@ -230,6 +231,32 @@ export function PanelGps({ ordenId, chapa, puedeBloquear }: { ordenId: number; c
         </div>
       )}
       {estado === "listo" && equipos && <MapaEquipos equipos={equipos} lugares={lugares} destacado={enMapa} alDestacar={(id) => setEnMapa((x) => (x === id ? null : id))} />}
+      {porConfirmar && (
+        <div className={`gps-confirmar ${porConfirmar.accion === "bloquear" ? "alert-danger" : "alert-warn"}`} role="alertdialog" aria-label="Confirmar">
+          <span>
+            {porConfirmar.enMovimiento
+              ? `${porConfirmar.enMovimiento} ¿Bloquear igual?`
+              : porConfirmar.accion === "bloquear"
+                ? `¿Bloquear el encendido de ${chapa}? La moto no va a poder arrancar.`
+                : `¿Desbloquear el encendido de ${chapa}?`}
+          </span>
+          <div className="row">
+            <button type="button" className="btn" disabled={enviando} onClick={() => setPorConfirmar(null)}>
+              Cancelar
+            </button>
+            <button
+              type="button"
+              className={`btn ${porConfirmar.accion === "bloquear" ? "btn-rojo" : "btn-primary"}`}
+              style={{ flex: 1 }}
+              disabled={enviando}
+              autoFocus
+              onClick={() => void mandar(porConfirmar.accion, !!porConfirmar.enMovimiento)}
+            >
+              {enviando ? "Mandando al GPS…" : porConfirmar.enMovimiento ? "Bloquear igual" : porConfirmar.accion === "bloquear" ? "Sí, bloquear" : "Sí, desbloquear"}
+            </button>
+          </div>
+        </div>
+      )}
       {aviso && <div className={`alert small ${aviso.ok ? "alert-ok" : "alert-warn"}`} role="status" style={{ marginTop: 10 }}>{aviso.msg}</div>}
       {estado === "listo" && puedeBloquear && equipos && !equipos.some((g) => g.corta) && (
         <span className="tiny muted" style={{ marginTop: 8 }}>Ningún equipo se llama exactamente {chapa}: no se puede bloquear desde acá.</span>
@@ -261,6 +288,9 @@ function TarjetaEquipo({
   // Fuera de línea en el nuevo pero reportando en el Traccar anterior: se muestra ese reporte, marcado.
   const anterior = !g.enLinea ? g.anterior : null;
   const reporte = anterior ? anterior.ultimaConexion : (g.ultimoDato ?? g.ultimaConexion);
+  // El relé según el último dato del equipo. Si reporta por el Traccar anterior, ese dato es viejo: se toma como
+  // desconocido y se ofrecen las dos acciones.
+  const estadoEncendido = anterior ? null : g.bloqueado;
   // Verde / amarillo / rojo según hace cuánto reportó (umbrales de Ajustes).
   const color = colorReporte(reporte, colores) ?? undefined;
   // Con ubicación, tocar la tarjeta la destaca en el mapa (otra vez, deja de destacarla); los botones de bloqueo no.
@@ -303,14 +333,24 @@ function TarjetaEquipo({
       ) : (
         <span className="small muted">Sin reportes</span>
       )}
+      {g.corta && (
+        <span className="small gps-encendido" data-estado={estadoEncendido === null ? "sin-dato" : estadoEncendido ? "bloqueado" : "libre"}>
+          Encendido: <strong>{estadoEncendido === null ? "sin dato del GPS" : estadoEncendido ? "Bloqueado" : "Desbloqueado"}</strong>
+        </span>
+      )}
       {g.corta && puedeBloquear && (
         <span className="gps-acciones" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
-          <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>
-            Bloquear
-          </button>
-          <button type="button" className="gps-boton" disabled={enviando} onClick={() => alTocar("desbloquear")}>
-            Desbloquear
-          </button>
+          {/* Con dato del GPS, solo la acción que corresponde; sin dato, las dos. */}
+          {estadoEncendido !== true && (
+            <button type="button" className="gps-boton gps-cortar" disabled={enviando} onClick={() => alTocar("bloquear")}>
+              Bloquear
+            </button>
+          )}
+          {estadoEncendido !== false && (
+            <button type="button" className="gps-boton" disabled={enviando} onClick={() => alTocar("desbloquear")}>
+              Desbloquear
+            </button>
+          )}
         </span>
       )}
     </div>

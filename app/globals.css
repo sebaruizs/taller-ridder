@@ -189,6 +189,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 }
 .center { text-align: center; }
 .skeleton { height: 92px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface-2), var(--surface), var(--surface-2)); background-size: 200% 100%; animation: sk 1.2s infinite; }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
 @keyframes sk { to { background-position: -200% 0; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
 
@@ -244,6 +245,33 @@ textarea.input { min-height: 110px; resize: vertical; }
 .login-caja .input { background: var(--brand-raised); border-color: var(--brand-line); color: #fff; }
 .login-caja .input:focus { border-color: var(--ridder); }
 .login-caja .btn:not(.btn-primary) { background: var(--brand-raised); border-color: var(--brand-line); color: #fff; }
+
+/* Pestañas de abajo (solo celular): las pantallas principales, con «Más» para el resto. */
+.tabbar-caja { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; }
+.tabbar {
+  display: flex; background: var(--surface); border-top: 1px solid var(--line);
+  padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+}
+.tab {
+  flex: 1; min-width: 0; min-height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  border: 0; border-radius: 10px; background: none; font: inherit; font-size: 11.5px; font-weight: 600; line-height: 1.1;
+  color: var(--ink-2); text-decoration: none; cursor: pointer;
+}
+.tab span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tab[aria-current="page"], .tab[data-activa], .tab[aria-expanded="true"] { color: var(--ridder); }
+.tab[aria-current="page"] .side-icono { opacity: 1; }
+.tab:focus-visible, .tabbar-mas-link:focus-visible { outline: 2px solid var(--ridder); outline-offset: -2px; }
+.tabbar-mas {
+  position: absolute; right: 8px; bottom: calc(100% + 8px); min-width: 220px; padding: 6px; display: flex; flex-direction: column; gap: 2px;
+  border-radius: 12px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+.tabbar-mas-link {
+  display: flex; align-items: center; min-height: 48px; padding: 0 14px; border: 0; border-radius: 8px; background: none; text-align: left;
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); text-decoration: none; cursor: pointer;
+}
+.tabbar-mas-link[aria-current="page"] { color: var(--ridder); }
+.tabbar-salir { color: var(--danger); border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; }
+@media (min-width: 1024px) { .tabbar-caja { display: none; } }
 
 /* Menú lateral (solo PC). */
 .sidebar { display: none; }
@@ -452,10 +480,19 @@ textarea.input { min-height: 110px; resize: vertical; }
 .gps-equipo { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .gps-punto { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); flex: none; }
 .gps-tipo { font-size: 11px; font-weight: 700; letter-spacing: 0.03em; }
-.gps-acciones { display: flex; gap: 6px; width: 100%; }
-.gps-boton { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 3px 8px; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.gps-acciones { display: flex; gap: 12px; width: 100%; }
+/* Bloquear inmoviliza la moto: botones grandes, separados, y el de bloquear siempre en rojo. */
+.gps-boton { flex: 1; min-height: 44px; background: none; border: 1px solid var(--ink-3); border-radius: 10px; padding: 0 14px; font: inherit; font-size: 15px; font-weight: 600; color: var(--ink); cursor: pointer; }
 .gps-boton:hover { border-color: var(--ridder); color: var(--ridder); }
-.gps-cortar:hover { border-color: var(--danger); color: var(--danger); }
+.gps-boton:disabled { opacity: 0.5; cursor: default; }
+.gps-cortar { border-color: var(--danger); color: var(--danger); }
+.gps-cortar:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.gps-encendido[data-estado="bloqueado"] strong { color: var(--danger); }
+.gps-encendido[data-estado="sin-dato"] strong { color: var(--ink-2); }
+.gps-confirmar { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding: 12px 14px; border-radius: 12px; font-size: 15px; font-weight: 600; }
+.gps-confirmar .btn { background: var(--surface); color: var(--ink); }
+.gps-confirmar .btn-primary { background: var(--accent); color: var(--accent-ink); }
+.gps-confirmar .btn-rojo { background: var(--danger); border-color: var(--danger); color: var(--surface); }
 .gps-sin { border-top: 1px solid var(--line); padding-top: 6px; }
 .gps-tarjetas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px; }
 .gps-tarjeta { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); min-width: 0; overflow-wrap: anywhere; }

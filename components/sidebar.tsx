@@ -9,14 +9,14 @@ import { MarcarAsistencia } from "@/components/asistencias";
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
 
 // Marca la opción más específica; en "/inventario/nuevo" queda marcado "Productos".
-function hrefActivo(pathname: string, hrefs: string[]): string | null {
+export function hrefActivo(pathname: string, hrefs: string[]): string | null {
   // El detalle de una orden (/ordenes/123) se abre desde el tablero o reportes: no marca "Motos en proceso".
   if (/^\/ordenes\/\d+$/.test(pathname)) return null;
   const coinciden = hrefs.filter((h) => pathname === h || pathname.startsWith(h + "/"));
   return coinciden.sort((a, b) => b.length - a.length)[0] ?? null;
 }
 
-// Solo visible en pantallas anchas; en el celular la navegación está en la barra de arriba.
+// Solo visible en pantallas anchas; en el celular la navegación es la barra de pestañas de abajo (tabbar.tsx).
 export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; pantallas: Pantalla[] }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -122,7 +122,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   "/compras": <><circle cx="9" cy="20" r="1.3" /><circle cx="18" cy="20" r="1.3" /><path d="M2.5 3h2.6l2.3 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6" /></>,
 };
 
-function Icono({ href }: { href: string }) {
+export function Icono({ href }: { href: string }) {
   return (
     <svg className="side-icono" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {ICONOS[href] ?? <path d="M12 5v14M5 12h14" />}

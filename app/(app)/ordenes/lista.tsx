@@ -72,23 +72,8 @@ export function ListaOrdenes({ tienePartner, accesos, modo = "proceso" }: { tien
 
   return (
     <main className="wrap stack" style={{ paddingTop: 0 }}>
-      {!verificar && (accesos.crear || accesos.tablero || accesos.verificar || accesos.inventario || accesos.compras) && (
-        <div className="stack solo-movil" style={{ gap: 8 }}>
-          {accesos.crear && <Link href="/ordenes/nueva" className="btn btn-primary">+ Nueva orden</Link>}
-          {(accesos.tablero || accesos.verificar) && (
-            <div className="row" style={{ gap: 8 }}>
-              {accesos.tablero && <Link href="/tablero" className="btn" style={{ flex: 1 }}>Tablero</Link>}
-              {accesos.verificar && <Link href="/verificar" className="btn" style={{ flex: 1 }}>Para verificar</Link>}
-            </div>
-          )}
-          {(accesos.inventario || accesos.compras) && (
-            <div className="row" style={{ gap: 8 }}>
-              {accesos.inventario && <Link href="/inventario" className="btn" style={{ flex: 1 }}>Inventario</Link>}
-              {accesos.compras && <Link href="/compras" className="btn" style={{ flex: 1 }}>Compras</Link>}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Las demás pantallas se abren desde la barra de pestañas de abajo. */}
+      {!verificar && accesos.crear && <Link href="/ordenes/nueva" className="btn btn-primary solo-movil">+ Nueva orden</Link>}
       <div className="filtros">
         <input
           className="input"

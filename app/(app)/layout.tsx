@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { usuarioActual } from "@/lib/auth";
 import { pantallasDe } from "@/lib/permisos";
 import { Sidebar } from "@/components/sidebar";
+import { Tabbar } from "@/components/tabbar";
 import { AsistenciasProvider } from "@/components/asistencias";
 import { env } from "@/lib/env";
 
@@ -14,6 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="shell">
         <Sidebar nombre={u.nombre} rol={u.rol} pantallas={pantallasDe(u)} />
         <div className="contenido">{children}</div>
+        <Tabbar pantallas={pantallasDe(u)} />
       </div>
     </AsistenciasProvider>
   );
