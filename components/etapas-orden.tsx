@@ -22,11 +22,14 @@ function destino(de: Estado, a: Estado, acc: AccionesEtapas): "directo" | "repor
   return movimientoValido(de, a) && acc.iniciar ? "directo" : null;
 }
 
-// Etapas de la orden, arriba a la derecha del detalle: la actual marcada y las alcanzables se tocan para cambiar.
+// Etapa de la orden en su detalle: dice en cuál está y, abajo, un botón por cada etapa a la que se puede pasar.
 export function EtapasOrden({ ordenId, estado, acciones }: { ordenId: number; estado: string; acciones: AccionesEtapas }) {
   const router = useRouter();
   const [moviendo, setMoviendo] = useState<Estado | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<{ ok: boolean; msg: string } | null>(null);
+  const titulo = (e: string) => ETAPAS.find((x) => x.estado === e)?.titulo ?? e;
+  const destinos = ETAPAS.filter((e) => e.estado !== estado && destino(estado as Estado, e.estado, acciones) !== null);
+  const indice = ETAPAS.findIndex((e) => e.estado === estado);
 
   async function cambiar(a: Estado) {
     const d = destino(estado as Estado, a, acciones);
@@ -34,15 +37,16 @@ export function EtapasOrden({ ordenId, estado, acciones }: { ordenId: number; es
     if (d === "reporte") return router.push(`/ordenes/${ordenId}/finalizar`);
     if (d === "verificar") return router.push(`/verificar/${ordenId}`);
     setMoviendo(a);
-    setError(null);
+    setAviso(null);
     try {
       const r = await fetch(`/api/ordenes/${ordenId}/mover`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ de: estado, a }) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) setError(j.error ?? "No se pudo cambiar la etapa");
-      else if (j.aviso) setError(j.aviso);
+      if (r.status === 401) return router.replace("/ingresar");
+      if (!r.ok) setAviso({ ok: false, msg: j.error ?? "No se pudo cambiar la etapa" });
+      else setAviso(j.aviso ? { ok: false, msg: j.aviso } : { ok: true, msg: `La orden pasó a «${titulo(a)}».` });
       router.refresh();
     } catch {
-      setError("Sin conexión. Probá de nuevo.");
+      setAviso({ ok: false, msg: "Sin conexión. Probá de nuevo." });
     } finally {
       setMoviendo(null);
     }
@@ -50,27 +54,24 @@ export function EtapasOrden({ ordenId, estado, acciones }: { ordenId: number; es
 
   return (
     <div className="etapas-caja">
-      <div className="etapas" role="group" aria-label="Etapa de la orden">
-        {ETAPAS.map((e) => {
-          const actual = e.estado === estado;
-          const puede = !actual && destino(estado as Estado, e.estado, acciones) !== null;
-          return (
-            <button
-              key={e.estado}
-              type="button"
-              className="etapa"
-              aria-current={actual ? "step" : undefined}
-              data-disponible={puede || undefined}
-              disabled={!puede || moviendo !== null}
-              onClick={() => cambiar(e.estado)}
-              title={puede ? `Pasar a ${e.titulo}` : undefined}
-            >
-              {moviendo === e.estado ? "Moviendo…" : e.titulo}
-            </button>
-          );
-        })}
+      <div className="etapas-actual">
+        <span className="small muted">Etapa</span>
+        <span className="etapa-actual">{titulo(estado)}</span>
       </div>
-      {error && <div className="alert alert-danger small" role="alert">{error}</div>}
+      {destinos.length > 0 && (
+        <div className="etapas" role="group" aria-label="Mover la orden a otra etapa">
+          <span className="small muted">Mover a</span>
+          {destinos.map((e) => {
+            const atras = ETAPAS.findIndex((x) => x.estado === e.estado) < indice;
+            return (
+              <button key={e.estado} type="button" className="etapa" data-atras={atras || undefined} disabled={moviendo !== null} onClick={() => cambiar(e.estado)}>
+                {moviendo === e.estado ? "Moviendo…" : `${atras ? "←" : "→"} ${e.titulo}`}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      {aviso && <div className={`alert small ${aviso.ok ? "alert-ok" : "alert-danger"}`} role={aviso.ok ? "status" : "alert"}>{aviso.msg}</div>}
     </div>
   );
 }

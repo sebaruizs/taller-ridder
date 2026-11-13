@@ -5,8 +5,11 @@
   --surface-2: #e9eef8;
   --ink: #0e1a33;
   --ink-2: #43506b;
-  --ink-3: #78849c;
+  --ink-3: #5d6982;
   --line: #dce3f0;
+  /* Borde de casillas y botones: se tiene que distinguir del fondo (3:1). --line queda para separadores. */
+  --line-strong: #7f8ca6;
+  --on-ok: #ffffff;
   --ridder: #1b76ff;
   --accent: #1564e6;
   --accent-ink: #ffffff;
@@ -15,11 +18,11 @@
   --brand-line: #1f3566;
   --brand-ink-2: #a9b8d6;
   --brand-ink-3: #8193b8;
-  --danger: #d33a2c;
+  --danger: #b92f22;
   --danger-soft: #fde9e6;
-  --warn: #b86e00;
+  --warn: #8a5200;
   --warn-soft: #fff2d6;
-  --ok: #1e8a4c;
+  --ok: #17703d;
   --ok-soft: #e1f5e8;
   --radius: 14px;
   --tap: 48px;
@@ -30,14 +33,14 @@
 @media (prefers-color-scheme: dark) {
   :root[data-theme="system"] {
     --bg: #071022; --surface: #0f1a30; --surface-2: #16243f; --ink: #eaf0fb; --ink-2: #adb9d0; --ink-3: #7c89a4;
-    --line: #22314f; --brand: #060d1c; --brand-raised: #112142; --brand-line: #182a4d;
+    --line: #22314f; --line-strong: #62759b; --on-ok: #06210f; --brand: #060d1c; --brand-raised: #112142; --brand-line: #182a4d;
     --danger: #ff6b5c; --danger-soft: #3a1714; --warn: #ffb547; --warn-soft: #352510; --ok: #4ad584; --ok-soft: #112d1d;
     --shadow: none; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #071022; --surface: #0f1a30; --surface-2: #16243f; --ink: #eaf0fb; --ink-2: #adb9d0; --ink-3: #7c89a4;
-  --line: #22314f; --brand: #060d1c; --brand-raised: #112142; --brand-line: #182a4d;
+  --line: #22314f; --line-strong: #62759b; --on-ok: #06210f; --brand: #060d1c; --brand-raised: #112142; --brand-line: #182a4d;
   --danger: #ff6b5c; --danger-soft: #3a1714; --warn: #ffb547; --warn-soft: #352510; --ok: #4ad584; --ok-soft: #112d1d;
   --shadow: none; color-scheme: dark;
 }
@@ -85,7 +88,7 @@ a { color: inherit; }
 
 .btn {
   min-height: var(--tap); padding: 0 18px; border-radius: 12px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
   font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   cursor: pointer; text-decoration: none;
 }
@@ -125,24 +128,26 @@ a { color: inherit; }
 .placa-lg { font-size: 26px; padding: 6px 14px; border-width: 3px; }
 
 .chip {
-  min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line);
+  min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-strong);
   background: var(--surface); font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer;
 }
 .chip[aria-pressed="true"], .chip[aria-selected="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .chips { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
 
-/* Etapas de la orden en su detalle: la actual en negro, las alcanzables con borde de color. */
-.etapas-caja { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; max-width: 100%; }
-.etapas { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; }
+/* Etapa de la orden en su detalle: la actual en negro y, abajo, un botón por cada etapa a la que se puede mover. */
+.etapas-caja { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; max-width: 100%; }
+.etapas-actual, .etapas { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.etapa-actual { padding: 4px 12px; border-radius: 999px; background: var(--ink); color: var(--bg); font-weight: 600; font-size: 14px; white-space: nowrap; }
 .etapa {
-  min-height: 34px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--line);
-  background: var(--surface-2); color: var(--ink-2); font-weight: 600; font-size: 13px; white-space: nowrap;
+  min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--accent);
+  background: var(--surface); color: var(--ink); font-weight: 600; font-size: 14px; white-space: nowrap; cursor: pointer;
 }
-.etapa[aria-current="step"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
-.etapa[data-disponible] { background: var(--surface); border-color: var(--accent); color: var(--ink); cursor: pointer; }
-.etapa[data-disponible]:hover { background: var(--accent); color: var(--accent-ink); }
-.etapa:disabled:not([aria-current]) { opacity: 0.55; cursor: default; }
-@media (max-width: 640px) { .etapas-caja { align-items: stretch; width: 100%; } .etapas { justify-content: flex-start; } }
+.etapa:hover:not(:disabled) { background: var(--accent); color: var(--accent-ink); }
+.etapa[data-atras] { border-color: var(--line-strong); color: var(--ink-2); }
+.etapa[data-atras]:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
+.etapa:disabled { opacity: 0.55; cursor: default; }
+.etapa:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; }
+@media (max-width: 640px) { .etapas-caja { align-items: stretch; width: 100%; } .etapas-actual, .etapas { justify-content: flex-start; } }
 
 .badge { font-size: 13px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
 .badge-danger { background: var(--danger-soft); color: var(--danger); }
@@ -150,7 +155,7 @@ a { color: inherit; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label, .label { font-weight: 600; font-size: 15px; }
 .input {
-  min-height: var(--tap); border-radius: 12px; border: 1px solid var(--line); background: var(--surface);
+  min-height: var(--tap); border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface);
   padding: 10px 14px; width: 100%; font-size: 17px;
 }
 .input:focus { outline: none; border-color: var(--ridder); box-shadow: 0 0 0 3px rgba(27, 118, 255, 0.2); }
@@ -184,7 +189,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .resumen dt { color: var(--ink-2); font-size: 14px; }
 .resumen dd { margin: 0 0 10px; font-weight: 600; }
 .success-mark {
-  width: 72px; height: 72px; border-radius: 999px; background: var(--ok); color: #fff;
+  width: 72px; height: 72px; border-radius: 999px; background: var(--ok); color: var(--on-ok);
   display: grid; place-items: center; font-size: 38px; margin: 12px auto 4px;
 }
 .center { text-align: center; }
@@ -458,7 +463,7 @@ textarea.input { min-height: 110px; resize: vertical; }
 .lineas-tabla tr[data-cambio] { background: var(--surface-2); }
 .celda { width: 100%; min-width: 70px; padding: 6px 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; font: inherit; }
 .celda.num { text-align: right; font-variant-numeric: tabular-nums; max-width: 130px; }
-.celda:hover { border-color: var(--line); }
+.celda:hover { border-color: var(--line-strong); }
 .celda:focus { outline: none; border-color: var(--ridder); background: var(--surface); }
 .lineas-agregar { background: none; border: 0; padding: 4px 0; color: var(--ridder); font: inherit; font-weight: 600; cursor: pointer; }
 .lineas-quitar { background: none; border: 0; padding: 4px 6px; cursor: pointer; color: var(--ink-3); font-size: 15px; }
@@ -473,6 +478,28 @@ textarea.input { min-height: 110px; resize: vertical; }
 .lineas-opciones .lineas-crear { color: var(--ridder); font-weight: 600; border-bottom: 0; }
 .lineas-producto-nuevo { margin-top: 10px; border-color: var(--ridder); }
 .lineas-total { text-align: right; padding-top: 10px; }
+.lineas-solo-celu { display: none; }
+/* En el celular cada repuesto es una tarjeta: el nombre arriba y, abajo, cantidad, unidad, costo y total con su rótulo. */
+@media (max-width: 640px) {
+  .lineas-caja .tabla-scroll { overflow: visible; margin: 0; padding: 0; }
+  .lineas-tabla, .lineas-tabla tbody { display: block; width: 100%; }
+  .lineas-tabla thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .lineas-tabla tr { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .lineas-tabla tbody tr:hover { background: none; }
+  .lineas-tabla tr[data-cambio] { background: none; }
+  .lineas-tabla td, .lineas-tabla td:first-child { display: block; width: auto; min-width: 0; padding: 0; border: 0; text-align: left; }
+  .lineas-tabla td:first-child, .lineas-tabla td.lineas-acciones { grid-column: 1 / -1; }
+  .lineas-tabla td:first-child:not(.lineas-ancha) { font-weight: 600; }
+  .lineas-tabla td[data-rotulo]::before { content: attr(data-rotulo); display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 4px; }
+  .lineas-tabla td[data-rotulo="Unidad"]:empty { display: none; }
+  .lineas-tabla .celda, .lineas-tabla .celda.num { min-height: 44px; max-width: none; padding: 8px 12px; border-color: var(--line-strong); border-radius: 10px; background: var(--surface); font-size: 16px; text-align: left; }
+  .lineas-tabla td.lineas-acciones { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
+  .lineas-solo-celu { display: inline; }
+  .lineas-quitar { min-height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 10px; color: var(--ink-2); font-weight: 600; }
+  .lineas-guardar { min-height: 44px; padding: 0 18px; font-size: 15px; }
+  .lineas-agregar { min-height: 44px; }
+  .lineas-opciones button { min-height: 44px; padding: 10px 12px; }
+}
 .lineas-caja .tabla-scroll { overflow: visible; }
 @media (max-width: 1023px) { .lineas-caja .tabla-scroll { overflow-x: auto; } }
 /* GPS en las tarjetas del tablero. */

@@ -14,6 +14,8 @@ export function VerificarOrden({
   puedeRepuestos,
   puedeAprobar,
   gps,
+  reporte,
+  sinReporte,
   historial,
 }: {
   orden: DetalleOrden;
@@ -21,6 +23,9 @@ export function VerificarOrden({
   puedeRepuestos: boolean;
   puedeAprobar: boolean;
   gps: { puedeBloquear: boolean } | null;
+  /** La tarjeta con la observación y las fotos del mecánico. */
+  reporte: React.ReactNode;
+  sinReporte: boolean;
   historial: React.ReactNode;
 }) {
   const rep = useRepuestos(orden.id, lineasIniciales);
@@ -85,32 +90,32 @@ export function VerificarOrden({
           )}
         </div>
 
-        <div>
-
-          {editable && puedeAprobar && lineas.length === 0 && (
-            <label className="check">
-              <input type="checkbox" checked={sinRepuestos} onChange={(e) => setSinRepuestos(e.target.checked)} />
-              <span><strong>No se usaron repuestos</strong><br /><span className="small muted">Marcalo solo si el trabajo no llevó ningún repuesto.</span></span>
-            </label>
-          )}
-
-          {error && <div className="alert alert-danger" role="alert">{error}</div>}
-
-          {editable && puedeAprobar && (
-            <div className="bottom-bar">
-              <div className="stack" style={{ gap: 6 }}>
-                <button className="btn btn-primary btn-block btn-lg" disabled={!listoParaAprobar} onClick={aprobar}>
-                  {ocupado ? "Guardando en Odoo…" : "Aprobar · pasa a Finalizado"}
-                </button>
-                <span className="tiny muted center">Total repuestos: {gs(total)}</span>
-              </div>
-            </div>
-          )}
-        </div>
+        <div>{reporte}</div>
       </div>
       <div className="stack" style={{ gap: 14, marginTop: 14 }}>
         {gps && <PanelGps ordenId={orden.id} chapa={orden.chapa} puedeBloquear={gps.puedeBloquear} />}
         <TablaRepuestos r={rep} editable={puedeRepuestos} alAgregar={() => setSinRepuestos(false)} conError={false} />
+        {editable && puedeAprobar && lineas.length === 0 && (
+          <label className="check">
+            <input type="checkbox" checked={sinRepuestos} onChange={(e) => setSinRepuestos(e.target.checked)} />
+            <span><strong>No se usaron repuestos</strong><br /><span className="small muted">Marcalo solo si el trabajo no llevó ningún repuesto.</span></span>
+          </label>
+        )}
+        {editable && puedeAprobar && (
+          <div className="bottom-bar">
+            <div className="stack" style={{ gap: 6 }}>
+              {error && <div className="alert alert-danger small" role="alert">{error}</div>}
+              {sinReporte && <div className="alert alert-warn small">Esta orden no tiene reporte del mecánico.</div>}
+              <button className="btn btn-primary btn-block btn-lg" disabled={!listoParaAprobar} onClick={aprobar}>
+                {ocupado ? "Guardando en Odoo…" : "Aprobar · pasa a Finalizado"}
+              </button>
+              <span className="tiny muted center">
+                {lineas.length === 0 && !sinRepuestos ? "Cargá los repuestos o marcá que no se usaron." : `Total repuestos: ${gs(total)}`}
+              </span>
+            </div>
+          </div>
+        )}
+        {error && !(editable && puedeAprobar) && <div className="alert alert-danger" role="alert">{error}</div>}
         {historial}
       </div>
     </main>

@@ -2,11 +2,13 @@ import { notFound } from "next/navigation";
 import { exigirPagina } from "@/lib/auth";
 import { detalleOrden } from "@/lib/ordenes";
 import { leerRepuestos } from "@/lib/verificar";
+import { reporteDeOrden } from "@/lib/reportes";
 import { odoo } from "@/lib/odoo";
 import { Topbar } from "@/components/topbar";
 import { puedeU } from "@/lib/permisos";
 import { VerificarOrden } from "./verificar";
 import { Historial } from "@/components/historial";
+import { ReporteMecanico } from "@/components/reporte-mecanico";
 
 export default async function Verificar(props: PageProps<"/verificar/[id]">) {
   const u = await exigirPagina(["ordenes.aprobar", "ordenes.editar"]);
@@ -14,6 +16,7 @@ export default async function Verificar(props: PageProps<"/verificar/[id]">) {
   if (!Number.isInteger(id) || id <= 0) notFound();
   const [orden, lineas] = await Promise.all([detalleOrden(id), leerRepuestos(odoo, id)]);
   if (!orden) notFound();
+  const reporte = await reporteDeOrden(id, orden.mecanico);
   return (
     <>
       <Topbar titulo={orden.estado === "cancelled" ? "Verificar trabajo" : "Repuestos"} volver={orden.estado === "cancelled" ? "/verificar" : `/ordenes/${id}`} />
@@ -23,6 +26,8 @@ export default async function Verificar(props: PageProps<"/verificar/[id]">) {
         puedeRepuestos={puedeU(u, "ordenes.editar")}
         puedeAprobar={puedeU(u, "ordenes.aprobar")}
         gps={puedeU(u, "gps.ver") && ["running", "cancelled"].includes(orden.estado) ? { puedeBloquear: puedeU(u, "gps.encendido") } : null}
+        reporte={<ReporteMecanico reporte={reporte} />}
+        sinReporte={reporte.observacion === null}
         historial={<Historial ordenId={id} />}
       />
     </>

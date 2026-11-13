@@ -7,13 +7,13 @@ import { leerRepuestos } from "@/lib/verificar";
 import { reporteDeOrden } from "@/lib/reportes";
 import { odoo } from "@/lib/odoo";
 import { ESTADOS, type EstadoOrden } from "@/lib/taller";
-import { fechaHora } from "@/lib/historial-formato";
 import { cantidad, fecha } from "@/lib/formato";
 import { Topbar } from "@/components/topbar";
 import { Historial } from "@/components/historial";
 import { CajaRepuestos } from "@/components/repuestos-orden";
 import { PanelGps } from "@/components/gps-tarjeta";
 import { EliminarOrden } from "@/components/eliminar-orden";
+import { ReporteMecanico } from "@/components/reporte-mecanico";
 import { EtapasOrden } from "@/components/etapas-orden";
 
 const claseEstado = (e: string) => (e === "done" ? "badge-ok" : e === "cancelled" ? "badge-warn" : e === "to_be_paid" ? "badge-danger" : "");
@@ -68,27 +68,7 @@ export default async function Orden(props: PageProps<"/ordenes/[id]">) {
           </div>
 
           <div className="stack" style={{ gap: 14 }}>
-            <section className="card stack" style={{ gap: 10 }}>
-              <div className="row between">
-                <strong>Reporte del mecánico</strong>
-                {reporte.fecha && <span className="small muted">{fechaHora(reporte.fecha)}</span>}
-              </div>
-              {reporte.observacion === null ? (
-                <span className="small muted">Todavía no hay reporte del mecánico.</span>
-              ) : (
-                <div style={{ whiteSpace: "pre-line" }}>{reporte.observacion || <span className="muted">Sin observación</span>}</div>
-              )}
-              {reporte.fotos.length > 0 && (
-                <div className="detalle-fotos">
-                  {reporte.fotos.map((f, i) => (
-                    <a key={f} href={`/api/fotos/${f}`} target="_blank" rel="noreferrer" aria-label={`Foto ${i + 1}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={`/api/fotos/${f}?tam=mini`} alt="" loading="lazy" width={120} height={120} />
-                    </a>
-                  ))}
-                </div>
-              )}
-            </section>
+            <ReporteMecanico reporte={reporte} />
           </div>
         </div>
 

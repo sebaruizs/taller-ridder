@@ -89,7 +89,7 @@ export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r:
             {r.lineas.map((l) => (editable ? <FilaEditable key={`${l.id}-${l.cantidad}-${l.costoUnitario}`} l={l} r={r} /> : <FilaLectura key={l.id} l={l} />))}
             {r.lineas.length === 0 && !agregando && (
               <tr>
-                <td colSpan={columnas} className="small muted">Todavía no hay repuestos cargados.</td>
+                <td colSpan={columnas} className="small muted lineas-ancha">Todavía no hay repuestos cargados.</td>
               </tr>
             )}
             {editable &&
@@ -104,7 +104,7 @@ export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r:
                 />
               ) : (
                 <tr>
-                  <td colSpan={columnas}>
+                  <td colSpan={columnas} className="lineas-ancha">
                     <button type="button" className="lineas-agregar" onClick={() => setAgregando(true)} disabled={r.ocupado}>
                       Agregar una línea
                     </button>
@@ -127,10 +127,10 @@ function FilaLectura({ l }: { l: LineaRepuesto }) {
   return (
     <tr>
       <td>{l.producto}</td>
-      <td className="num">{miles(l.cantidad)}</td>
-      <td>{l.unidad ?? ""}</td>
-      <td className="num">{miles(l.costoUnitario)}</td>
-      <td className="num">{miles(l.total)}</td>
+      <td className="num" data-rotulo="Utilizado">{miles(l.cantidad)}</td>
+      <td data-rotulo="Unidad">{l.unidad ?? ""}</td>
+      <td className="num" data-rotulo="Costo unitario">{miles(l.costoUnitario)}</td>
+      <td className="num" data-rotulo="Total">{miles(l.total)}</td>
     </tr>
   );
 }
@@ -159,17 +159,18 @@ function FilaEditable({ l, r }: { l: LineaRepuesto; r: EstadoRepuestos }) {
   return (
     <tr data-cambio={cambio || undefined}>
       <td>{l.producto}</td>
-      <td className="num">
+      <td className="num" data-rotulo="Utilizado">
         <input className="celda num" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} onBlur={guardar} onKeyDown={alTeclear} aria-label={`Cantidad de ${l.producto}`} />
       </td>
-      <td>{l.unidad ?? ""}</td>
-      <td className="num">
+      <td data-rotulo="Unidad">{l.unidad ?? ""}</td>
+      <td className="num" data-rotulo="Costo unitario">
         <input className="celda num" inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} onBlur={guardar} onKeyDown={alTeclear} aria-label={`Costo unitario de ${l.producto}`} />
       </td>
-      <td className="num">{miles(cambio && c > 0 ? c * u : l.total)}</td>
-      <td className="num">
+      <td className="num" data-rotulo="Total">{miles(cambio && c > 0 ? c * u : l.total)}</td>
+      <td className="num lineas-acciones">
         <button type="button" className="lineas-quitar" disabled={r.ocupado} onClick={() => r.quitar(l)} aria-label={`Quitar ${l.producto}`} title="Quitar">
-          🗑
+          <span aria-hidden="true">🗑</span>
+          <span className="lineas-solo-celu"> Quitar</span>
         </button>
       </td>
     </tr>
@@ -213,20 +214,21 @@ function FilaNueva({ r, cerrar, alAgregar }: { r: EstadoRepuestos; cerrar: () =>
           <BuscadorProducto<ProductoOdoo> url={urlProductos} detalle={(p) => gs(p.costo)} alElegir={elegir} alCerrar={cerrar} vacio="No hay repuestos con ese nombre." />
         )}
       </td>
-      <td className="num">
+      <td className="num" data-rotulo="Utilizado">
         <input ref={cantRef} className="celda num" inputMode="decimal" value={cantidad} onChange={(e) => setCantidad(e.target.value)} onKeyDown={alTeclear} aria-label="Cantidad" />
       </td>
-      <td>{producto?.unidad ?? ""}</td>
-      <td className="num">
+      <td data-rotulo="Unidad">{producto?.unidad ?? ""}</td>
+      <td className="num" data-rotulo="Costo unitario">
         <input className="celda num" inputMode="numeric" value={costo} onChange={(e) => setCosto(e.target.value)} onKeyDown={alTeclear} aria-label="Costo unitario" />
       </td>
-      <td className="num">{producto ? miles(cant(cantidad) * num(costo || "0") || 0) : ""}</td>
-      <td className="num" style={{ whiteSpace: "nowrap" }}>
+      <td className="num" data-rotulo="Total">{producto ? miles(cant(cantidad) * num(costo || "0") || 0) : ""}</td>
+      <td className="num lineas-acciones" style={{ whiteSpace: "nowrap" }}>
         <button type="button" className="btn btn-primary lineas-guardar" disabled={!listo} onClick={confirmar}>
           Guardar
         </button>
         <button type="button" className="lineas-quitar" onClick={cerrar} aria-label="Descartar línea" title="Descartar">
-          ✕
+          <span aria-hidden="true">✕</span>
+          <span className="lineas-solo-celu"> Descartar</span>
         </button>
       </td>
     </tr>
