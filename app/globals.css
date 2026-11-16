@@ -584,3 +584,15 @@ textarea.input { min-height: 110px; resize: vertical; }
 .gps-punto[data-color="verde"] { background: var(--ok); }
 .gps-punto[data-color="amarillo"] { background: var(--warn); }
 .gps-punto[data-color="rojo"] { background: var(--danger); }
+
+/* Devoluciones y recuperos: tarjetas por día con sus fotos. */
+.devolucion-dia { margin: 6px 0 0; font-size: 16px; }
+.devoluciones-grilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 12px; align-items: start; }
+.devolucion-fotos { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 6px; }
+.devolucion-fotos img { width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border-radius: 8px; display: block; background: var(--surface-2); }
+.devolucion-fotos a:focus-visible { outline: 2px solid var(--ridder); outline-offset: 2px; border-radius: 8px; }
+.devolucion-borrar { align-self: flex-start; min-height: 44px; padding: 0 10px; color: var(--danger); }
+.devolucion-tipos { border: 0; margin: 0; padding: 0; min-width: 0; }
+.devolucion-tipos legend { padding: 0; margin-bottom: 6px; }
+.devolucion-tipos .check { border-color: var(--line-strong); box-shadow: none; }
+.devolucion-tipos .check[data-elegido] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }

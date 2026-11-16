@@ -21,6 +21,10 @@ export const ACCIONES = {
   "gps.ver": ["mecanico", "jefe", "cobrador", "admin"],
   // Bloquear o desbloquear el encendido de la moto por GPS (Traccar).
   "gps.encendido": ["jefe", "admin"],
+  // Devoluciones y recuperos: la moto que vuelve a la casa matriz, con fotos y observación.
+  "devoluciones.ver": ["jefe", "admin"],
+  "devoluciones.registrar": ["jefe", "admin"],
+  "devoluciones.borrar": ["admin"],
   "inventario.ver": ["jefe", "admin"],
   "inventario.crear": ["jefe", "admin"],
   "inventario.editar_precio": ["jefe", "admin"],
@@ -48,7 +52,7 @@ export const claveModulo = (m: Modulo) => `modulo.${m}` as const;
 
 // A qué módulo pertenece cada acción (las de administración no son de ningún módulo).
 export function moduloDeAccion(a: Accion): Modulo | null {
-  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.") || a.startsWith("reportes.") || a.startsWith("gps.")) return "taller";
+  if (a.startsWith("ordenes.") || a.startsWith("finalizaciones.") || a.startsWith("vehiculos.") || a.startsWith("reportes.") || a.startsWith("gps.") || a.startsWith("devoluciones.")) return "taller";
   if (a.startsWith("inventario.")) return "inventario";
   if (a.startsWith("compras.")) return "compras";
   return null;
@@ -68,6 +72,8 @@ export const PERMISOS = {
   eliminar: { modulo: "taller", nombre: "Eliminar órdenes", detalle: "Borrar órdenes de Odoo, salvo las finalizadas", acciones: ["ordenes.eliminar"] },
   gps: { modulo: "taller", nombre: "Ver GPS", detalle: "Estado de los GPS y la moneda de cada moto en las tarjetas", acciones: ["gps.ver"] },
   encendido: { modulo: "taller", nombre: "Bloquear el encendido", detalle: "Bloquear o desbloquear el encendido de la moto por GPS", acciones: ["gps.encendido"] },
+  devoluciones: { modulo: "taller", nombre: "Ver devoluciones y recuperos", detalle: "Lista de las motos devueltas o recuperadas, con sus fotos", acciones: ["devoluciones.ver"] },
+  registrar_devoluciones: { modulo: "taller", nombre: "Registrar devoluciones y recuperos", detalle: "Cargar la recepción de una moto con fotos y observación", acciones: ["devoluciones.registrar"] },
   inventario: { modulo: "inventario", nombre: "Ver productos", detalle: "Productos, stock, costos, precios y sus compras", acciones: ["inventario.ver"] },
   crear_productos: { modulo: "inventario", nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
   editar_precios: { modulo: "inventario", nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
@@ -136,6 +142,7 @@ export const PANTALLAS = [
   { href: "/ordenes", nombre: "Motos en proceso", seccion: "Taller", acciones: ["ordenes.ver_en_proceso"] },
   { href: "/verificar", nombre: "Para verificar", seccion: "Taller", acciones: ["ordenes.aprobar", "ordenes.editar"] },
   { href: "/reportes", nombre: "Reportes", seccion: "Taller", acciones: ["reportes.ver"] },
+  { href: "/devoluciones", nombre: "Devoluciones", seccion: "Taller", acciones: ["devoluciones.ver"] },
   { href: "/admin/usuarios", nombre: "Usuarios", seccion: "Configuración", acciones: ["usuarios.gestionar"] },
   { href: "/admin/ajustes", nombre: "Ajustes", seccion: "Configuración", acciones: ["config.editar"] },
   { href: "/inventario/nuevo", nombre: "Nuevo producto", seccion: "Inventario", acciones: ["inventario.crear"], alta: true },

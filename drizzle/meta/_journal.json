@@ -50,6 +50,13 @@
       "when": 1793192997472,
       "tag": "0006_origen_usuarios",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794768188133,
+      "tag": "0007_devoluciones",
+      "breakpoints": true
     }
   ]
 }

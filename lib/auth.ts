@@ -106,7 +106,7 @@ export async function logout(): Promise<void> {
 // Servidor a servidor: "Authorization: Bearer <API_COBRANZAS_SECRET>" y "X-Ridder-Usuario: <login>".
 // La llamada actúa como ese usuario del taller, con su rol y sus permisos, igual que desde la web.
 // "automatico" (procesos sin persona) es un jefe de solo lectura: todo lo que escribe está apagado.
-const ESCRITURA_OFF = ["finalizar", "crear", "mover_tablero", "repuestos", "aprobar", "crear_productos", "editar_precios", "cargar_compras"];
+const ESCRITURA_OFF = ["finalizar", "crear", "mover_tablero", "repuestos", "aprobar", "registrar_devoluciones", "crear_productos", "editar_precios", "cargar_compras"];
 const AUTOMATICO: Usuario = { id: 0, usuario: "automatico", nombre: "Cobranzas (automático)", rol: "jefe", odooPartnerId: null, permisosOff: ESCRITURA_OFF, tema: "claro" };
 
 const resumen = (v: string) => createHash("sha256").update(v).digest();

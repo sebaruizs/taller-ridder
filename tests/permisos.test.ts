@@ -21,8 +21,10 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "inventario.editar_precio",
   "compras.ver",
   "compras.crear",
+  "devoluciones.ver",
+  "devoluciones.registrar",
 ];
-const SOLO_ADMIN: Accion[] = ["usuarios.gestionar", "log.ver", "config.editar"];
+const SOLO_ADMIN: Accion[] = ["usuarios.gestionar", "log.ver", "config.editar", "devoluciones.borrar"];
 
 describe("permisos por rol", () => {
   it("el mecánico puede ver y finalizar órdenes", () => {
@@ -71,7 +73,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar", "gps"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "cambiar_mecanico", "aprobar", "eliminar", "gps", "encendido", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "cambiar_mecanico", "aprobar", "eliminar", "gps", "encendido", "devoluciones", "registrar_devoluciones", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 
@@ -83,7 +85,7 @@ describe("permisos por usuario", () => {
 
   it("el menú muestra solo lo permitido", () => {
     const hrefs = pantallasDe({ rol: "jefe", permisosOff: ["tablero", "crear"] }).map((p) => p.href);
-    expect(hrefs).toEqual(["/ordenes", "/verificar", "/reportes", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
+    expect(hrefs).toEqual(["/ordenes", "/verificar", "/reportes", "/devoluciones", "/inventario/nuevo", "/inventario", "/compras/nueva", "/compras"]);
   });
 });
 
@@ -107,7 +109,8 @@ describe("permisos por módulo", () => {
 
   it("cada acción de órdenes, inventario y compras pertenece a su módulo", () => {
     for (const a of Object.keys(ACCIONES) as Accion[]) {
-      if (SOLO_ADMIN.includes(a)) expect(moduloDeAccion(a), a).toBeNull();
+      // Borrar devoluciones es solo del admin, pero pertenece al módulo Taller.
+      if (SOLO_ADMIN.includes(a) && a !== "devoluciones.borrar") expect(moduloDeAccion(a), a).toBeNull();
       else expect(moduloDeAccion(a), a).not.toBeNull();
     }
   });
@@ -126,11 +129,11 @@ describe("permisos por módulo", () => {
 describe("menú lateral", () => {
   it("las pantallas de alta no van en el menú: se entra desde cada módulo", () => {
     const hrefs = menuDe(pantallasDe({ rol: "jefe", permisosOff: [] })).map((p) => p.href);
-    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/reportes", "/inventario", "/compras"]);
+    expect(hrefs).toEqual(["/tablero", "/ordenes", "/verificar", "/reportes", "/devoluciones", "/inventario", "/compras"]);
   });
 
   it("si cargar es lo único que tiene en el módulo, el alta sí aparece", () => {
-    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "reportes", "inventario"] };
+    const u = { rol: "jefe" as const, permisosOff: ["ver_ordenes", "tablero", "repuestos", "aprobar", "finalizar", "reportes", "devoluciones", "inventario"] };
     const hrefs = menuDe(pantallasDe(u)).map((p) => p.href);
     expect(hrefs).toContain("/ordenes/nueva");
     expect(hrefs).toContain("/inventario/nuevo");

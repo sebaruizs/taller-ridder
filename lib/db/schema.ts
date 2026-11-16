@@ -11,6 +11,7 @@ import {
   index,
   uniqueIndex,
 } from "drizzle-orm/pg-core";
+import { TIPOS_DEVOLUCION } from "../devoluciones-dominio";
 
 const bytea = customType<{ data: Buffer; driverData: Buffer }>({
   dataType: () => "bytea",
@@ -111,3 +112,40 @@ export const config = pgTable("config", {
   clave: text("clave").primaryKey(),
   valor: jsonb("valor").notNull(),
 });
+
+// Devoluciones y recuperos: la moto que vuelve a la casa matriz, quién la recibió, cómo llegó y sus fotos.
+// Vive acá (no en Odoo); Cobranzas la lee por la API para el perfil del vehículo.
+
+export const devoluciones = pgTable(
+  "devoluciones",
+  {
+    id: serial("id").primaryKey(),
+    tipo: text("tipo", { enum: TIPOS_DEVOLUCION }).notNull(),
+    vehiculoId: integer("vehiculo_id").notNull(),
+    chapa: text("chapa").notNull(),
+    vehiculo: text("vehiculo").notNull().default(""),
+    // Quién la tenía según Odoo al momento de recibirla.
+    chofer: text("chofer"),
+    observacion: text("observacion").notNull(),
+    // Día de la recepción, en hora de Asunción (AAAA-MM-DD).
+    fecha: text("fecha").notNull(),
+    usuarioId: integer("usuario_id").references(() => usuarios.id),
+    usuarioNombre: text("usuario_nombre").notNull(),
+    creado: timestamp("creado", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("devoluciones_vehiculo_idx").on(t.vehiculoId), index("devoluciones_fecha_idx").on(t.fecha)],
+);
+
+export const devolucionFotos = pgTable(
+  "devolucion_fotos",
+  {
+    id: serial("id").primaryKey(),
+    devolucionId: integer("devolucion_id")
+      .notNull()
+      .references(() => devoluciones.id, { onDelete: "cascade" }),
+    orden: integer("orden").notNull(),
+    mimetype: text("mimetype").notNull(),
+    datos: bytea("datos").notNull(),
+  },
+  (t) => [index("devolucion_fotos_devolucion_idx").on(t.devolucionId)],
+);

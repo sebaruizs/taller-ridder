@@ -54,12 +54,12 @@ export function useFotos() {
   return { fotos, procesando, error, agregar, quitar, agregarAlForm };
 }
 
-export function SelectorFotos({ estado, titulo = "Fotos" }: { estado: ReturnType<typeof useFotos>; titulo?: string }) {
+export function SelectorFotos({ estado, titulo = "Fotos", opcional = true }: { estado: ReturnType<typeof useFotos>; titulo?: string; opcional?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const { fotos, procesando, error, agregar, quitar } = estado;
   return (
     <div className="field">
-      <span className="label">{titulo} <span className="muted small">(opcional)</span></span>
+      <span className="label">{titulo} {opcional && <span className="muted small">(opcional)</span>}</span>
       <div className="fotos">
         {fotos.map((f, i) => (
           <div key={f.id} className="foto">

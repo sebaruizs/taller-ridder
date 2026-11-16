@@ -63,6 +63,8 @@ Cobranzas puede hacer todo lo que se hace en la web, con las mismas rutas `/api/
 - Usuario inexistente o inactivo: 403. Secreto incorrecto o vacío: 401 (se comporta como un pedido sin sesión).
 - Para Cobranzas se sumaron: `GET /api/tablero` (columnas con su primera página), filtros de `GET /api/ordenes` (`estado=todos`, `vehiculo`, `chofer`, `desde`, `hasta`) y el detalle completo en `GET /api/ordenes/<id>` (reporte, repuestos e historial).
 
+- Devoluciones y recuperos: `GET /api/devoluciones?vehiculoId=<id de Odoo>` o `?chapa=<chapa>` devuelve las recepciones de esa moto (tipo, fecha, quién la recibió, observación e ids de fotos); las fotos salen de `GET /api/devoluciones/fotos/<id>` (`?tam=mini` para la miniatura). Con `automatico` alcanza.
+
 Para emergencias (por ejemplo, recuperar el admin) se puede crear un usuario desde la terminal:
 
 ```bash
