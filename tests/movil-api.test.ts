@@ -358,6 +358,9 @@ describe("devolución de vehículos", () => {
       "La chapa 1A no existe en Taller",
     );
     expect((await enviar("jefe.prueba", registro("devolucion.recepcion", datos()))).body.motivo).toBe("Falta al menos una foto de la moto");
+    expect((await enviar("jefe.prueba", registro("devolucion.recepcion", datos({ motivo: "fin_contrato" }), cinco()))).body.motivo).toBe(
+      "Con el contrato finalizado la moto queda con el cliente: no se registra como devolución",
+    );
   });
 
   const recepcion = registro("devolucion.recepcion", datos({ motivo: "recupero" }), cinco());

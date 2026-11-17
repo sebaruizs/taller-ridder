@@ -76,6 +76,8 @@ export const datosTallerSchema = z.object({
 });
 export type DatosTaller = z.infer<typeof datosTallerSchema>;
 
+// "fin_contrato" se sigue aceptando en el formato para poder rechazarlo con un motivo legible: con el contrato
+// finalizado la moto queda con el cliente (regla de Sebastián, 2026-11-17).
 export const MOTIVOS_DEVOLUCION = ["fin_contrato", "recupero", "cambio"] as const;
 export type MotivoDevolucion = (typeof MOTIVOS_DEVOLUCION)[number];
 

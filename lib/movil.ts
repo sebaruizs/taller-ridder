@@ -8,6 +8,7 @@ import { puedeU } from "./permisos";
 import { crearYEjecutar } from "./finalizar-servicio";
 import { FinalizarError } from "./finalizar";
 import { valoresDevolucion } from "./devoluciones";
+import { recuperosDeCobranzas } from "./cobranzas-motos";
 import { MAX_FOTOS_DEVOLUCION, MIN_FOTOS, modeloDe } from "./devoluciones-dominio";
 import {
   CAMPOS_VEHICULO,
@@ -187,11 +188,13 @@ async function motosARecuperar(): Promise<Map<number, string>> {
 
 /**
  * Las motos que pueden volver: las que hoy tienen chofer en Odoo y las de clientes «Para recuperar» (que a veces ya no
- * tienen chofer). Motivo: "recupero" para las segundas; null para el resto, porque Odoo no dice si un contrato que
- * termina devuelve la moto ni registra cambios de moto.
+ * tienen chofer). Motivo: "recupero" para las segundas; null para el resto (un cambio de moto no se registra en
+ * ningún lado). El fin de contrato no es motivo: esa moto queda con el cliente.
  */
 export async function vehiculosADevolver(): Promise<VehiculoMovil[]> {
-  const recuperar = await motosARecuperar();
+  // Cobranzas es la fuente (y sabe desde cuándo); si no está configurada o no responde, lo mismo leído de Odoo.
+  const deCobranzas = await recuperosDeCobranzas();
+  const recuperar = deCobranzas ? new Map([...deCobranzas].map(([id, m]) => [id, m.cliente])) : await motosARecuperar();
   const vs = await odoo.searchRead<VehiculoOdoo>(
     MODELO_VEHICULO,
     recuperar.size ? ["|", ["driver_id", "!=", false], ["id", "in", [...recuperar.keys()]]] : [["driver_id", "!=", false]],
@@ -205,7 +208,7 @@ export async function vehiculosADevolver(): Promise<VehiculoMovil[]> {
       id: String(v.id),
       chapa,
       modelo: modeloDe(v.display_name, chapa),
-      cliente: cliente ?? (v.driver_id ? v.driver_id[1] : ""),
+      cliente: cliente || (v.driver_id ? v.driver_id[1] : ""),
       motivo: cliente !== undefined ? "recupero" : null,
       kmAnterior: Math.round(v.odometer || 0),
     };
@@ -407,6 +410,8 @@ type Asignacion = { date_start: string | false };
 async function recibirDevolucion(u: Usuario, r: RegistroMovil): Promise<Respuesta> {
   if (!puedeU(u, "devoluciones.registrar")) throw new Rechazo("No tenés permiso para registrar devoluciones en Taller");
   const d = validar(datosDevolucionSchema, r.datos);
+  // Regla de Sebastián (2026-11-17): con el contrato finalizado la moto queda con el cliente; no vuelve a Ridder.
+  if (d.motivo === "fin_contrato") throw new Rechazo("Con el contrato finalizado la moto queda con el cliente: no se registra como devolución");
   if (r.fotos.length < MIN_FOTOS) throw new Rechazo("Falta al menos una foto de la moto");
   if (r.fotos.length > MAX_FOTOS_DEVOLUCION) throw new Rechazo(`Máximo ${MAX_FOTOS_DEVOLUCION} fotos`);
   const fotos = r.fotos.map(decodificarFoto);

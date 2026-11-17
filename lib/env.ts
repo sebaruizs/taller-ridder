@@ -62,6 +62,10 @@ const schema = z.object({
   MOVIL_PRUEBA_TOKEN: limpio,
   // "true": la API móvil acepta la ficha de Ridder Acceso ("Authorization: Bearer <ficha>", firmada con ACCESO_SECRET,
   // ACCESO-MOVIL.md 3.5). Apagada por defecto: el formato es una propuesta sin revisar y Acceso todavía no la emite.
+  // Cobranzas: de dónde saca la API móvil las motos a recuperar (GET /api/integraciones/taller/motos-a-devolver).
+  // TALLER_LECTURA_SECRET es el mismo valor que en Cobranzas, 32 caracteres o más. Vacías = Taller lee Odoo directo.
+  COBRANZAS_URL: limpio,
+  TALLER_LECTURA_SECRET: limpio,
   MOVIL_FICHA_ACCESO: z
     .enum(["true", "false"])
     .default("false")
