@@ -56,6 +56,10 @@ const schema = z.object({
   // Clave de la API con la que Acceso crea, actualiza y desactiva usuarios (/api/acceso/usuarios). 32 caracteres o más
   // y distinta de las demás; vacía = esa API responde 503.
   ACCESO_API_SECRET: limpio,
+  // API móvil (Ridder App), SOLO DESARROLLO: mientras Ridder Acceso no emita la credencial de dispositivo, con
+  // NODE_ENV distinto de production se acepta "Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>" (16 caracteres o
+  // más). En producción se ignora y la API móvil responde 401 a todo (lib/movil-auth.ts).
+  MOVIL_PRUEBA_TOKEN: limpio,
 });
 
 export type Env = z.infer<typeof schema>;

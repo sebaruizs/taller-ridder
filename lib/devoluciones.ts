@@ -15,7 +15,7 @@ const POR_PAGINA = 30;
 
 type Fila = typeof schema.devoluciones.$inferSelect;
 
-async function conFotos(filas: Fila[]): Promise<Devolucion[]> {
+export async function conFotos(filas: Fila[]): Promise<Devolucion[]> {
   if (!filas.length) return [];
   const db = await getDb();
   const fotos = await db
@@ -66,6 +66,21 @@ export async function devolucionesDeVehiculo(v: { vehiculoId?: number; chapa?: s
   return conFotos(filas);
 }
 
+// La fila de una recepción: la moto como figura hoy en Odoo. También la usa la API móvil (lib/movil.ts).
+export function valoresDevolucion(v: VehiculoOdoo, tipo: TipoDevolucion, observacion: string, autor: Pick<Usuario, "id" | "nombre">) {
+  return {
+    tipo,
+    vehiculoId: v.id,
+    chapa: normalizarChapa(chapaDe(v)),
+    vehiculo: modeloDe(v.display_name, chapaDe(v)),
+    chofer: v.driver_id ? v.driver_id[1] : null,
+    observacion,
+    fecha: hoyAsuncion(),
+    usuarioId: autor.id || null,
+    usuarioNombre: autor.nombre,
+  };
+}
+
 export async function registrarDevolucion(e: { tipo: TipoDevolucion; vehiculoId: number; observacion: string; fotos: FotoSubida[] }, autor: Usuario): Promise<Devolucion> {
   if (e.fotos.length < MIN_FOTOS) throw new DevolucionInvalida("Sacá al menos una foto de la moto");
   if (e.fotos.length > MAX_FOTOS_DEVOLUCION) throw new DevolucionInvalida(`Máximo ${MAX_FOTOS_DEVOLUCION} fotos`);
@@ -75,20 +90,7 @@ export async function registrarDevolucion(e: { tipo: TipoDevolucion; vehiculoId:
 
   const db = await getDb();
   const fila = await db.transaction(async (tx) => {
-    const [d] = await tx
-      .insert(schema.devoluciones)
-      .values({
-        tipo: e.tipo,
-        vehiculoId: v.id,
-        chapa,
-        vehiculo: modeloDe(v.display_name, chapaDe(v)),
-        chofer: v.driver_id ? v.driver_id[1] : null,
-        observacion: e.observacion,
-        fecha: hoyAsuncion(),
-        usuarioId: autor.id || null,
-        usuarioNombre: autor.nombre,
-      })
-      .returning();
+    const [d] = await tx.insert(schema.devoluciones).values(valoresDevolucion(v, e.tipo, e.observacion, autor)).returning();
     await tx.insert(schema.devolucionFotos).values(e.fotos.map((f, i) => ({ devolucionId: d.id, orden: i, mimetype: f.mimetype, datos: f.datos })));
     return d;
   });

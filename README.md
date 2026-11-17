@@ -65,6 +65,52 @@ Cobranzas puede hacer todo lo que se hace en la web, con las mismas rutas `/api/
 
 - Devoluciones y recuperos: `GET /api/devoluciones?vehiculoId=<id de Odoo>` o `?chapa=<chapa>` devuelve las recepciones de esa moto (tipo, fecha, quién la recibió, observación e ids de fotos); las fotos salen de `GET /api/devoluciones/fotos/<id>` (`?tam=mini` para la miniatura). Con `automatico` alcanza.
 
+### API móvil (Ridder App)
+
+Lo que necesita Ridder App para trabajar sin señal, según la propuesta `contratos/SINCRONIZACION.md` del repo `ridder-app`. Código: `lib/movil.ts` (servicio), `lib/movil-dominio.ts` (reglas, testeadas), `lib/movil-auth.ts` (autenticación), `app/api/movil/`. Tests: `tests/movil-api.test.ts` (endpoints de punta a punta con PGlite y Odoo simulado) y `tests/movil-dominio.test.ts`.
+
+**Estado: funciona en desarrollo; en producción responde 401 a todo** hasta que exista la credencial de dispositivo de Ridder Acceso (`contratos/ACCESO-MOVIL.md` de `ridder-app`, pendiente de revisión).
+
+**Autenticación.** Todo pasa por una sola función, `personaDeDispositivo(req)` en `lib/movil-auth.ts`:
+
+- Con `NODE_ENV=production` rechaza siempre (401).
+- En desarrollo acepta `Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>`, con un usuario activo de Taller (por ejemplo `Bearer carlos.ramirez.<token>`). `MOVIL_PRUEBA_TOKEN` tiene 16 caracteres o más; vacía, también responde 401.
+- Cuando Acceso emita la credencial, se cambia solo esa función: verificar la ficha `<usuario>.<vence>.<firma>` (ACCESO-MOVIL.md, 3.5) y buscar el usuario.
+
+**`GET /api/movil/taller/tareas`** (permiso «Ver motos en proceso»). En Taller una tarea es una **orden de Odoo** (`fleet.vehicle.log.services`): `id` y `ordenId` son el id de la orden, `titulo` el tipo de servicio, `indicaciones` la descripción, `modelo` y `chapa` los de la moto. Devuelve:
+
+- Las órdenes **En proceso** asignadas al contacto de Odoo de la persona **o sin mecánico** (hoy las órdenes en proceso casi nunca tienen mecánico: se completa al finalizar). Estado `pendiente`, o `en_curso` si la persona ya mandó algo de esa orden desde el teléfono; `inicio` es la hora del teléfono del primer registro aceptado.
+- Las que la persona reportó hoy (**Listo para verificar**), como `lista`.
+- Un campo extra, `asignada` (false = sin mecánico, la puede tomar cualquiera). Sin contacto de Odoo vinculado, la lista está vacía.
+
+**`GET /api/movil/devolucion/vehiculos`** (permiso «Registrar devoluciones y recuperos»): las motos que hoy tienen chofer en Odoo (unas 316), con `cliente` = el chofer y `kmAnterior` = el odómetro de Odoo. **`motivo` va siempre en `null`**: ver «Qué falta».
+
+**`POST /api/movil/registros`** `{ id, tipo, creado, datos, fotos? }`. Fotos: JPEG en base64 (con o sin `data:image/jpeg;base64,`), hasta 1 MB cada una y 12 por registro.
+
+- `200 {"resultado":"aceptado"}`; un `id` repetido devuelve lo mismo que la primera vez **sin aplicarlo de nuevo** (tabla `registros_movil`, que guarda id, persona, tipo, hora del teléfono, hora de llegada, estado y motivo). Un id rechazado devuelve el mismo rechazo; un id de otra persona se rechaza.
+- `422 {"resultado":"rechazado","motivo"}`: reglas del negocio y también datos mal formados, tipos desconocidos o fotos inválidas (reintentarlos no los arregla).
+- `401`: sin credencial. `503 {"error"}`: Odoo no respondió o no dejó escribir; el registro queda «aplicando» con lo que ya se hizo y el reintento del teléfono sigue desde ahí sin duplicar.
+
+| Tipo | Qué hace en Taller | Rechazos |
+|---|---|---|
+| `taller.inicio` `{ tareaId }` | Si la orden no tenía mecánico, queda a nombre de quien la empezó (`vendor_id`). Nota «Trabajo empezado por X» en la orden (si falla la nota, se acepta igual). | Orden borrada, reasignada a otro mecánico, todavía en Nuevo, Bloqueado, ya reportada o finalizada; usuario sin contacto de Odoo o sin permiso «Finalizar trabajos». |
+| `taller.avance` `{ tareaId, nota? }` + fotos | Las fotos como adjuntos de la orden (una vez cada una, por su id) y una nota «Avance de X» con ellas. | Lo mismo, y sin nota ni fotos. |
+| `taller.cierre` `{ tareaId, nota, odometro? }` + 1 o más fotos | La **misma finalización que la web** (sección «Qué hace "Finalizar"»), con el id del registro como clave: odómetro, mecánico, fotos, nota, Listo para verificar y aviso por Telegram. | Lo mismo, y sin nota o sin foto. Un cierre de una tarea que no se había empezado desde el teléfono se acepta. |
+| `devolucion.recepcion` `{ vehiculo: { id, chapa }, kilometraje, entregoLlave, danos, observaciones, motivo? }` + fotos | Una recepción en **Devoluciones** (la misma tabla de la web) con sus fotos; km, llave y daños quedan en la observación. `motivo: "recupero"` → Recupero; si no, Devolución. Odoo solo se lee. | Sin permiso «Registrar devoluciones», la moto no existe o su chapa no coincide, kilometraje menor que el odómetro de Odoo, ya figura devuelta (hay una recepción desde la última asignación a un chofer, o de hoy si nunca tuvo), sin fotos. |
+
+**Qué falta**
+
+1. **La credencial de dispositivo de Ridder Acceso.** Hasta entonces, producción responde 401.
+2. **Por qué vuelve la moto (`motivo`) no existe en Taller ni en Odoo.** En Odoo no hay contratos (`fleet.vehicle.log.contract` vacío), nadie marca «Plan to change bike» y el estado de la moto no lo distingue. Saldría de **Cobranzas** (qué motos se mandan a recuperar) y de los **contratos de alquiler** (fin de contrato, cambio de moto), estén donde estén hoy. Por eso la lista son todas las motos con chofer y `motivo: null`.
+3. Probar inicio, avance y cierre contra el Odoo real: en local `ODOO_READONLY=true` bloquea las escrituras y esos registros responden 503 (quedan «aplicando»). Están probados con Odoo simulado.
+4. Para decidir: si un rechazo avisa al jefe (hoy queda en `registros_movil` y en el log como `movil.<tipo>`), cuánto se guardan los ids recibidos (propuesta: 90 días; hoy no se borran), y si el kilometraje de la devolución actualiza el odómetro en Odoo (hoy no).
+
+**Cambios propuestos al contrato** (`SINCRONIZACION.md`; Taller ya los acepta, todos opcionales):
+
+- `taller.cierre` puede llevar `odometro`: la finalización de Taller lo registra. Sin él se finaliza «sin odómetro».
+- `devolucion.recepcion` puede llevar `motivo` (`fin_contrato` | `recupero` | `cambio`), elegido en el teléfono, porque Taller no lo sabe. En la descarga de vehículos `motivo` puede ser `null`.
+- La descarga de tareas suma `asignada` (boolean).
+
 Para emergencias (por ejemplo, recuperar el admin) se puede crear un usuario desde la terminal:
 
 ```bash
@@ -96,6 +142,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `ACCESO_SECRET` | Clave compartida con Ridder Acceso (app.ridder.com.py), 32 caracteres o más. Con ella, `GET /entrar/acceso?t=<usuario>.<vence>.<firma>` abre la sesión sin contraseña a quien ya ingresó allá: enlace de un solo uso, 2 minutos, firma HMAC-SHA256 de `acceso\|<usuario>\|<vence>`. El usuario tiene que existir en Taller. Vacía = puerta apagada |
 | `ACCESO_URL` | URL de Ridder Acceso. Con ella el menú muestra «Inicio de Ridder» y los enlaces a los otros módulos (`/ir/cobranzas`, `/ir/asistencias`). Vacía = no se muestran |
 | `ACCESO_API_SECRET` | Clave de la API con la que Ridder Acceso da de alta, actualiza y da de baja usuarios: `PUT` y `GET /api/acceso/usuarios/<usuario>` con `Authorization: Bearer` y `X-Ridder-Usuario` (quién hizo el cambio). 32 caracteres o más y distinta de las demás claves. El `PUT` crea el usuario con una contraseña al azar (entra por `/entrar/acceso`) o actualiza solo nombre, rol, activo y contacto de Odoo; no toca contraseña, permisos ni tema, y nunca borra. Vacía = responde 503 |
+| `MOVIL_PRUEBA_TOKEN` | **Solo desarrollo.** Token de prueba de la API móvil (`/api/movil/*`) mientras Acceso no emita la credencial de dispositivo: `Authorization: Bearer <usuario>.<token>`, 16 caracteres o más. En producción se ignora (la API móvil responde 401). Vacía = 401 |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"

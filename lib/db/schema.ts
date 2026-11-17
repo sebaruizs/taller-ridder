@@ -149,3 +149,32 @@ export const devolucionFotos = pgTable(
   },
   (t) => [index("devolucion_fotos_devolucion_idx").on(t.devolucionId)],
 );
+
+// API móvil (Ridder App): cada registro que manda el teléfono, por el id que creó el teléfono. Un id repetido se
+// contesta con el resultado guardado y no se vuelve a aplicar (ver lib/movil.ts y contratos/SINCRONIZACION.md).
+// "aplicando": se aceptó pero falta terminar de escribirlo en Odoo; el reintento del teléfono sigue desde ahí.
+export const ESTADOS_REGISTRO_MOVIL = ["aplicando", "aceptado", "rechazado"] as const;
+
+export const registrosMovil = pgTable(
+  "registros_movil",
+  {
+    id: text("id").primaryKey(),
+    usuarioId: integer("usuario_id")
+      .notNull()
+      .references(() => usuarios.id),
+    tipo: text("tipo").notNull(),
+    // Hora del teléfono: para mostrar y ordenar. La hora oficial es "recibido".
+    creado: timestamp("creado", { withTimezone: true }).notNull(),
+    recibido: timestamp("recibido", { withTimezone: true }).notNull().defaultNow(),
+    estado: text("estado", { enum: ESTADOS_REGISTRO_MOVIL }).notNull(),
+    motivo: text("motivo"),
+    ordenId: integer("orden_id"),
+    vehiculoId: integer("vehiculo_id"),
+    // Lo que mandó el teléfono, sin las fotos.
+    datos: jsonb("datos").$type<Record<string, unknown>>().notNull(),
+    // Pasos ya hechos en Odoo (adjuntos creados, nota publicada…), para seguir sin duplicar.
+    progreso: jsonb("progreso").$type<Record<string, unknown>>().notNull().default({}),
+    terminado: timestamp("terminado", { withTimezone: true }),
+  },
+  (t) => [index("registros_movil_orden_idx").on(t.ordenId), index("registros_movil_recibido_idx").on(t.recibido)],
+);

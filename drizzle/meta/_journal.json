@@ -57,6 +57,13 @@
       "when": 1794768188133,
       "tag": "0007_devoluciones",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794941629127,
+      "tag": "0008_registros_movil",
+      "breakpoints": true
     }
   ]
 }
