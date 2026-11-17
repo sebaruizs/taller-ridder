@@ -2,7 +2,7 @@ import "server-only";
 // API móvil de Taller (Ridder App). Contrato: ridder-app/contratos/SINCRONIZACION.md. Reglas puras en movil-dominio.ts.
 import { and, desc, eq, gte, inArray, like, min } from "drizzle-orm";
 import { getDb, schema } from "./db";
-import { odoo, m2oId, type Many2one } from "./odoo";
+import { odoo, odooSimulado, m2oId, type Many2one } from "./odoo";
 import { registrar, type Usuario } from "./auth";
 import { puedeU } from "./permisos";
 import { crearYEjecutar } from "./finalizar-servicio";
@@ -152,20 +152,61 @@ export type VehiculoMovil = {
   kmAnterior: number;
 };
 
-/** Las motos que hoy tiene un chofer en Odoo: las que pueden volver. Odoo no guarda el motivo (contrato, recupero, cambio). */
-export async function vehiculosADevolver(): Promise<VehiculoMovil[]> {
-  const vs = await odoo.searchRead<VehiculoOdoo>(MODELO_VEHICULO, [["driver_id", "!=", false]], [...CAMPOS_VEHICULO], {
-    limit: 2000,
-    order: "license_plate asc, id asc",
+// Estado del cliente (res.partner.request_status_id) que Cobranzas marca cuando hay que ir a buscar la moto.
+const ESTADO_PARA_RECUPERAR = "Para recuperar";
+type Suscripcion = { partner_id: Many2one; vehicle_id: Many2one };
+
+/**
+ * Motos a recuperar: las de los clientes en «Para recuperar», sacadas de su suscripción (sale.order.vehicle_id), aunque
+ * esté cerrada o pausada. Es la misma fuente que usa Cobranzas. Mapa id de moto → cliente.
+ */
+async function motosARecuperar(): Promise<Map<number, string>> {
+  const [estado] = await odoo.searchRead<{ id: number }>("request.status", [["name", "=", ESTADO_PARA_RECUPERAR]], ["id"], { limit: 1 });
+  if (!estado) return new Map();
+  const clientes = await odoo.searchRead<{ id: number }>("res.partner", [["request_status_id", "=", estado.id]], ["id"], {
+    limit: 1000,
+    context: { active_test: false },
   });
+  if (!clientes.length) return new Map();
+  // La más reciente de cada cliente primero: si tuvo varias motos, cuenta la última.
+  const subs = await odoo.searchRead<Suscripcion>("sale.order", [["partner_id", "in", clientes.map((c) => c.id)], ["vehicle_id", "!=", false]], ["partner_id", "vehicle_id"], {
+    limit: 5000,
+    order: "date_order desc, id desc",
+  });
+  const vistos = new Set<number>();
+  const motos = new Map<number, string>();
+  for (const s of subs) {
+    const cliente = m2oId(s.partner_id);
+    const moto = m2oId(s.vehicle_id);
+    if (!cliente || !moto || vistos.has(cliente)) continue;
+    vistos.add(cliente);
+    motos.set(moto, s.partner_id ? s.partner_id[1] : "");
+  }
+  return motos;
+}
+
+/**
+ * Las motos que pueden volver: las que hoy tienen chofer en Odoo y las de clientes «Para recuperar» (que a veces ya no
+ * tienen chofer). Motivo: "recupero" para las segundas; null para el resto, porque Odoo no dice si un contrato que
+ * termina devuelve la moto ni registra cambios de moto.
+ */
+export async function vehiculosADevolver(): Promise<VehiculoMovil[]> {
+  const recuperar = await motosARecuperar();
+  const vs = await odoo.searchRead<VehiculoOdoo>(
+    MODELO_VEHICULO,
+    recuperar.size ? ["|", ["driver_id", "!=", false], ["id", "in", [...recuperar.keys()]]] : [["driver_id", "!=", false]],
+    [...CAMPOS_VEHICULO],
+    { limit: 3000, order: "license_plate asc, id asc" },
+  );
   return vs.map((v) => {
     const chapa = chapaDe(v);
+    const cliente = recuperar.get(v.id);
     return {
       id: String(v.id),
       chapa,
       modelo: modeloDe(v.display_name, chapa),
-      cliente: v.driver_id ? v.driver_id[1] : "",
-      motivo: null,
+      cliente: cliente ?? (v.driver_id ? v.driver_id[1] : ""),
+      motivo: cliente !== undefined ? "recupero" : null,
       kmAnterior: Math.round(v.odometer || 0),
     };
   });
@@ -174,11 +215,12 @@ export async function vehiculosADevolver(): Promise<VehiculoMovil[]> {
 // ---------- registros ----------
 
 export type Respuesta =
-  | { status: 200; body: { resultado: "aceptado" } }
+  | { status: 200; body: { resultado: "aceptado"; simulado?: true } }
   | { status: 422; body: { resultado: "rechazado"; motivo: string } }
   | { status: 503; body: { error: string } };
 
-const aceptado = (): Respuesta => ({ status: 200, body: { resultado: "aceptado" } });
+// Con el Odoo simulado (solo desarrollo) la respuesta lo dice: "simulado": true. El teléfono ignora el campo.
+const aceptado = (): Respuesta => ({ status: 200, body: { resultado: "aceptado", ...(odooSimulado() ? { simulado: true as const } : {}) } });
 const rechazado = (motivo: string): Respuesta => ({ status: 422, body: { resultado: "rechazado", motivo } });
 const temporal = (error: string): Respuesta => ({ status: 503, body: { error } });
 
@@ -306,7 +348,8 @@ async function aplicar(u: Usuario, r: RegistroMovil, fila: FilaRegistro): Promis
   }
 
   await guardar({ estado: "aceptado", progreso: { ...progreso, error: undefined }, terminado: new Date() });
-  await registrar(u.id, `movil.${tipo}`, { ordenId, detalle: { registro: r.id, resultado: "aceptado", fotos: r.fotos.length, creado: r.creado, aviso: progreso.aviso } });
+  await registrar(u.id, `movil.${tipo}`, { ordenId, detalle: { registro: r.id, resultado: "aceptado", fotos: r.fotos.length, creado: r.creado, aviso: progreso.aviso, ...(odooSimulado() ? { odooSimulado: true } : {}) } });
+  if (odooSimulado()) console.info(`[odoo simulado] ${tipo} ${r.id} de ${u.usuario} aceptado: nada se escribió en Odoo`);
   return aceptado();
 }
 

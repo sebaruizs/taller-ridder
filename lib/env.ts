@@ -60,13 +60,37 @@ const schema = z.object({
   // NODE_ENV distinto de production se acepta "Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>" (16 caracteres o
   // más). En producción se ignora y la API móvil responde 401 a todo (lib/movil-auth.ts).
   MOVIL_PRUEBA_TOKEN: limpio,
+  // "true": la API móvil acepta la ficha de Ridder Acceso ("Authorization: Bearer <ficha>", firmada con ACCESO_SECRET,
+  // ACCESO-MOVIL.md 3.5). Apagada por defecto: el formato es una propuesta sin revisar y Acceso todavía no la emite.
+  MOVIL_FICHA_ACCESO: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+  // SOLO DESARROLLO: "true" lee del Odoo real pero simula todas las escrituras (lib/odoo-simulado.ts), para probar
+  // Ridder App de punta a punta. Con NODE_ENV=production el servidor no arranca (ver errorDeEntorno e instrumentation.ts).
+  MOVIL_ODOO_SIMULADO: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
 });
+
+/** Combinaciones prohibidas: el servidor no arranca con ellas. */
+export function errorDeEntorno(vars: Record<string, string | undefined>): string | null {
+  if (vars.NODE_ENV === "production" && vars.MOVIL_ODOO_SIMULADO?.trim() === "true") {
+    return "MOVIL_ODOO_SIMULADO=true no se puede usar en producción: simula las escrituras en Odoo. Sacala del entorno.";
+  }
+  return null;
+}
 
 export type Env = z.infer<typeof schema>;
 
 let cached: Env | undefined;
 
 export function env(): Env {
-  if (!cached) cached = schema.parse(process.env);
+  if (!cached) {
+    const prohibido = errorDeEntorno(process.env);
+    if (prohibido) throw new Error(prohibido);
+    cached = schema.parse(process.env);
+  }
   return cached;
 }

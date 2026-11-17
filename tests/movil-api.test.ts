@@ -117,6 +117,14 @@ function sembrarOdoo() {
   o.set(101, orden(101, "running", [ANGEL, "Angel Ramos"]));
   o.set(102, orden(102, "new", false));
   o.set(103, orden(103, "running", [CARLOS, "Carlos Ramirez"], 11));
+  // Cliente «Para recuperar» con su suscripción cerrada: la moto ya no tiene chofer en Odoo.
+  v.set(12, { id: 12, display_name: "Kenton/GTR150 LTD/819ABTK", license_plate: "819ABTK", driver_id: false, state_id: [7, "Fiscalia / Comisaria"], odometer: 5100 });
+  tabla("request.status").set(11, { id: 11, name: "Para recuperar" });
+  tabla("request.status").set(8, { id: 8, name: "Recuperado" });
+  tabla("res.partner").set(600, { id: 600, name: "Ernesto Soler", request_status_id: [11, "Para recuperar"] });
+  tabla("res.partner").set(601, { id: 601, name: "Otro", request_status_id: [8, "Recuperado"] });
+  tabla("sale.order").set(1, { id: 1, partner_id: [600, "Ernesto Soler"], vehicle_id: [12, "Kenton/GTR150 LTD/819ABTK"], subscription_state: "6_churn" });
+  tabla("sale.order").set(2, { id: 2, partner_id: [601, "Otro"], vehicle_id: [11, "Leopard/150/702HJKL"], subscription_state: "6_churn" });
   tabla("fleet.vehicle.assignation.log").set(1, { id: 1, vehicle_id: [10, "x"], driver_id: [500, "Juan Chofer"], date_start: "2026-01-10" });
 }
 
@@ -326,10 +334,13 @@ describe("devolución de vehículos", () => {
   });
   const cinco = () => ["frente", "izquierda", "derecha", "atras", "tablero"].map(foto);
 
-  it("baja las motos con chofer en Odoo, sin motivo (Odoo no lo tiene); el mecánico no puede", async () => {
+  it("baja las motos con chofer (sin motivo) y las de clientes «Para recuperar» (recupero); el mecánico no puede", async () => {
     const r = await getVehiculos(new Request("http://t/x", { headers: auth("jefe.prueba") }), ctx);
     expect(r.status).toBe(200);
-    expect(await r.json()).toEqual([{ id: "10", chapa: "827ABTI", modelo: "Kenton GTR 150", cliente: "Juan Chofer", motivo: null, kmAnterior: 18000 }]);
+    expect(await r.json()).toEqual([
+      { id: "10", chapa: "827ABTI", modelo: "Kenton GTR 150", cliente: "Juan Chofer", motivo: null, kmAnterior: 18000 },
+      { id: "12", chapa: "819ABTK", modelo: "Kenton GTR150 LTD", cliente: "Ernesto Soler", motivo: "recupero", kmAnterior: 5100 },
+    ]);
     expect((await getVehiculos(new Request("http://t/x", { headers: auth("carlos.ramirez") }), ctx)).status).toBe(403);
   });
 

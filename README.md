@@ -73,9 +73,9 @@ Lo que necesita Ridder App para trabajar sin señal, según la propuesta `contra
 
 **Autenticación.** Todo pasa por una sola función, `personaDeDispositivo(req)` en `lib/movil-auth.ts`:
 
-- Con `NODE_ENV=production` rechaza siempre (401).
-- En desarrollo acepta `Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>`, con un usuario activo de Taller (por ejemplo `Bearer carlos.ramirez.<token>`). `MOVIL_PRUEBA_TOKEN` tiene 16 caracteres o más; vacía, también responde 401.
-- Cuando Acceso emita la credencial, se cambia solo esa función: verificar la ficha `<usuario>.<vence>.<firma>` (ACCESO-MOVIL.md, 3.5) y buscar el usuario.
+- **Ficha de Ridder Acceso** (`ACCESO-MOVIL.md` 3.5), solo con `MOVIL_FICHA_ACCESO=true`: `Authorization: Bearer <base64url(usuario)>.<vence en ms>.<firma>`, firma = HMAC-SHA256(`ACCESO_SECRET`, `movil|<usuario>|<vence>`) en hex. Es el mismo formato y la misma clave que el enlace de `/entrar/acceso`, con otro origen (un enlace no sirve como ficha ni al revés), 10 minutos de vida y varios usos. El formato lo confirmó la sesión de Acceso, pero **Acceso todavía no la emite y la propuesta no está revisada**: por eso el interruptor está apagado por defecto.
+- **Token de prueba**, solo fuera de producción: `Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>`, con un usuario activo de Taller (por ejemplo `Bearer carlos.ramirez.<token>`). `MOVIL_PRUEBA_TOKEN` tiene 16 caracteres o más.
+- Con `MOVIL_FICHA_ACCESO` apagado, **producción responde 401 a todo**.
 
 **`GET /api/movil/taller/tareas`** (permiso «Ver motos en proceso»). En Taller una tarea es una **orden de Odoo** (`fleet.vehicle.log.services`): `id` y `ordenId` son el id de la orden, `titulo` el tipo de servicio, `indicaciones` la descripción, `modelo` y `chapa` los de la moto. Devuelve:
 
@@ -83,7 +83,7 @@ Lo que necesita Ridder App para trabajar sin señal, según la propuesta `contra
 - Las que la persona reportó hoy (**Listo para verificar**), como `lista`.
 - Un campo extra, `asignada` (false = sin mecánico, la puede tomar cualquiera). Sin contacto de Odoo vinculado, la lista está vacía.
 
-**`GET /api/movil/devolucion/vehiculos`** (permiso «Registrar devoluciones y recuperos»): las motos que hoy tienen chofer en Odoo (unas 316), con `cliente` = el chofer y `kmAnterior` = el odómetro de Odoo. **`motivo` va siempre en `null`**: ver «Qué falta».
+**`GET /api/movil/devolucion/vehiculos`** (permiso «Registrar devoluciones y recuperos»): las motos que hoy tienen chofer en Odoo y las de los clientes en **«Para recuperar»** (`res.partner.request_status_id`, el estado que marca Cobranzas; la moto sale de su suscripción `sale.order.vehicle_id`, aunque esté cerrada, y a veces ya no tiene chofer). `cliente` = el chofer o el cliente a recuperar; `kmAnterior` = el odómetro de Odoo. `motivo` es `"recupero"` para las motos a recuperar y `null` para el resto: ver «Qué falta».
 
 **`POST /api/movil/registros`** `{ id, tipo, creado, datos, fotos? }`. Fotos: JPEG en base64 (con o sin `data:image/jpeg;base64,`), hasta 1 MB cada una y 12 por registro.
 
@@ -98,18 +98,24 @@ Lo que necesita Ridder App para trabajar sin señal, según la propuesta `contra
 | `taller.cierre` `{ tareaId, nota, odometro? }` + 1 o más fotos | La **misma finalización que la web** (sección «Qué hace "Finalizar"»), con el id del registro como clave: odómetro, mecánico, fotos, nota, Listo para verificar y aviso por Telegram. | Lo mismo, y sin nota o sin foto. Un cierre de una tarea que no se había empezado desde el teléfono se acepta. |
 | `devolucion.recepcion` `{ vehiculo: { id, chapa }, kilometraje, entregoLlave, danos, observaciones, motivo? }` + fotos | Una recepción en **Devoluciones** (la misma tabla de la web) con sus fotos; km, llave y daños quedan en la observación. `motivo: "recupero"` → Recupero; si no, Devolución. Odoo solo se lee. | Sin permiso «Registrar devoluciones», la moto no existe o su chapa no coincide, kilometraje menor que el odómetro de Odoo, ya figura devuelta (hay una recepción desde la última asignación a un chofer, o de hoy si nunca tuvo), sin fotos. |
 
+**Odoo simulado (solo desarrollo).** Con `MOVIL_ODOO_SIMULADO=true` Taller lee del Odoo real pero **no escribe nada**: cada escritura (`write`, `create`, `message_post`, `unlink`…) queda en memoria, se superpone a lo que se lee (así la tarea pasa a en curso y a lista) y sale en el log con `[odoo simulado]`. Los registros aceptados responden `{"resultado":"aceptado","simulado":true}` y en el log de acciones quedan con `odooSimulado: true`. Se pierde al reiniciar. Con `NODE_ENV=production` el servidor **no arranca** (`instrumentation.ts`, `errorDeEntorno` en `lib/env.ts`). Afecta a todo el servidor, también a la web. Para que no salgan avisos al grupo del taller, arrancarlo con `TELEGRAM_BOT_TOKEN=` vacío. **Siempre con una base propia** (`DATABASE_URL=pglite://<carpeta temporal>`): la base de Taller sí se escribe (registros aceptados, finalizaciones, devoluciones, log), y en la base de desarrollo de siempre quedarían trabajos que en Odoo nunca pasaron.
+
+*Límite conocido del recupero:* se toma la última suscripción del cliente en «Para recuperar». Si esa moto ya se le dio a otro chofer y nadie le sacó el estado al cliente, la moto sale como recupero a nombre del cliente anterior. Hoy hay un solo cliente en ese estado y no pasa.
+
 **Qué falta**
 
-1. **La credencial de dispositivo de Ridder Acceso.** Hasta entonces, producción responde 401.
-2. **Por qué vuelve la moto (`motivo`) no existe en Taller ni en Odoo.** En Odoo no hay contratos (`fleet.vehicle.log.contract` vacío), nadie marca «Plan to change bike» y el estado de la moto no lo distingue. Saldría de **Cobranzas** (qué motos se mandan a recuperar) y de los **contratos de alquiler** (fin de contrato, cambio de moto), estén donde estén hoy. Por eso la lista son todas las motos con chofer y `motivo: null`.
-3. Probar inicio, avance y cierre contra el Odoo real: en local `ODOO_READONLY=true` bloquea las escrituras y esos registros responden 503 (quedan «aplicando»). Están probados con Odoo simulado.
+1. **Que Ridder Acceso emita la ficha** (`POST /api/movil/ficha/taller`, pendiente de la revisión de `ACCESO-MOVIL.md`). Cuando exista, se prende `MOVIL_FICHA_ACCESO=true` en Taller; hasta entonces, producción responde 401.
+2. **Fin de contrato y cambio de moto no se pueden marcar todavía.** Recupero sí (ver arriba). El fin de contrato está en Odoo (`sale.order.end_date` de las suscripciones activas), pero falta la regla: si al terminar el contrato la moto vuelve a Ridder o queda para el conductor (y muchos contratos que terminan tienen atraso). Lo tiene que decidir Sebastián. Los cambios de moto no se registran en ningún lado (ni Odoo ni Cobranzas).
+3. Probar inicio, avance y cierre contra el Odoo real con escritura. En local, con `ODOO_READONLY=true`, esos registros responden 503 y quedan «aplicando»; para probar el flujo completo está el Odoo simulado (abajo).
 4. Para decidir: si un rechazo avisa al jefe (hoy queda en `registros_movil` y en el log como `movil.<tipo>`), cuánto se guardan los ids recibidos (propuesta: 90 días; hoy no se borran), y si el kilometraje de la devolución actualiza el odómetro en Odoo (hoy no).
 
 **Cambios propuestos al contrato** (`SINCRONIZACION.md`; Taller ya los acepta, todos opcionales):
 
 - `taller.cierre` puede llevar `odometro`: la finalización de Taller lo registra. Sin él se finaliza «sin odómetro».
-- `devolucion.recepcion` puede llevar `motivo` (`fin_contrato` | `recupero` | `cambio`), elegido en el teléfono, porque Taller no lo sabe. En la descarga de vehículos `motivo` puede ser `null`.
+- `devolucion.recepcion` puede llevar `motivo` (`fin_contrato` | `recupero` | `cambio`), elegido en el teléfono cuando la descarga no lo trae. En la descarga de vehículos `motivo` puede ser `null` (todo lo que no es recupero).
 - La descarga de tareas suma `asignada` (boolean).
+
+Los tres los aceptó la sesión de Ridder App (2026-11-17): el cierre manda siempre `odometro`, la devolución manda `motivo` cuando la descarga trae `null`, y la app muestra «Sin asignar».
 
 Para emergencias (por ejemplo, recuperar el admin) se puede crear un usuario desde la terminal:
 
@@ -142,6 +148,8 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `ACCESO_SECRET` | Clave compartida con Ridder Acceso (app.ridder.com.py), 32 caracteres o más. Con ella, `GET /entrar/acceso?t=<usuario>.<vence>.<firma>` abre la sesión sin contraseña a quien ya ingresó allá: enlace de un solo uso, 2 minutos, firma HMAC-SHA256 de `acceso\|<usuario>\|<vence>`. El usuario tiene que existir en Taller. Vacía = puerta apagada |
 | `ACCESO_URL` | URL de Ridder Acceso. Con ella el menú muestra «Inicio de Ridder» y los enlaces a los otros módulos (`/ir/cobranzas`, `/ir/asistencias`). Vacía = no se muestran |
 | `ACCESO_API_SECRET` | Clave de la API con la que Ridder Acceso da de alta, actualiza y da de baja usuarios: `PUT` y `GET /api/acceso/usuarios/<usuario>` con `Authorization: Bearer` y `X-Ridder-Usuario` (quién hizo el cambio). 32 caracteres o más y distinta de las demás claves. El `PUT` crea el usuario con una contraseña al azar (entra por `/entrar/acceso`) o actualiza solo nombre, rol, activo y contacto de Odoo; no toca contraseña, permisos ni tema, y nunca borra. Vacía = responde 503 |
+| `MOVIL_ODOO_SIMULADO` | **Solo desarrollo.** `true` = lee del Odoo real y simula todas las escrituras (ver «API móvil»). Con `NODE_ENV=production` el servidor no arranca |
+| `MOVIL_FICHA_ACCESO` | `true` = la API móvil acepta la ficha de Ridder Acceso (firmada con `ACCESO_SECRET`, ver «API móvil»). Por defecto `false`: dejarlo así hasta que Acceso emita la ficha |
 | `MOVIL_PRUEBA_TOKEN` | **Solo desarrollo.** Token de prueba de la API móvil (`/api/movil/*`) mientras Acceso no emita la credencial de dispositivo: `Authorization: Bearer <usuario>.<token>`, 16 caracteres o más. En producción se ignora (la API móvil responde 401). Vacía = 401 |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 

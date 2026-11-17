@@ -1,5 +1,6 @@
 import "server-only";
 import { env } from "./env";
+import { crearOdooSimulado } from "./odoo-simulado";
 
 export type Many2one = [number, string] | false;
 export type Domain = Array<string | [string, string, unknown]>;
@@ -119,7 +120,7 @@ async function conRemitente(kwargs: Record<string, unknown>): Promise<Record<str
   return r.email_from ? { ...kwargs, email_from: r.email_from } : kwargs;
 }
 
-export const odoo = {
+const odooReal = {
   searchRead<T>(model: string, domain: Domain, fields: string[], opts: { limit: number; offset?: number; order?: string; context?: Record<string, unknown> }) {
     return executeKw<T[]>(model, "search_read", [domain], { fields, ...opts });
   },
@@ -150,6 +151,29 @@ export const odoo = {
     return executeKw<number>(model, "message_post", [[id]], await conRemitente(kwargs));
   },
 };
+
+// MOVIL_ODOO_SIMULADO=true (solo desarrollo): lee del Odoo real y simula las escrituras (lib/odoo-simulado.ts).
+const globalSim = globalThis as unknown as { __odooSimulado?: typeof odooReal };
+function cliente(): typeof odooReal {
+  if (!env().MOVIL_ODOO_SIMULADO) return odooReal;
+  return (globalSim.__odooSimulado ??= crearOdooSimulado(odooReal) as typeof odooReal);
+}
+
+export const odoo: typeof odooReal = {
+  searchRead: (...a) => cliente().searchRead(...a),
+  readGroup: (...a) => cliente().readGroup(...a),
+  searchCount: (...a) => cliente().searchCount(...a),
+  read: (...a) => cliente().read(...a),
+  write: (...a) => cliente().write(...a),
+  create: (...a) => cliente().create(...a),
+  boton: (...a) => cliente().boton(...a),
+  unlink: (...a) => cliente().unlink(...a),
+  messagePost: (...a) => cliente().messagePost(...a),
+};
+
+export function odooSimulado(): boolean {
+  return env().MOVIL_ODOO_SIMULADO;
+}
 
 export type OdooClient = typeof odoo;
 

@@ -4,23 +4,37 @@ import { getDb, schema } from "./db";
 import { env } from "./env";
 import { NoAutorizado, type Usuario } from "./auth";
 import { usuarioSchema } from "./credenciales";
+import { MIN_SECRETO, verificarFicha } from "./acceso-dominio";
 import { usuarioDeTokenDePrueba } from "./movil-dominio";
 
 const SIN_CREDENCIAL = "Tenés que ingresar de nuevo";
 
 /**
+ * Login de Taller de quien manda el pedido, o null. Dos formas, en este orden:
+ *
+ * 1. Ficha de Ridder Acceso (ridder-app/contratos/ACCESO-MOVIL.md 3.5), solo con MOVIL_FICHA_ACCESO=true:
+ *    "Bearer <base64url(usuario)>.<vence en ms>.<firma>", firma = HMAC-SHA256(ACCESO_SECRET, "movil|<usuario>|<vence>")
+ *    en hex, 10 minutos de vida, varios usos. Formato confirmado con la sesión de Acceso; Acceso todavía no la emite
+ *    y Sebastián no revisó la propuesta, por eso está apagada por defecto.
+ * 2. Token de prueba, solo fuera de producción: "Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>".
+ */
+export function loginDeDispositivo(authorization: string | null, ahora = Date.now()): string | null {
+  const e = env();
+  const valor = authorization?.startsWith("Bearer ") ? authorization.slice(7).trim() : null;
+  if (!valor) return null;
+  if (e.MOVIL_FICHA_ACCESO && e.ACCESO_SECRET.length >= MIN_SECRETO) {
+    const ficha = verificarFicha(valor, e.ACCESO_SECRET, ahora);
+    if (ficha.ok) return ficha.usuario;
+  }
+  return usuarioDeTokenDePrueba(authorization, e.MOVIL_PRUEBA_TOKEN, process.env.NODE_ENV === "production");
+}
+
+/**
  * La persona que manda el pedido desde Ridder App. ÚNICO punto de autenticación de /api/movil/*.
- *
- * Hoy: Ridder Acceso todavía no emite la credencial de dispositivo (ridder-app/contratos/ACCESO-MOVIL.md), así que
- * en producción se rechaza todo con 401. En desarrollo (NODE_ENV distinto de production) se acepta
- * "Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>", para un usuario activo de Taller.
- *
- * Cuando exista la credencial, se cambia solo esta función: verificar la ficha de Acceso
- * ("<usuario>.<vence>.<firma>", HMAC-SHA256 de "movil|<usuario>|<vence>", ACCESO-MOVIL.md 3.5) y buscar el usuario.
+ * Sin MOVIL_FICHA_ACCESO, en producción rechaza todo con 401.
  */
 export async function personaDeDispositivo(req: Request): Promise<Usuario> {
-  const produccion = process.env.NODE_ENV === "production";
-  const login = usuarioDeTokenDePrueba(req.headers.get("authorization"), env().MOVIL_PRUEBA_TOKEN, produccion);
+  const login = loginDeDispositivo(req.headers.get("authorization"));
   if (!login) throw new NoAutorizado(401, SIN_CREDENCIAL);
   const valido = usuarioSchema.safeParse(login);
   if (!valido.success) throw new NoAutorizado(401, SIN_CREDENCIAL);
