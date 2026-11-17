@@ -93,6 +93,8 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `TRACCAR_ANTERIOR_URL`, `TRACCAR_ANTERIOR_TOKEN` | Traccar anterior, solo lectura (vacío = no se consulta) |
 | `MONEDAS_SHEET_CSV_URL` | Google Sheets de monedas publicado como CSV (vacío = no se usa) |
 | `ASISTENCIAS_URL`, `ASISTENCIAS_SECRET` | «Marcar asistencia»: entra a Asistencias con el mismo usuario por un link firmado de 2 minutos (`GET /api/asistencias/marcar`). El secreto es `WEBHOOK_SECRET_TALLER` allá. Vacías = no aparece |
+| `ACCESO_SECRET` | Clave compartida con Ridder Acceso (app.ridder.com.py), 32 caracteres o más. Con ella, `GET /entrar/acceso?t=<usuario>.<vence>.<firma>` abre la sesión sin contraseña a quien ya ingresó allá: enlace de un solo uso, 2 minutos, firma HMAC-SHA256 de `acceso\|<usuario>\|<vence>`. El usuario tiene que existir en Taller. Vacía = puerta apagada |
+| `ACCESO_URL` | URL de Ridder Acceso. Con ella el menú muestra «Inicio de Ridder» y los enlaces a los otros módulos (`/ir/cobranzas`, `/ir/asistencias`). Vacía = no se muestran |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"

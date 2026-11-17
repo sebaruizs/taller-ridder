@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { mensajeAcceso } from "@/lib/acceso-mensajes";
 
 export default function Ingresar() {
   const router = useRouter();
@@ -9,6 +10,12 @@ export default function Ingresar() {
   const [ver, setVer] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
+  // Llegó desde Ridder (/entrar/acceso) y el enlace no sirvió: se dice por qué, arriba del formulario.
+  const [aviso, setAviso] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- se lee de la URL al montar, no hay otro momento
+    setAviso(mensajeAcceso(new URLSearchParams(window.location.search).get("acceso")));
+  }, []);
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault();
@@ -45,6 +52,7 @@ export default function Ingresar() {
         <h1>Taller</h1>
         <p className="sub">Ingresá con tu usuario y contraseña.</p>
       </div>
+      {aviso && <div className="alert alert-warn" role="status">{aviso}</div>}
       <form className="stack" style={{ gap: 14 }} onSubmit={enviar}>
         <div className="field">
           <label htmlFor="usuario">Usuario</label>

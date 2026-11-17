@@ -10,6 +10,7 @@ import { env } from "./env";
 import { DURACION_SESION_DIAS, inicioDe, puedeAlguna, type Accion } from "./permisos";
 import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido, usuarioSchema } from "./credenciales";
 import { quienHizo } from "./webhook-cobranzas";
+import { MIN_SECRETO, marcarUsada, verificarEnlace, type MotivoRechazo } from "./acceso-dominio";
 import type { Rol, Tema } from "./db/schema";
 
 export const COOKIE = "taller_sesion";
@@ -59,9 +60,16 @@ export async function login(usuario: string, password: string): Promise<Resultad
   }
   await db.update(schema.usuarios).set({ intentosFallidos: 0, bloqueadoHasta: null }).where(eq(schema.usuarios.id, u.id));
 
+  await abrirSesion(u, ahora);
+  await registrar(u.id, "login");
+  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff, tema: u.tema } };
+}
+
+// La sesión de siempre: una fila en sesiones y la cookie, con la duración del rol.
+async function abrirSesion(u: { id: number; rol: Rol }, ahora: Date): Promise<void> {
+  const db = await getDb();
   const token = randomBytes(32).toString("base64url");
-  const dias = DURACION_SESION_DIAS[u.rol];
-  const expira = new Date(ahora.getTime() + dias * 86_400_000);
+  const expira = new Date(ahora.getTime() + DURACION_SESION_DIAS[u.rol] * 86_400_000);
   await db.insert(schema.sesiones).values({
     id: hashToken(token),
     usuarioId: u.id,
@@ -75,8 +83,37 @@ export async function login(usuario: string, password: string): Promise<Resultad
     path: "/",
     expires: expira,
   });
-  await registrar(u.id, "login");
-  return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff, tema: u.tema } };
+}
+
+// ---------- entrada desde Ridder Acceso ----------
+// Quien ya ingresó en app.ridder.com.py llega con un enlace firmado de un solo uso (lib/acceso-dominio.ts) y entra
+// sin contraseña, con la misma sesión que da el login. No crea usuarios ni cambia permisos: el usuario tiene que existir acá.
+export type ResultadoAcceso = { ok: true; destino: string } | { ok: false; motivo: MotivoRechazo };
+
+export async function entrarConAcceso(t: string | null): Promise<ResultadoAcceso> {
+  const secreto = env().ACCESO_SECRET;
+  if (secreto.length < MIN_SECRETO) return { ok: false, motivo: "apagado" };
+  const ip = await ipCliente();
+  if (ipBloqueada(ip)) return { ok: false, motivo: "demasiados" };
+  const rechazar = (motivo: MotivoRechazo): ResultadoAcceso => {
+    registrarFalloIp(ip);
+    return { ok: false, motivo };
+  };
+  const enlace = verificarEnlace(t, secreto);
+  if (!enlace.ok) return rechazar(enlace.motivo);
+  if (!marcarUsada(enlace.firma, enlace.vence)) return rechazar("usado");
+
+  const db = await getDb();
+  const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, enlace.usuario));
+  if (!u || !u.activo) return rechazar("sin_usuario");
+  const ahora = new Date();
+  if (estaBloqueado(u, ahora)) return { ok: false, motivo: "bloqueado" };
+
+  // Si en este navegador había otra sesión (de otro usuario, por ejemplo), se cierra: queda solo la nueva.
+  await logout();
+  await abrirSesion(u, ahora);
+  await registrar(u.id, "login.acceso", { detalle: { origen: "acceso" } });
+  return { ok: true, destino: inicioDe({ rol: u.rol, permisosOff: u.permisosOff ?? [] }) };
 }
 
 export async function cambiarPassword(usuarioId: number, actual: string, nueva: string): Promise<string | null> {

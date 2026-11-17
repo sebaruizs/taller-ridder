@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Rol } from "@/lib/db/schema";
 import { MarcarAsistencia } from "@/components/asistencias";
+import { EnlaceAcceso } from "@/components/acceso";
 
 // accion: botón principal del módulo (ej. "Nueva compra"). Se ve en la PC; en el celular cada página lo muestra en su contenido.
 export function Topbar({ titulo, nombre, rol, volver, accion }: { titulo: string; nombre?: string; rol?: Rol; volver?: string; accion?: { href: string; texto: string } }) {
@@ -29,6 +30,7 @@ export function Topbar({ titulo, nombre, rol, volver, accion }: { titulo: string
       {accion && <Link href={accion.href} className="btn btn-primary topbar-accion">+ {accion.texto}</Link>}
       {nombre && (
         <nav className="row" style={{ gap: 0 }}>
+          <EnlaceAcceso className="btn btn-ghost small">Ridder</EnlaceAcceso>
           <MarcarAsistencia className="btn btn-ghost small">Marcar</MarcarAsistencia>
           {rol === "admin" && <Link className="btn btn-ghost small" href="/admin/usuarios">Usuarios</Link>}
           <Link className="btn btn-ghost small" href="/cuenta">Cuenta</Link>

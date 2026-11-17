@@ -14,3 +14,7 @@ export function MarcarAsistencia({ className, children = "Marcar asistencia" }: 
   if (!activo) return null;
   return <a href="/api/asistencias/marcar" target="_blank" rel="noopener" className={className}>{children}</a>;
 }
+
+export function useAsistencias(): boolean {
+  return useContext(AsistenciasContext);
+}

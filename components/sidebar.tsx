@@ -4,7 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import type { Rol } from "@/lib/db/schema";
 import { SECCIONES, menuDe, type Pantalla } from "@/lib/permisos";
-import { MarcarAsistencia } from "@/components/asistencias";
+import { MarcarAsistencia, useAsistencias } from "@/components/asistencias";
+import { EnlaceAcceso, useAcceso } from "@/components/acceso";
 
 const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
 
@@ -23,6 +24,8 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
   const menu = menuDe(pantallas);
   const actual = hrefActivo(pathname, [...menu.map((p) => p.href), "/cuenta"]);
   const config = [...pantallas.filter((p) => p.seccion === "Configuración"), { href: "/cuenta", nombre: "Mi cuenta" }];
+  const acceso = useAcceso();
+  const asistenciaDirecta = useAsistencias();
   const [abierto, setAbierto] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -75,6 +78,25 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
           <svg className="side-icono" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg>
           Marcar asistencia
         </MarcarAsistencia>
+        {acceso && (
+          <section className="stack" style={{ gap: 2 }}>
+            <h2 className="side-seccion">Ridder</h2>
+            <EnlaceAcceso className="side-link">
+              <svg className="side-icono" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="3.5" width="7" height="7" rx="1.5" /><rect x="3.5" y="13.5" width="7" height="7" rx="1.5" /><rect x="13.5" y="13.5" width="7" height="7" rx="1.5" /></svg>
+              Inicio de Ridder
+            </EnlaceAcceso>
+            <EnlaceAcceso ir="cobranzas" className="side-link">
+              <Icono href="acceso:salir" />
+              Cobranzas
+            </EnlaceAcceso>
+            {!asistenciaDirecta && (
+              <EnlaceAcceso ir="asistencias" className="side-link">
+                <Icono href="acceso:salir" />
+                Asistencias
+              </EnlaceAcceso>
+            )}
+          </section>
+        )}
       </nav>
       <div className="side-user">
         <div className="side-user-fila" ref={menuRef}>
@@ -120,6 +142,7 @@ const ICONOS: Record<string, React.ReactNode> = {
   "/verificar": <><circle cx="12" cy="12" r="9" /><path d="m8.5 12 2.5 2.5 4.5-5" /></>,
   "/devoluciones": <><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>,
   "/inventario": <><path d="M21 8 12 3 3 8v8l9 5 9-5z" /><path d="m3 8 9 5 9-5M12 13v8" /></>,
+  "acceso:salir": <><path d="M14 4h6v6" /><path d="M20 4 11 13" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></>,
   "/compras": <><circle cx="9" cy="20" r="1.3" /><circle cx="18" cy="20" r="1.3" /><path d="M2.5 3h2.6l2.3 11.2a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L21 7H6" /></>,
 };
 

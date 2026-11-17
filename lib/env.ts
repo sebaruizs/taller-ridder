@@ -48,6 +48,11 @@ const schema = z.object({
   // Asistencias: con las dos, el menú muestra «Marcar asistencia» (entra allá con el mismo usuario). Vacías = no aparece.
   ASISTENCIAS_URL: limpio,
   ASISTENCIAS_SECRET: limpio,
+  // Ridder Acceso (ingreso único, app.ridder.com.py). ACCESO_SECRET: clave compartida (32 caracteres o más) con la que
+  // Acceso firma los enlaces de /entrar/acceso; vacía = esa puerta está apagada. ACCESO_URL: adónde llevan los
+  // enlaces «Ridder» del menú; vacía = no se muestran. Son independientes.
+  ACCESO_SECRET: limpio,
+  ACCESO_URL: limpio,
 });
 
 export type Env = z.infer<typeof schema>;
