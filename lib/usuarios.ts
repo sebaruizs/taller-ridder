@@ -45,6 +45,11 @@ async function nombreContacto(id: number | null, rol: Rol): Promise<string | nul
   return c.nombre;
 }
 
+// El contacto con ese id, si tiene la etiqueta que pide el rol; si no, ErrorUsuario.
+export async function contactoParaRol(id: number, rol: Rol): Promise<ContactoOdoo> {
+  return { id, nombre: (await nombreContacto(id, rol))! };
+}
+
 export const crearSchema = datosUsuarioSchema.extend({ usuario: usuarioSchema, password: passwordSchema });
 export const editarSchema = datosUsuarioSchema.extend({ password: passwordSchema.optional() });
 

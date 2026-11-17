@@ -95,6 +95,7 @@ npm run usuario -- --usuario admin2 --nombre "Admin" --rol admin --password "una
 | `ASISTENCIAS_URL`, `ASISTENCIAS_SECRET` | «Marcar asistencia»: entra a Asistencias con el mismo usuario por un link firmado de 2 minutos (`GET /api/asistencias/marcar`). El secreto es `WEBHOOK_SECRET_TALLER` allá. Vacías = no aparece |
 | `ACCESO_SECRET` | Clave compartida con Ridder Acceso (app.ridder.com.py), 32 caracteres o más. Con ella, `GET /entrar/acceso?t=<usuario>.<vence>.<firma>` abre la sesión sin contraseña a quien ya ingresó allá: enlace de un solo uso, 2 minutos, firma HMAC-SHA256 de `acceso\|<usuario>\|<vence>`. El usuario tiene que existir en Taller. Vacía = puerta apagada |
 | `ACCESO_URL` | URL de Ridder Acceso. Con ella el menú muestra «Inicio de Ridder» y los enlaces a los otros módulos (`/ir/cobranzas`, `/ir/asistencias`). Vacía = no se muestran |
+| `ACCESO_API_SECRET` | Clave de la API con la que Ridder Acceso da de alta, actualiza y da de baja usuarios: `PUT` y `GET /api/acceso/usuarios/<usuario>` con `Authorization: Bearer` y `X-Ridder-Usuario` (quién hizo el cambio). 32 caracteres o más y distinta de las demás claves. El `PUT` crea el usuario con una contraseña al azar (entra por `/entrar/acceso`) o actualiza solo nombre, rol, activo y contacto de Odoo; no toca contraseña, permisos ni tema, y nunca borra. Vacía = responde 503 |
 | `ADMIN_USER`, `ADMIN_PASSWORD`, `ADMIN_NOMBRE` | Primer admin (solo si no hay usuarios) |
 
 ## Qué hace "Finalizar"

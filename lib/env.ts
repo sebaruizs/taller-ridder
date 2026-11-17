@@ -53,6 +53,9 @@ const schema = z.object({
   // enlaces «Ridder» del menú; vacía = no se muestran. Son independientes.
   ACCESO_SECRET: limpio,
   ACCESO_URL: limpio,
+  // Clave de la API con la que Acceso crea, actualiza y desactiva usuarios (/api/acceso/usuarios). 32 caracteres o más
+  // y distinta de las demás; vacía = esa API responde 503.
+  ACCESO_API_SECRET: limpio,
 });
 
 export type Env = z.infer<typeof schema>;
