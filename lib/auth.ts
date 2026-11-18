@@ -6,11 +6,12 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { hash, verify } from "@node-rs/argon2";
 import { and, eq, gt, ne } from "drizzle-orm";
 import { getDb, schema } from "./db";
-import { env } from "./env";
-import { DURACION_SESION_DIAS, inicioDe, puedeAlguna, type Accion } from "./permisos";
+import { URL_ACCESO, env } from "./env";
+import { DURACION_SESION_ACCESO_DIAS, DURACION_SESION_DIAS, inicioDe, puedeAlguna, type Accion } from "./permisos";
 import { estaBloqueado, ipBloqueada, registrarFalloIp, trasIntentoFallido, usuarioSchema } from "./credenciales";
 import { quienHizo } from "./webhook-cobranzas";
 import { MIN_SECRETO, marcarUsada, verificarEnlace, type MotivoRechazo } from "./acceso-dominio";
+import { RUTA_HEADER, destinoDeVuelta, enlaceIrATaller, idSesionAcceso } from "./acceso-destino";
 import type { Rol, Tema } from "./db/schema";
 
 export const COOKIE = "taller_sesion";
@@ -31,7 +32,29 @@ export function hashPassword(password: string): Promise<string> {
   return hash(password);
 }
 
-export type ResultadoLogin = { ok: true; usuario: Usuario } | { ok: false; error: string; status: number };
+export type ResultadoLogin = { ok: true; usuario: Usuario } | { ok: false; error: string; status: number; acceso?: string };
+
+// ---------- Ridder Acceso como único ingreso (ACCESO_SOLO, etapa 2) ----------
+// URL de Acceso sin barra final si el interruptor está prendido; null si está apagado (todo sigue como antes).
+// errorDeEntorno (lib/env.ts) no deja arrancar con el interruptor prendido y ACCESO_URL o ACCESO_SECRET inválidos.
+export function accesoSolo(): string | null {
+  const e = env();
+  if (!e.ACCESO_SOLO) return null;
+  return URL_ACCESO.test(e.ACCESO_URL) && e.ACCESO_SECRET.length >= MIN_SECRETO ? e.ACCESO_URL.replace(/\/+$/, "") : null;
+}
+
+// Adónde va quien pide una página sin sesión: a Acceso con la ruta de vuelta (la pone proxy.ts), o al login propio.
+export async function adondeSinSesion(): Promise<string> {
+  const ruta = (await headers()).get(RUTA_HEADER);
+  const acceso = accesoSolo();
+  return acceso ? enlaceIrATaller(acceso, ruta) : "/ingresar";
+}
+
+// Adónde va el navegador después de borrar la sesión local: con el interruptor, a cerrar también Acceso.
+export function destinoAlSalir(): string {
+  const acceso = accesoSolo();
+  return acceso ? `${acceso}/salir` : "/ingresar";
+}
 
 const INCORRECTO = "Usuario o contraseña incorrectos";
 const DEMASIADOS = "Demasiados intentos. Probá de nuevo en unos minutos.";
@@ -60,20 +83,27 @@ export async function login(usuario: string, password: string): Promise<Resultad
   }
   await db.update(schema.usuarios).set({ intentosFallidos: 0, bloqueadoHasta: null }).where(eq(schema.usuarios.id, u.id));
 
+  // Con ACCESO_SOLO el login propio es la entrada de emergencia de los admins: los demás ingresan por Ridder.
+  // Se mira después de la contraseña para no contarle a cualquiera qué rol tiene un usuario.
+  const acceso = accesoSolo();
+  if (acceso && u.rol !== "admin") return { ok: false, error: "Ingresá por Ridder", status: 403, acceso: `${acceso}/` };
+
   await abrirSesion(u, ahora);
   await registrar(u.id, "login");
   return { ok: true, usuario: { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff, tema: u.tema } };
 }
 
 // La sesión de siempre: una fila en sesiones y la cookie, con la duración del rol.
-async function abrirSesion(u: { id: number; rol: Rol }, ahora: Date): Promise<void> {
+// Desde Ridder Acceso con ACCESO_SOLO: 14 días para todos y el id público de la sesión de Acceso (para cerrarla al salir).
+async function abrirSesion(u: { id: number; rol: Rol }, ahora: Date, desdeAcceso?: { dias: number; sesion: string | null }): Promise<void> {
   const db = await getDb();
   const token = randomBytes(32).toString("base64url");
-  const expira = new Date(ahora.getTime() + DURACION_SESION_DIAS[u.rol] * 86_400_000);
+  const expira = new Date(ahora.getTime() + (desdeAcceso?.dias ?? DURACION_SESION_DIAS[u.rol]) * 86_400_000);
   await db.insert(schema.sesiones).values({
     id: hashToken(token),
     usuarioId: u.id,
     expira,
+    ...(desdeAcceso?.sesion ? { accesoSesion: desdeAcceso.sesion } : {}),
     userAgent: (await headers()).get("user-agent")?.slice(0, 200) ?? null,
   });
   (await cookies()).set(COOKIE, token, {
@@ -90,7 +120,9 @@ async function abrirSesion(u: { id: number; rol: Rol }, ahora: Date): Promise<vo
 // sin contraseña, con la misma sesión que da el login. No crea usuarios ni cambia permisos: el usuario tiene que existir acá.
 export type ResultadoAcceso = { ok: true; destino: string } | { ok: false; motivo: MotivoRechazo };
 
-export async function entrarConAcceso(t: string | null): Promise<ResultadoAcceso> {
+// Con ACCESO_SOLO llegan dos parámetros más, sin firmar: `a` (ruta de vuelta, se valida con la regla de Acceso) y `s`
+// (id público de la sesión de Acceso, se guarda en la sesión para que Acceso la cierre al salir). Apagado, se ignoran.
+export async function entrarConAcceso(t: string | null, extra: { a?: string | null; s?: string | null } = {}): Promise<ResultadoAcceso> {
   const secreto = env().ACCESO_SECRET;
   if (secreto.length < MIN_SECRETO) return { ok: false, motivo: "apagado" };
   const ip = await ipCliente();
@@ -109,11 +141,16 @@ export async function entrarConAcceso(t: string | null): Promise<ResultadoAcceso
   const ahora = new Date();
   if (estaBloqueado(u, ahora)) return { ok: false, motivo: "bloqueado" };
 
+  // El destino se decide antes de abrir la sesión: si `a` no sirve, al inicio del rol.
+  const solo = !!accesoSolo();
+  const destino = (solo && destinoDeVuelta(extra.a)) || inicioDe({ rol: u.rol, permisosOff: u.permisosOff ?? [] });
+  const sesion = solo ? idSesionAcceso(extra.s) : null;
+
   // Si en este navegador había otra sesión (de otro usuario, por ejemplo), se cierra: queda solo la nueva.
   await logout();
-  await abrirSesion(u, ahora);
-  await registrar(u.id, "login.acceso", { detalle: { origen: "acceso" } });
-  return { ok: true, destino: inicioDe({ rol: u.rol, permisosOff: u.permisosOff ?? [] }) };
+  await abrirSesion(u, ahora, solo ? { dias: DURACION_SESION_ACCESO_DIAS, sesion } : undefined);
+  await registrar(u.id, "login.acceso", { detalle: { origen: "acceso", ...(solo ? { sesionAcceso: !!sesion } : {}) } });
+  return { ok: true, destino };
 }
 
 export async function cambiarPassword(usuarioId: number, actual: string, nueva: string): Promise<string | null> {
@@ -206,7 +243,7 @@ export async function exigir(accion: Accion | Accion[]): Promise<Usuario> {
 // Para páginas: redirige en vez de tirar.
 export async function exigirPagina(accion: Accion | Accion[]): Promise<Usuario> {
   const u = await usuarioActual();
-  if (!u) redirect("/ingresar");
+  if (!u) redirect(await adondeSinSesion());
   if (!puedeAlguna(u, ([] as Accion[]).concat(accion))) redirect(inicioDe(u));
   return u;
 }

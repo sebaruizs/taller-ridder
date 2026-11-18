@@ -11,6 +11,14 @@ export const MENSAJES_ACCESO: Record<MotivoRechazo, string> = {
   demasiados: "Demasiados intentos. Probá de nuevo en unos minutos.",
 };
 
-export function mensajeAcceso(codigo: string | null | undefined): string | null {
-  return codigo && Object.hasOwn(MENSAJES_ACCESO, codigo) ? MENSAJES_ACCESO[codigo as MotivoRechazo] : null;
+// Con ACCESO_SOLO no hay contraseña para los demás: los mensajes no la ofrecen.
+const SOLO: Partial<Record<MotivoRechazo, string>> = {
+  apagado: "El ingreso desde Ridder todavía no está configurado en Taller. Avisale a un administrador.",
+  invalido: "Ese enlace de ingreso no es válido. Volvé a Ridder y abrí Taller de nuevo.",
+};
+
+export function mensajeAcceso(codigo: string | null | undefined, solo = false): string | null {
+  if (!codigo || !Object.hasOwn(MENSAJES_ACCESO, codigo)) return null;
+  const m = codigo as MotivoRechazo;
+  return (solo && SOLO[m]) || MENSAJES_ACCESO[m];
 }

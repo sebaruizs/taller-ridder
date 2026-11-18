@@ -1,10 +1,14 @@
 import { z } from "zod";
 
+const sinComillas = (v: string | undefined) => (v ?? "").trim().replace(/^["']|["']$/g, "").trim();
+const prendido = (v: string) => v === "1" || v === "true";
+export const URL_ACCESO = /^https?:\/\/[^\s"'<>]+$/;
+
 const limpio = z
   .string()
   .optional()
   .default("")
-  .transform((v) => v.trim().replace(/^["']|["']$/g, "").trim());
+  .transform(sinComillas);
 
 const schema = z.object({
   DATABASE_URL: z.string().min(1),
@@ -56,6 +60,11 @@ const schema = z.object({
   // Clave de la API con la que Acceso crea, actualiza y desactiva usuarios (/api/acceso/usuarios). 32 caracteres o más
   // y distinta de las demás; vacía = esa API responde 503.
   ACCESO_API_SECRET: limpio,
+  // Etapa 2 de Ridder Acceso (CONTRATO.md de Acceso, sección 5): "1" o "true" = Acceso es el único ingreso. Quien llega
+  // sin sesión va a ACCESO_URL/ir/taller y vuelve a donde estaba; Salir cierra también Acceso (ACCESO_URL/salir); el
+  // login propio queda solo para admins (entrada de emergencia). Necesita ACCESO_URL y ACCESO_SECRET. Apagado por defecto:
+  // no prender en producción hasta que esté desplegada la etapa 2 de Acceso (la 0.7.0 no tiene /salir ni /ir?a=).
+  ACCESO_SOLO: limpio.pipe(z.enum(["", "0", "1", "true", "false"])).transform(prendido),
   // API móvil (Ridder App), SOLO DESARROLLO: mientras Ridder Acceso no emita la credencial de dispositivo, con
   // NODE_ENV distinto de production se acepta "Authorization: Bearer <usuario>.<MOVIL_PRUEBA_TOKEN>" (16 caracteres o
   // más). En producción se ignora y la API móvil responde 401 a todo (lib/movil-auth.ts).
@@ -82,6 +91,10 @@ const schema = z.object({
 export function errorDeEntorno(vars: Record<string, string | undefined>): string | null {
   if (vars.NODE_ENV === "production" && vars.MOVIL_ODOO_SIMULADO?.trim() === "true") {
     return "MOVIL_ODOO_SIMULADO=true no se puede usar en producción: simula las escrituras en Odoo. Sacala del entorno.";
+  }
+  if (prendido(sinComillas(vars.ACCESO_SOLO))) {
+    if (!URL_ACCESO.test(sinComillas(vars.ACCESO_URL))) return "ACCESO_SOLO prendido sin ACCESO_URL (https://…): nadie podría ingresar. Configurá ACCESO_URL o apagá ACCESO_SOLO.";
+    if (sinComillas(vars.ACCESO_SECRET).length < 32) return "ACCESO_SOLO prendido sin ACCESO_SECRET (32 caracteres o más): nadie podría ingresar desde Ridder. Configurala o apagá ACCESO_SOLO.";
   }
   return null;
 }

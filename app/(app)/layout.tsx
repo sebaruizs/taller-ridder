@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { usuarioActual } from "@/lib/auth";
+import { adondeSinSesion, usuarioActual } from "@/lib/auth";
 import { pantallasDe } from "@/lib/permisos";
 import { Sidebar } from "@/components/sidebar";
 import { Tabbar } from "@/components/tabbar";
@@ -9,7 +9,8 @@ import { env } from "@/lib/env";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const u = await usuarioActual();
-  if (!u) redirect("/ingresar");
+  // Sin sesión: al login propio o, con ACCESO_SOLO, a Ridder Acceso con la ruta de vuelta.
+  if (!u) redirect(await adondeSinSesion());
   const asistencias = !!(env().ASISTENCIAS_URL && env().ASISTENCIAS_SECRET);
   const acceso = /^https?:\/\//.test(env().ACCESO_URL) ? env().ACCESO_URL.replace(/\/+$/, "") : "";
   return (

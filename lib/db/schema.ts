@@ -52,8 +52,11 @@ export const sesiones = pgTable(
     expira: timestamp("expira", { withTimezone: true }).notNull(),
     userAgent: text("user_agent"),
     creado: timestamp("creado", { withTimezone: true }).notNull().defaultNow(),
+    // Id público de la sesión de Ridder Acceso que abrió esta (`s`, 32 hex). Acceso la cierra al salir
+    // (POST /api/acceso/sesiones/<s>/cerrar). Null en el login propio y en las entradas sin ACCESO_SOLO.
+    accesoSesion: text("acceso_sesion"),
   },
-  (t) => [index("sesiones_usuario_idx").on(t.usuarioId)],
+  (t) => [index("sesiones_usuario_idx").on(t.usuarioId), index("sesiones_acceso_idx").on(t.accesoSesion)],
 );
 
 export const finalizaciones = pgTable(

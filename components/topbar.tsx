@@ -1,4 +1,5 @@
 "use client";
+import { salir as salirDeTaller } from "@/components/salir";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { Rol } from "@/lib/db/schema";
@@ -9,9 +10,7 @@ import { EnlaceAcceso } from "@/components/acceso";
 export function Topbar({ titulo, nombre, rol, volver, accion }: { titulo: string; nombre?: string; rol?: Rol; volver?: string; accion?: { href: string; texto: string } }) {
   const router = useRouter();
   async function salir() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    router.replace("/ingresar");
-    router.refresh();
+    await salirDeTaller(router);
   }
   return (
     <header className="topbar">

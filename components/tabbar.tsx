@@ -1,4 +1,5 @@
 "use client";
+import { salir as salirDeTaller } from "@/components/salir";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -52,9 +53,7 @@ export function Tabbar({ pantallas }: { pantallas: Pantalla[] }) {
   const actual = hrefActivo(pathname, menu.map((p) => p.href));
 
   async function salir() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    router.replace("/ingresar");
-    router.refresh();
+    await salirDeTaller(router);
   }
 
   return (

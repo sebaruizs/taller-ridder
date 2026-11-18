@@ -10,6 +10,6 @@ const body = z.object({
 export const POST = manejar(async (req) => {
   const { usuario, password } = body.parse(await req.json());
   const r = await login(usuario, password);
-  if (!r.ok) return errorJson(r.error, r.status);
+  if (!r.ok) return errorJson(r.error, r.status, r.acceso ? { acceso: r.acceso } : {});
   return json({ usuario: { nombre: r.usuario.nombre, rol: r.usuario.rol } });
 });

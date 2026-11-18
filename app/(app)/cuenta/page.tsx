@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
-import { usuarioActual } from "@/lib/auth";
+import { adondeSinSesion, usuarioActual } from "@/lib/auth";
 import { Topbar } from "@/components/topbar";
 import { CambiarPassword } from "./cambiar-password";
 import { ElegirTema } from "./tema";
 
 export default async function Cuenta() {
   const u = await usuarioActual();
-  if (!u) redirect("/ingresar");
+  if (!u) redirect(await adondeSinSesion());
   return (
     <>
       <Topbar titulo="Mi cuenta" volver="/ordenes" />

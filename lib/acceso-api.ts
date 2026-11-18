@@ -129,3 +129,15 @@ export async function cerrarSesionesDesdeAcceso(usuario: string, o: Origen): Pro
   await registrar(u.id, "usuario.cerrar_sesiones", { detalle: { usuario, sesiones: cerradas.length, motivo: "sesiones cerradas desde Ridder Acceso", ...o } });
   return { ok: true, sesiones: cerradas.length };
 }
+
+// Etapa 2 (CONTRATO.md de Acceso, 5.2 punto 5): la persona salió de Ridder Acceso; se cierran las sesiones de Taller
+// que se abrieron desde esa sesión de Acceso (`s`, guardado al entrar por /entrar/acceso). 0 también es respuesta válida.
+export async function cerrarSesionesDeAcceso(s: string, o: Origen): Promise<{ ok: true; sesiones: number }> {
+  const db = await getDb();
+  const cerradas = await db.delete(schema.sesiones).where(eq(schema.sesiones.accesoSesion, s)).returning({ usuarioId: schema.sesiones.usuarioId });
+  if (cerradas.length) {
+    const usuarios = [...new Set(cerradas.map((c) => c.usuarioId))];
+    await registrar(usuarios.length === 1 ? usuarios[0] : null, "sesion.cerrar_acceso", { detalle: { sesionAcceso: s, sesiones: cerradas.length, motivo: "salió de Ridder Acceso", ...o } });
+  }
+  return { ok: true, sesiones: cerradas.length };
+}

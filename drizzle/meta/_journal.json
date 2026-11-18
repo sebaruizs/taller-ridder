@@ -64,6 +64,13 @@
       "when": 1794941629127,
       "tag": "0008_registros_movil",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795004603747,
+      "tag": "0009_acceso_sesion",
+      "breakpoints": true
     }
   ]
 }
