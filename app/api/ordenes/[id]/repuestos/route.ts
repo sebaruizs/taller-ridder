@@ -21,6 +21,5 @@ const body = z.object({
 export const POST = manejar(async (req, ctx: RouteContext<"/api/ordenes/[id]/repuestos">) => {
   const u = await exigir("ordenes.editar");
   const ordenId = id.parse((await ctx.params).id);
-  const lineas = await agregarRepuestoComo(ordenId, body.parse(await req.json()), u);
-  return json({ lineas }, 201);
+  return json(await agregarRepuestoComo(ordenId, body.parse(await req.json()), u), 201);
 });

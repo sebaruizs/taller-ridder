@@ -4,6 +4,7 @@ import { env } from "./env";
 import { enviarTelegram } from "./telegram";
 import { registrar, type Usuario } from "./auth";
 import { MODELO_ORDEN, conAutor, formatoGs, payloadNotaRepuesto, totalRepuestos } from "./taller";
+import { actualizarFactura } from "./factura-orden";
 import { NoVerificable, agregarRepuesto, aprobarOrden, editarRepuesto, quitarRepuesto } from "./verificar";
 
 export type ProductoOdoo = { id: number; nombre: string; costo: number; unidad: string | null };
@@ -27,6 +28,9 @@ async function notaRepuesto(ordenId: number, u: Usuario, cambio: Parameters<type
   }
 }
 
+// Si la orden ya está finalizada y tiene su factura en borrador, cada cambio de repuesto se lleva también a la factura
+// (lib/factura-orden.ts). El aviso vuelve a la pantalla cuando la factura no se pudo o no se debía tocar.
+
 // Una operación a la vez por orden: evita repuestos duplicados por doble toque.
 const enCurso = new Set<number>();
 
@@ -44,8 +48,9 @@ export function agregarRepuestoComo(ordenId: number, datos: { productoId: number
   return conCandado(ordenId, async () => {
     const r = await agregarRepuesto(odoo, ordenId, datos);
     await notaRepuesto(ordenId, u, { tipo: "agregar", producto: r.producto, cantidad: datos.cantidad, costoUnitario: datos.costoUnitario });
-    await registrar(u.id, "orden.repuesto_agregar", { ordenId, detalle: { ...datos, producto: r.producto } });
-    return r.lineas;
+    const f = await actualizarFactura(odoo, ordenId, { tipo: "agregar", productoId: datos.productoId, producto: r.producto, cantidad: datos.cantidad, costoUnitario: datos.costoUnitario }, u);
+    await registrar(u.id, "orden.repuesto_agregar", { ordenId, detalle: { ...datos, producto: r.producto, factura: f.hecho ?? f.aviso } });
+    return { lineas: r.lineas, aviso: f.aviso };
   });
 }
 
@@ -53,8 +58,9 @@ export function quitarRepuestoComo(ordenId: number, lineaId: number, u: Usuario)
   return conCandado(ordenId, async () => {
     const r = await quitarRepuesto(odoo, ordenId, lineaId);
     await notaRepuesto(ordenId, u, { tipo: "quitar", producto: r.quitada.producto, cantidad: r.quitada.cantidad, costoUnitario: r.quitada.costoUnitario });
-    await registrar(u.id, "orden.repuesto_quitar", { ordenId, detalle: { ...r.quitada } });
-    return r.lineas;
+    const f = await actualizarFactura(odoo, ordenId, { tipo: "quitar", productoId: r.quitada.productoId, producto: r.quitada.producto, cantidad: r.quitada.cantidad, costoUnitario: r.quitada.costoUnitario }, u);
+    await registrar(u.id, "orden.repuesto_quitar", { ordenId, detalle: { ...r.quitada, factura: f.hecho ?? f.aviso } });
+    return { lineas: r.lineas, aviso: f.aviso };
   });
 }
 
@@ -62,11 +68,12 @@ export function editarRepuestoComo(ordenId: number, lineaId: number, datos: { ca
   return conCandado(ordenId, async () => {
     const r = await editarRepuesto(odoo, ordenId, lineaId, datos);
     await notaRepuesto(ordenId, u, { tipo: "editar", producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos });
+    const f = await actualizarFactura(odoo, ordenId, { tipo: "editar", productoId: r.antes.productoId, producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos }, u);
     await registrar(u.id, "orden.repuesto_editar", {
       ordenId,
-      detalle: { lineaId, producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos },
+      detalle: { lineaId, producto: r.antes.producto, antes: { cantidad: r.antes.cantidad, costoUnitario: r.antes.costoUnitario }, despues: datos, factura: f.hecho ?? f.aviso },
     });
-    return r.lineas;
+    return { lineas: r.lineas, aviso: f.aviso };
   });
 }
 

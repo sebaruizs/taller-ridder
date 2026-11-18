@@ -8,7 +8,7 @@ const id = z.coerce.number().int().positive();
 export const DELETE = manejar(async (_req, ctx: RouteContext<"/api/ordenes/[id]/repuestos/[lineaId]">) => {
   const u = await exigir("ordenes.editar");
   const p = await ctx.params;
-  return json({ lineas: await quitarRepuestoComo(id.parse(p.id), id.parse(p.lineaId), u) });
+  return json(await quitarRepuestoComo(id.parse(p.id), id.parse(p.lineaId), u));
 });
 
 const cambio = z.object({
@@ -20,5 +20,5 @@ const cambio = z.object({
 export const PATCH = manejar(async (req, ctx: RouteContext<"/api/ordenes/[id]/repuestos/[lineaId]">) => {
   const u = await exigir("ordenes.editar");
   const p = await ctx.params;
-  return json({ lineas: await editarRepuestoComo(id.parse(p.id), id.parse(p.lineaId), cambio.parse(await req.json().catch(() => ({}))), u) });
+  return json(await editarRepuestoComo(id.parse(p.id), id.parse(p.lineaId), cambio.parse(await req.json().catch(() => ({}))), u));
 });

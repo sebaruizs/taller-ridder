@@ -18,10 +18,13 @@ export function useRepuestos(ordenId: number, iniciales: LineaRepuesto[]) {
   const [lineas, setLineas] = useState<LineaRepuesto[]>(iniciales);
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // El repuesto se guardó, pero la factura de la orden no se pudo o no se debía tocar.
+  const [aviso, setAviso] = useState<string | null>(null);
 
   async function llamar(url: string, init: RequestInit): Promise<Record<string, unknown> | null> {
     setOcupado(true);
     setError(null);
+    setAviso(null);
     try {
       const r = await fetch(url, init);
       if (r.status === 401) {
@@ -44,7 +47,10 @@ export function useRepuestos(ordenId: number, iniciales: LineaRepuesto[]) {
 
   async function guardar(url: string, method: string, body?: unknown): Promise<boolean> {
     const d = await llamar(url, { method, headers: body ? { "Content-Type": "application/json" } : undefined, body: body ? JSON.stringify(body) : undefined });
-    if (d) setLineas(d.lineas as LineaRepuesto[]);
+    if (d) {
+      setLineas(d.lineas as LineaRepuesto[]);
+      setAviso(typeof d.aviso === "string" ? d.aviso : null);
+    }
     return Boolean(d);
   }
 
@@ -57,7 +63,7 @@ export function useRepuestos(ordenId: number, iniciales: LineaRepuesto[]) {
   }
 
   const total = lineas.reduce((s, l) => s + l.total, 0);
-  return { lineas, total, ocupado, error, llamar, agregar, editar, quitar };
+  return { lineas, total, ocupado, error, aviso, llamar, agregar, editar, quitar };
 }
 
 export type EstadoRepuestos = ReturnType<typeof useRepuestos>;
@@ -115,6 +121,7 @@ export function TablaRepuestos({ r, editable, alAgregar, conError = true }: { r:
         </table>
       </div>
       {conError && r.error && <div className="alert alert-danger small" role="alert" style={{ margin: "10px 0 0" }}>{r.error}</div>}
+      {r.aviso && <div className="alert alert-warn small" role="status" style={{ margin: "10px 0 0" }}>{r.aviso}</div>}
       <div className="lineas-total">
         {r.ocupado && <span className="small muted">Guardando en Odoo… · </span>}
         <span className="muted">Total costo repuestos:</span> <strong>{gs(r.total)}</strong>
