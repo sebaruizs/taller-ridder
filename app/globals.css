@@ -355,6 +355,16 @@ textarea.input { min-height: 110px; resize: vertical; }
   .tablero { display: grid; grid-template-columns: repeat(5, minmax(280px, 1fr)); gap: 14px; align-items: start; overflow-x: auto; }
   .tablero-col, .tablero-col[data-activa] { display: flex; background: var(--surface-2); border-radius: var(--radius); padding: 10px; }
   .tablero-col-head { display: flex; padding: 4px 4px 2px; }
+  /* En la PC el tablero ocupa el alto de la ventana y se desplaza por dentro: la barra para ir a la derecha queda
+     siempre a la vista, sin tener que bajar hasta el final de la página. */
+  .contenido:has(> .tablero-wrap) { display: flex; flex-direction: column; height: 100dvh; min-height: 0; overflow: hidden; }
+  .contenido > .tablero-wrap { flex: 1; min-height: 0; width: 100%; padding-bottom: 12px; }
+  .tablero-wrap > * { flex: none; }
+  .tablero-wrap > .tablero { flex: 1; min-height: 0; overflow: auto; padding-bottom: 6px; scrollbar-width: auto; scrollbar-color: var(--ink-3) var(--surface-2); }
+  .tablero::-webkit-scrollbar { width: 12px; height: 12px; }
+  .tablero::-webkit-scrollbar-track { background: var(--surface-2); border-radius: 6px; }
+  .tablero::-webkit-scrollbar-thumb { background: var(--ink-3); border-radius: 6px; border: 2px solid var(--surface-2); }
+  .tablero-col-head { position: sticky; top: 0; z-index: 1; background: var(--surface-2); margin: -10px -10px 0; padding: 14px 14px 8px; border-radius: var(--radius) var(--radius) 0 0; }
 
   .finalizar-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
   .fotos { grid-template-columns: repeat(4, 1fr); }
