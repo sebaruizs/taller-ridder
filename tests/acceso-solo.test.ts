@@ -171,6 +171,16 @@ describe("salir", () => {
   });
 });
 
+describe("Marcar asistencia", () => {
+  it("pasa por Acceso: /ir/asistencias con a=/#/marcar, sin firmar nada en Taller", async () => {
+    const { GET: marcar } = await import("@/app/api/asistencias/marcar/route");
+    await entrarCon("jefe.taller", { s: S });
+    const r = await marcar();
+    expect(r.status).toBe(303);
+    expect(r.headers.get("location")).toBe(`${ACCESO_URL}/ir/asistencias?a=%2F%23%2Fmarcar`);
+  });
+});
+
 describe("/ingresar: solo admins", () => {
   it("un admin entra con su contraseña (entrada de emergencia), con la duración de siempre", async () => {
     const r = await login("admin.uno", "clave-correcta");

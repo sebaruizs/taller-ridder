@@ -6,7 +6,7 @@ import { SECRETO, nuevoPedido, pedido, prepararEntorno, redirigeA } from "./acce
 vi.mock("next/headers", async () => (await import("./acceso-solo-falsos")).nextHeaders);
 vi.mock("next/navigation", async (original) => ({ ...(await original<object>()), ...(await import("./acceso-solo-falsos")).nextNavigation }));
 
-const dir = prepararEntorno({});
+const dir = prepararEntorno({ ASISTENCIAS_URL: "https://asistencias.test", ASISTENCIAS_SECRET: "secreto-de-asistencias" });
 delete process.env.ACCESO_SOLO;
 
 const { GET: entrar } = await import("@/app/entrar/acceso/route");
@@ -53,6 +53,13 @@ describe("ACCESO_SOLO apagado", () => {
     const r = await loginApi(new Request("http://t/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ usuario: "maria.lopez", password: "clave-correcta" }) }), undefined as never);
     expect(r.status).toBe(200);
     expect(pedido.cookies.has(COOKIE)).toBe(true);
+  });
+
+  it("Marcar asistencia sigue con el enlace firmado directo a Asistencias", async () => {
+    const { GET: marcar } = await import("@/app/api/asistencias/marcar/route");
+    const r = await marcar();
+    expect(r.status).toBe(303);
+    expect(r.headers.get("location")).toMatch(/^https:\/\/asistencias\.test\/entrar\/taller\?t=[\w-]+\.\d+\.[0-9a-f]{64}$/);
   });
 
   it("salir lleva a /ingresar", async () => {
