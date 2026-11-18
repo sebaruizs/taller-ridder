@@ -117,3 +117,15 @@ export async function guardarDesdeAcceso(usuario: string, datos: DatosAcceso, o:
   await registrar(null, "usuario.editar", { detalle: { usuario, ...cambios, ...o } });
   return { ok: true, creado: false, usuario: estadoDe(nuevo), ...(aviso ? { aviso } : {}) };
 }
+
+// Ridder Acceso cierra un teléfono (o la persona cambia su contraseña): se cierran TODAS las sesiones de Taller de ese
+// usuario, también la de la computadora (vuelve a entrar por Acceso sin escribir nada). No lo desactiva ni toca nada
+// más. CONTRATO.md de Ridder Acceso, sección 7.
+export async function cerrarSesionesDesdeAcceso(usuario: string, o: Origen): Promise<{ ok: true; sesiones: number }> {
+  const db = await getDb();
+  const [u] = await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.usuario, usuario));
+  if (!u) throw new UsuarioNoEncontrado("Ese usuario no existe en Taller");
+  const cerradas = await db.delete(schema.sesiones).where(eq(schema.sesiones.usuarioId, u.id)).returning({ id: schema.sesiones.id });
+  await registrar(u.id, "usuario.cerrar_sesiones", { detalle: { usuario, sesiones: cerradas.length, motivo: "sesiones cerradas desde Ridder Acceso", ...o } });
+  return { ok: true, sesiones: cerradas.length };
+}

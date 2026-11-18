@@ -29,6 +29,15 @@ describe("credencial de la API móvil (loginDeDispositivo)", () => {
     }
   });
 
+  it("acepta una ficha emitida por el código real de Acceso (fichaMovil, Ridder-acceso/src/movil.js)", () => {
+    config.MOVIL_FICHA_ACCESO = true;
+    // Generada con fichaMovil({ usuario: "Carlos.Ramirez", secreto: SECRETO, ahora: 1_800_000_000_000 }): Acceso pasa el
+    // usuario a minúsculas y le da 10 minutos.
+    const deAcceso = "Y2FybG9zLnJhbWlyZXo.1800000600000.9f7176da0a90606c0f4e503a48111fdac69c5f822eedce015228f5e5d51dfccc";
+    expect(loginDeDispositivo(bearer(deAcceso), 1_800_000_000_000)).toBe("carlos.ramirez");
+    expect(loginDeDispositivo(bearer(deAcceso), 1_800_000_600_000)).toBeNull();
+  });
+
   it("rechaza la ficha vencida, la de vida demasiado larga, la de otra clave y el enlace web de un solo uso", () => {
     config.MOVIL_FICHA_ACCESO = true;
     const login = (t: string) => loginDeDispositivo(bearer(t), AHORA);
