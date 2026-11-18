@@ -1,4 +1,5 @@
 "use client";
+import { salir as salirDeTaller } from "@/components/salir";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -46,9 +47,7 @@ export function Sidebar({ nombre, rol, pantallas }: { nombre: string; rol: Rol; 
   }, [abierto]);
 
   async function salir() {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-    router.replace("/ingresar");
-    router.refresh();
+    await salirDeTaller(router);
   }
 
   return (

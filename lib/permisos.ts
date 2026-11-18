@@ -172,6 +172,10 @@ export const DURACION_SESION_DIAS: Record<Rol, number> = {
   admin: 1,
 };
 
+// Con ACCESO_SOLO, la sesión que se abre desde Ridder Acceso dura lo mismo que la de Acceso: 14 días para todos los
+// roles, también admin (CONTRATO.md de Acceso, 5.1). El login propio de emergencia sigue con DURACION_SESION_DIAS.
+export const DURACION_SESION_ACCESO_DIAS = 14;
+
 // Lo que va en el menú: sin las pantallas de alta, salvo que sea lo único del módulo
 // (por ejemplo, alguien que solo puede cargar órdenes y no ver listas).
 export function menuDe(pantallas: readonly Pantalla[]): Pantalla[] {

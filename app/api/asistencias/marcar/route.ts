@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
-import { usuarioActual } from "@/lib/auth";
+import { adondeSinSesion, usuarioActual } from "@/lib/auth";
 import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const u = await usuarioActual();
   // Location relativa: detrás del proxy req.url trae el host interno del contenedor, no el dominio.
-  if (!u) return new NextResponse(null, { status: 303, headers: { Location: "/ingresar" } });
+  if (!u) return new NextResponse(null, { status: 303, headers: { Location: await adondeSinSesion() } });
   const { ASISTENCIAS_URL, ASISTENCIAS_SECRET } = env();
   if (!ASISTENCIAS_URL || !ASISTENCIAS_SECRET) return NextResponse.json({ error: "Asistencias no está configurado" }, { status: 404 });
   const usuario = u.usuario.toLowerCase();
