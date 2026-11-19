@@ -158,6 +158,7 @@ beforeAll(async () => {
     { usuario: "carlos.ramirez", nombre: "Carlos Ramirez", rol: "mecanico", passwordHash: "x", odooPartnerId: CARLOS },
     { usuario: "angel.ramos", nombre: "Angel Ramos", rol: "mecanico", passwordHash: "x", odooPartnerId: ANGEL },
     { usuario: "jefe.prueba", nombre: "Jefe de Taller", rol: "jefe", passwordHash: "x" },
+    { usuario: "revisor.tiendas", nombre: "Revisor de tiendas", rol: "revisor", passwordHash: "x" },
     { usuario: "dado.de.baja", nombre: "Baja", rol: "mecanico", passwordHash: "x", odooPartnerId: 77, activo: false },
   ]);
 }, 60_000);
@@ -180,6 +181,33 @@ describe("autenticación (personaDeDispositivo)", () => {
     } finally {
       vi.stubEnv("NODE_ENV", antes ?? "test");
     }
+  });
+});
+
+describe("cuenta de solo lectura (rol revisor)", () => {
+  it("ve todas las órdenes en proceso, sean de quien sean", async () => {
+    const r = await tareas("revisor.tiendas");
+    expect(r.status).toBe(200);
+    expect(r.body.map((t: { id: string }) => t.id)).toEqual(["100", "101", "103"]);
+  });
+
+  it("ve las motos a devolver", async () => {
+    const r = await getVehiculos(new Request("http://t/api/movil/devolucion/vehiculos", { headers: auth("revisor.tiendas") }), ctx);
+    expect(r.status).toBe(200);
+  });
+
+  it("ningún registro suyo entra: 403 «solo_lectura», sin tocar Odoo ni la base", async () => {
+    llamadas.length = 0;
+    for (const cuerpo of [registro("taller.inicio", { tareaId: "100" }), registro("devolucion.recepcion", { vehiculoId: "10" }), { cualquier: "cosa" }]) {
+      const r = await enviar("revisor.tiendas", cuerpo);
+      expect(r.status).toBe(403);
+      expect(r.body).toEqual({ error: "Cuenta de solo lectura: no se guardan cambios.", codigo: "solo_lectura" });
+    }
+    expect(llamadas).toEqual([]);
+    const db = await getDb();
+    expect(await db.select({ id: schema.registrosMovil.id }).from(schema.registrosMovil)).toHaveLength(0);
+    expect(await db.select({ id: schema.devoluciones.id }).from(schema.devoluciones)).toHaveLength(0);
+    expect(telegram).not.toHaveBeenCalled();
   });
 });
 

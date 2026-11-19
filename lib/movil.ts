@@ -5,6 +5,7 @@ import { getDb, schema } from "./db";
 import { odoo, odooSimulado, m2oId, type Many2one } from "./odoo";
 import { registrar, type Usuario } from "./auth";
 import { puedeU } from "./permisos";
+import { esSoloLectura } from "./solo-lectura";
 import { crearYEjecutar } from "./finalizar-servicio";
 import { FinalizarError } from "./finalizar";
 import { valoresDevolucion } from "./devoluciones";
@@ -105,13 +106,15 @@ async function iniciosDe(usuarioId: number, ordenIds: number[]): Promise<Map<num
  */
 export async function tareasDe(u: Usuario): Promise<TareaMovil[]> {
   const p = u.odooPartnerId;
-  if (!p) return [];
+  // La cuenta de solo lectura no es de ningún mecánico: ve todas las órdenes En proceso y las reportadas hoy.
+  const todas = esSoloLectura(u.rol);
+  if (!p && !todas) return [];
   const [enProceso, listas] = await Promise.all([
-    odoo.searchRead<OrdenTarea>(MODELO_ORDEN, [["state", "=", "running"], "|", ["vendor_id", "=", p], ["vendor_id", "=", false]], CAMPOS_TAREA, {
+    odoo.searchRead<OrdenTarea>(MODELO_ORDEN, todas ? [["state", "=", "running"]] : [["state", "=", "running"], "|", ["vendor_id", "=", p], ["vendor_id", "=", false]], CAMPOS_TAREA, {
       limit: 200,
       order: "date asc, id asc",
     }),
-    odoo.searchRead<OrdenTarea>(MODELO_ORDEN, [["state", "=", "cancelled"], ["vendor_id", "=", p], ["service_end_date", "=", hoyAsuncion()]], CAMPOS_TAREA, {
+    odoo.searchRead<OrdenTarea>(MODELO_ORDEN, todas ? [["state", "=", "cancelled"], ["service_end_date", "=", hoyAsuncion()]] : [["state", "=", "cancelled"], ["vendor_id", "=", p], ["service_end_date", "=", hoyAsuncion()]], CAMPOS_TAREA, {
       limit: 100,
       order: "id asc",
     }),

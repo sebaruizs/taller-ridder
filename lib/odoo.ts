@@ -1,4 +1,5 @@
 import "server-only";
+import { SoloLectura, pedidoSoloLectura } from "./solo-lectura";
 import { env } from "./env";
 import { crearOdooSimulado } from "./odoo-simulado";
 
@@ -77,6 +78,8 @@ export async function executeKw<T>(
   args: unknown[],
   kwargs: Record<string, unknown> = {},
 ): Promise<T> {
+  // Segunda barrera del rol revisor: mientras se lo atiende, nada escribe en Odoo (tampoco desde un GET).
+  if (pedidoSoloLectura() && !METODOS_LECTURA.has(method)) throw new SoloLectura();
   const { ODOO_DB, ODOO_API_KEY, ODOO_READONLY } = env();
   if (ODOO_READONLY && !METODOS_LECTURA.has(method)) throw new OdooSoloLecturaError(model, method);
   return rpc<T>("object", "execute_kw", [ODOO_DB, await uid(), ODOO_API_KEY, model, method, args, kwargs]);

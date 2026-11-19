@@ -13,6 +13,7 @@ import { quienHizo } from "./webhook-cobranzas";
 import { MIN_SECRETO, marcarUsada, verificarEnlace, type MotivoRechazo } from "./acceso-dominio";
 import { RUTA_HEADER, destinoDeVuelta, enlaceIrATaller, idSesionAcceso } from "./acceso-destino";
 import type { Rol, Tema } from "./db/schema";
+import { rechazarEscritura } from "./solo-lectura";
 
 export const COOKIE = "taller_sesion";
 
@@ -186,15 +187,18 @@ const AUTOMATICO: Usuario = { id: 0, usuario: "automatico", nombre: "Cobranzas (
 const resumen = (v: string) => createHash("sha256").update(v).digest();
 
 // null: no es una llamada de Cobranzas (o el secreto no coincide: sigue como cualquier request sin sesión).
-// headers() va primero: marca la página como dinámica antes de leer el entorno (en el build no hay variables).
-export const llamadaCobranzas = cache(async (): Promise<{ por: string } | null> => {
-  const h = await headers();
-  const auth = h.get("authorization");
+function cobranzasDe(auth: string | null, usuario: string | null): { por: string } | null {
   if (!auth?.startsWith("Bearer ")) return null;
   const secreto = env().API_COBRANZAS_SECRET;
   if (!secreto) return null;
   if (!timingSafeEqual(resumen(auth.slice(7).trim()), resumen(secreto))) return null;
-  return { por: quienHizo(h.get("x-ridder-usuario")) };
+  return { por: quienHizo(usuario) };
+}
+
+// headers() va primero: marca la página como dinámica antes de leer el entorno (en el build no hay variables).
+export const llamadaCobranzas = cache(async (): Promise<{ por: string } | null> => {
+  const h = await headers();
+  return cobranzasDe(h.get("authorization"), h.get("x-ridder-usuario"));
 });
 
 async function usuarioDeCobranzas(por: string): Promise<Usuario> {
@@ -206,11 +210,7 @@ async function usuarioDeCobranzas(por: string): Promise<Usuario> {
   return { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff ?? [], tema: u.tema };
 }
 
-// cache: el layout raíz (tema) y cada página lo piden en el mismo request; una sola consulta.
-export const usuarioActual = cache(async (): Promise<Usuario | null> => {
-  const cobranzas = await llamadaCobranzas();
-  if (cobranzas) return usuarioDeCobranzas(cobranzas.por);
-  const token = (await cookies()).get(COOKIE)?.value;
+async function usuarioDeSesion(token: string | undefined): Promise<Usuario | null> {
   if (!token) return null;
   const db = await getDb();
   const [fila] = await db
@@ -229,7 +229,38 @@ export const usuarioActual = cache(async (): Promise<Usuario | null> => {
     .where(and(eq(schema.sesiones.id, hashToken(token)), gt(schema.sesiones.expira, new Date())));
   if (!fila || !fila.activo) return null;
   return { id: fila.id, usuario: fila.usuario, nombre: fila.nombre, rol: fila.rol, odooPartnerId: fila.odooPartnerId, permisosOff: fila.permisosOff ?? [], tema: fila.tema };
+}
+
+// cache: el layout raíz (tema) y cada página lo piden en el mismo request; una sola consulta.
+const usuarioDelRequest = cache(async (): Promise<Usuario | null> => {
+  const cobranzas = await llamadaCobranzas();
+  if (cobranzas) return usuarioDeCobranzas(cobranzas.por);
+  return usuarioDeSesion((await cookies()).get(COOKIE)?.value);
 });
+
+// ÚNICO lugar donde las rutas y las páginas averiguan quién es. Si es una cuenta de solo lectura y el pedido escribe,
+// corta acá (lib/solo-lectura.ts): ninguna ruta puede usar al usuario sin pasar por esta revisión.
+export async function usuarioActual(): Promise<Usuario | null> {
+  const u = await usuarioDelRequest();
+  if (u) rechazarEscritura(u.rol);
+  return u;
+}
+
+// Lo mismo que usuarioActual, pero leído del pedido: lo usa `manejar` (lib/api.ts) para frenar las escrituras de una
+// cuenta de solo lectura antes de entrar a la ruta, sea cual sea la ruta.
+export async function usuarioDePedido(req: Request): Promise<Usuario | null> {
+  const cobranzas = cobranzasDe(req.headers.get("authorization"), req.headers.get("x-ridder-usuario"));
+  if (cobranzas) return usuarioDeCobranzas(cobranzas.por);
+  return usuarioDeSesion(cookieDe(req.headers.get("cookie"), COOKIE));
+}
+
+export function cookieDe(cabecera: string | null, nombre: string): string | undefined {
+  for (const parte of cabecera?.split(";") ?? []) {
+    const i = parte.indexOf("=");
+    if (i > 0 && parte.slice(0, i).trim() === nombre) return parte.slice(i + 1).trim() || undefined;
+  }
+  return undefined;
+}
 
 // Para Route Handlers: tira NoAutorizado (401/403).
 // Con varias acciones alcanza con tener alguna.

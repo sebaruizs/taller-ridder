@@ -8,7 +8,7 @@ import { SECCIONES, menuDe, type Pantalla } from "@/lib/permisos";
 import { MarcarAsistencia, useAsistencias } from "@/components/asistencias";
 import { EnlaceAcceso, useAcceso } from "@/components/acceso";
 
-const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
+const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", revisor: "Revisor (solo lectura)", admin: "Admin" };
 
 // Marca la opción más específica; en "/inventario/nuevo" queda marcado "Productos".
 export function hrefActivo(pathname: string, hrefs: string[]): string | null {

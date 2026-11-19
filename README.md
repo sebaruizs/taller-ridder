@@ -72,6 +72,15 @@ Cobranzas puede hacer todo lo que se hace en la web, con las mismas rutas `/api/
 
 - Encabezados: `Authorization: Bearer <API_COBRANZAS_SECRET>` y `X-Ridder-Usuario: <login del taller, URL-encoded>`. La llamada actúa **como ese usuario**: su rol, sus permisos y su contacto de Odoo en las notas. En el log queda `origen: "cobranzas"` y `por`.
 - `X-Ridder-Usuario: automatico` es un jefe de **solo lectura** (todo lo que escribe le da 403).
+
+### Rol revisor (solo lectura)
+
+`revisor` ve lo mismo que un jefe y no puede cambiar nada. Es la cuenta que usan los revisores de las tiendas de apps (gente de fuera de Ridder), así que ve datos reales. El servidor lo garantiza con dos barreras (`lib/solo-lectura.ts`), no con botones ocultos:
+
+1. Toda petición que no sea GET/HEAD/OPTIONS de un revisor responde `403 { "codigo": "solo_lectura", "error": "Cuenta de solo lectura: no se guardan cambios." }` antes de llegar a la ruta: sesión web, llamadas de Cobranzas a su nombre y ficha del teléfono (`POST /api/movil/registros` incluido). Ridder App no reintenta un registro rechazado con ese código. Solo pasan salir y volver a ingresar.
+2. Mientras se atiende a un revisor, `lib/odoo.ts` rechaza cualquier método que escriba en Odoo, también desde un GET.
+
+No tiene administración (usuarios, ajustes, log), ni eliminar órdenes, ni bloquear el encendido, ni el enlace de Marcar asistencia. En el teléfono ve todas las órdenes En proceso, no solo las de un mecánico. Se da de alta como cualquier usuario: desde Usuarios o con el `PUT /api/acceso/usuarios/<usuario>` de Ridder Acceso (`rol: "revisor"`, sin contacto de Odoo).
 - Usuario inexistente o inactivo: 403. Secreto incorrecto o vacío: 401 (se comporta como un pedido sin sesión).
 - Para Cobranzas se sumaron: `GET /api/tablero` (columnas con su primera página), filtros de `GET /api/ordenes` (`estado=todos`, `vehiculo`, `chofer`, `desde`, `hasta`) y el detalle completo en `GET /api/ordenes/<id>` (reporte, repuestos e historial).
 

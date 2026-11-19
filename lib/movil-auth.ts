@@ -6,6 +6,7 @@ import { NoAutorizado, type Usuario } from "./auth";
 import { usuarioSchema } from "./credenciales";
 import { MIN_SECRETO, verificarFicha } from "./acceso-dominio";
 import { usuarioDeTokenDePrueba } from "./movil-dominio";
+import { rechazarEscritura } from "./solo-lectura";
 
 const SIN_CREDENCIAL = "Tenés que ingresar de nuevo";
 
@@ -41,5 +42,7 @@ export async function personaDeDispositivo(req: Request): Promise<Usuario> {
   const db = await getDb();
   const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, valido.data));
   if (!u || !u.activo) throw new NoAutorizado(401, SIN_CREDENCIAL);
+  // Cuenta de solo lectura (rol revisor): ve las listas, pero ningún registro suyo entra (403 "solo_lectura").
+  rechazarEscritura(u.rol, req);
   return { id: u.id, usuario: u.usuario, nombre: u.nombre, rol: u.rol, odooPartnerId: u.odooPartnerId, permisosOff: u.permisosOff ?? [], tema: u.tema };
 }

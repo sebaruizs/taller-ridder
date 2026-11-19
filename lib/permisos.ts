@@ -1,35 +1,38 @@
 import type { Rol } from "./db/schema";
 
 // Qué puede hacer cada rol por defecto.
+// «revisor» tiene las mismas que el jefe para poder VER todo (varias pantallas de solo ver están detrás de un permiso
+// de escribir), pero el servidor le rechaza cualquier escritura: lib/solo-lectura.ts. No tiene las dos que no abren
+// ninguna pantalla y actúan fuera de Taller: eliminar órdenes y bloquear el encendido.
 export const ACCIONES = {
-  "ordenes.ver_en_proceso": ["mecanico", "jefe", "admin"],
-  "ordenes.ver_detalle": ["mecanico", "jefe", "admin"],
-  "ordenes.finalizar": ["mecanico", "jefe", "admin"],
-  "ordenes.ver_todas": ["jefe", "cobrador", "admin"],
-  "ordenes.crear": ["jefe", "cobrador", "admin"],
-  "ordenes.editar": ["jefe", "admin"],
-  "ordenes.mover_estado": ["jefe", "admin"],
-  "ordenes.aprobar": ["jefe", "admin"],
+  "ordenes.ver_en_proceso": ["mecanico", "jefe", "revisor", "admin"],
+  "ordenes.ver_detalle": ["mecanico", "jefe", "revisor", "admin"],
+  "ordenes.finalizar": ["mecanico", "jefe", "revisor", "admin"],
+  "ordenes.ver_todas": ["jefe", "revisor", "cobrador", "admin"],
+  "ordenes.crear": ["jefe", "revisor", "cobrador", "admin"],
+  "ordenes.editar": ["jefe", "revisor", "admin"],
+  "ordenes.mover_estado": ["jefe", "revisor", "admin"],
+  "ordenes.aprobar": ["jefe", "revisor", "admin"],
   // Borrar la orden en Odoo (con sus repuestos). Las finalizadas no se borran.
   "ordenes.eliminar": ["jefe", "admin"],
-  "finalizaciones.ver_ajenas": ["jefe", "admin"],
-  "vehiculos.buscar": ["jefe", "cobrador", "admin"],
-  "vehiculos.historial": ["jefe", "admin"],
-  "reportes.ver": ["jefe", "admin"],
-  "reportes.cambiar_mecanico": ["jefe", "admin"],
+  "finalizaciones.ver_ajenas": ["jefe", "revisor", "admin"],
+  "vehiculos.buscar": ["jefe", "revisor", "cobrador", "admin"],
+  "vehiculos.historial": ["jefe", "revisor", "admin"],
+  "reportes.ver": ["jefe", "revisor", "admin"],
+  "reportes.cambiar_mecanico": ["jefe", "revisor", "admin"],
   // Ver el estado de los GPS (Traccar) y la moneda de cada moto.
-  "gps.ver": ["mecanico", "jefe", "cobrador", "admin"],
+  "gps.ver": ["mecanico", "jefe", "revisor", "cobrador", "admin"],
   // Bloquear o desbloquear el encendido de la moto por GPS (Traccar).
   "gps.encendido": ["jefe", "admin"],
   // Devoluciones y recuperos: la moto que vuelve a la casa matriz, con fotos y observación.
-  "devoluciones.ver": ["jefe", "admin"],
-  "devoluciones.registrar": ["jefe", "admin"],
+  "devoluciones.ver": ["jefe", "revisor", "admin"],
+  "devoluciones.registrar": ["jefe", "revisor", "admin"],
   "devoluciones.borrar": ["admin"],
-  "inventario.ver": ["jefe", "admin"],
-  "inventario.crear": ["jefe", "admin"],
-  "inventario.editar_precio": ["jefe", "admin"],
-  "compras.ver": ["jefe", "admin"],
-  "compras.crear": ["jefe", "admin"],
+  "inventario.ver": ["jefe", "revisor", "admin"],
+  "inventario.crear": ["jefe", "revisor", "admin"],
+  "inventario.editar_precio": ["jefe", "revisor", "admin"],
+  "compras.ver": ["jefe", "revisor", "admin"],
+  "compras.crear": ["jefe", "revisor", "admin"],
   "usuarios.gestionar": ["admin"],
   "log.ver": ["admin"],
   "config.editar": ["admin"],
@@ -169,6 +172,7 @@ export const DURACION_SESION_DIAS: Record<Rol, number> = {
   mecanico: 30,
   jefe: 14,
   cobrador: 14,
+  revisor: 14,
   admin: 1,
 };
 

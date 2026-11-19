@@ -6,9 +6,9 @@ import type { Rol } from "@/lib/db/schema";
 import { etiquetasDelRol, textoEtiquetas } from "@/lib/credenciales";
 import { MODULOS, PERMISOS, claveModulo, modulosDelRol, permisosDelRol, resumenPermisosOff, type Modulo } from "@/lib/permisos";
 
-const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", admin: "Admin" };
+const ROL_NOMBRE: Record<Rol, string> = { mecanico: "Mecánico", jefe: "Jefe de taller", cobrador: "Cobrador", revisor: "Revisor (solo lectura)", admin: "Admin" };
 // Orden de los grupos en la lista; los inactivos van todos juntos al final.
-const ORDEN_ROLES: Rol[] = ["admin", "jefe", "cobrador", "mecanico"];
+const ORDEN_ROLES: Rol[] = ["admin", "jefe", "cobrador", "mecanico", "revisor"];
 
 type Form = {
   id: number | null;

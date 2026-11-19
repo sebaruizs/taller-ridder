@@ -7,7 +7,7 @@ import { ROLES, type Rol } from "./db/schema";
 // Lo que no está en este esquema (contraseña, permisos apagados, tema) no se puede cambiar por acá.
 export const usuarioAccesoSchema = z.object({
   nombre: z.string({ error: "Falta el nombre" }).trim().min(2, "Falta el nombre").max(80, "El nombre es demasiado largo"),
-  rol: z.enum(ROLES, { error: "Rol inválido: tiene que ser admin, jefe, mecanico o cobrador" }),
+  rol: z.enum(ROLES, { error: "Rol inválido: tiene que ser admin, jefe, mecanico, cobrador o revisor" }),
   activo: z.boolean({ error: "Falta activo (true o false)" }),
   // null o ausente = no viene: el contacto que tenga el usuario no se toca.
   odooPartnerId: z.number({ error: "odooPartnerId tiene que ser un número" }).int().positive().nullish(),

@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { NextResponse } from "next/server";
 import { accesoSolo, adondeSinSesion, usuarioActual } from "@/lib/auth";
 import { env } from "@/lib/env";
+import { CODIGO_SOLO_LECTURA, MENSAJE_SOLO_LECTURA, esSoloLectura } from "@/lib/solo-lectura";
 
 export const dynamic = "force-dynamic";
 
@@ -12,6 +13,8 @@ export async function GET() {
   const u = await usuarioActual();
   // Location relativa: detrás del proxy req.url trae el host interno del contenedor, no el dominio.
   if (!u) return new NextResponse(null, { status: 303, headers: { Location: await adondeSinSesion() } });
+  // La cuenta de solo lectura no marca asistencia: este enlace le abriría una sesión en Asistencias.
+  if (esSoloLectura(u.rol)) return NextResponse.json({ error: MENSAJE_SOLO_LECTURA, codigo: CODIGO_SOLO_LECTURA }, { status: 403 });
   // Con ACCESO_SOLO pasa por Ridder Acceso: Acceso firma, abre Asistencias en Marcar y esa sesión queda atada a la de
   // Acceso (Salir la cierra). Apagado, el enlace directo de siempre.
   const acceso = accesoSolo();
