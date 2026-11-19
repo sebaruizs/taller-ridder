@@ -8,6 +8,9 @@ import { puedeAlguna, puedeU } from "@/lib/permisos";
 import { Topbar } from "@/components/topbar";
 import { PrecioEditable } from "@/components/precio-editable";
 import { Historial } from "@/components/historial";
+import { NombreEditable } from "@/components/nombre-editable";
+import { RegistroCambios } from "@/components/registro-cambios";
+import { objetoProducto } from "@/lib/registro-cambios";
 
 const PESTANAS = [
   { id: "compras", nombre: "Compras" },
@@ -38,7 +41,7 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
           </div>
         )}
         <section className="card stack" style={{ gap: 4 }}>
-          <h2 style={{ margin: 0, fontSize: 20 }}>{p.nombre}</h2>
+          <NombreEditable productoId={p.id} nombre={p.nombre} nombreSolo={p.nombreSolo} puedeEditar={puedeU(u, "inventario.editar_nombre")} />
           <span className="small muted">{p.categoria ?? "Sin categoría"}{p.codigo ? ` · Código ${p.codigo}` : ""}{p.unidad ? ` · ${p.unidad === "Units" ? "Unidades" : p.unidad}` : ""}</span>
         </section>
 
@@ -69,6 +72,7 @@ export default async function Producto(props: PageProps<"/inventario/[id]">) {
 
         {tab === "compras" && <Compras id={id} sellerIds={p.sellerIds} />}
         {tab === "movimientos" && <Movimientos id={id} />}
+        {tab === "historial" && <RegistroCambios objeto={objetoProducto(p.id)} />}
         {tab === "historial" && (p.tmplId ? <Historial ordenId={p.tmplId} modelo="product.template" /> : <div className="card muted">Sin historial.</div>)}
         {tab === "taller" && <Taller id={id} verOrdenes={puedeAlguna(u, ["ordenes.aprobar", "ordenes.editar"])} />}
       </main>

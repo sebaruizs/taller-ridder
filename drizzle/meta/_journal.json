@@ -71,6 +71,13 @@
       "when": 1795004603747,
       "tag": "0009_acceso_sesion",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795111676788,
+      "tag": "0010_registro_cambios",
+      "breakpoints": true
     }
   ]
 }

@@ -181,7 +181,7 @@ export async function logout(): Promise<void> {
 // Servidor a servidor: "Authorization: Bearer <API_COBRANZAS_SECRET>" y "X-Ridder-Usuario: <login>".
 // La llamada actúa como ese usuario del taller, con su rol y sus permisos, igual que desde la web.
 // "automatico" (procesos sin persona) es un jefe de solo lectura: todo lo que escribe está apagado.
-const ESCRITURA_OFF = ["finalizar", "crear", "mover_tablero", "repuestos", "aprobar", "registrar_devoluciones", "crear_productos", "editar_precios", "cargar_compras"];
+const ESCRITURA_OFF = ["finalizar", "crear", "mover_tablero", "repuestos", "aprobar", "registrar_devoluciones", "crear_productos", "editar_precios", "editar_nombres", "cargar_compras"];
 const AUTOMATICO: Usuario = { id: 0, usuario: "automatico", nombre: "Cobranzas (automático)", rol: "jefe", odooPartnerId: null, permisosOff: ESCRITURA_OFF, tema: "claro" };
 
 const resumen = (v: string) => createHash("sha256").update(v).digest();
@@ -282,7 +282,16 @@ export async function exigirPagina(accion: Accion | Accion[]): Promise<Usuario> 
 export async function registrar(
   usuarioId: number | null,
   accion: string,
-  extra: { ordenId?: number; vehiculoId?: number; detalle?: Record<string, unknown> } = {},
+  extra: {
+    ordenId?: number;
+    vehiculoId?: number;
+    detalle?: Record<string, unknown>;
+    // Registro de cambios (ver lib/registro-cambios.ts): objeto, nombre de quien lo hizo y solo los campos que cambiaron.
+    objeto?: string;
+    usuarioNombre?: string;
+    antes?: Record<string, unknown>;
+    despues?: Record<string, unknown>;
+  } = {},
 ): Promise<void> {
   const db = await getDb();
   // Lo que llega desde Cobranzas queda marcado con quién lo hizo allá.

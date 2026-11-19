@@ -31,6 +31,7 @@ export const ACCIONES = {
   "inventario.ver": ["jefe", "revisor", "admin"],
   "inventario.crear": ["jefe", "revisor", "admin"],
   "inventario.editar_precio": ["jefe", "revisor", "admin"],
+  "inventario.editar_nombre": ["jefe", "revisor", "admin"],
   "compras.ver": ["jefe", "revisor", "admin"],
   "compras.crear": ["jefe", "revisor", "admin"],
   "usuarios.gestionar": ["admin"],
@@ -80,6 +81,7 @@ export const PERMISOS = {
   inventario: { modulo: "inventario", nombre: "Ver productos", detalle: "Productos, stock, costos, precios y sus compras", acciones: ["inventario.ver"] },
   crear_productos: { modulo: "inventario", nombre: "Crear productos", detalle: "Dar de alta productos nuevos en Odoo", acciones: ["inventario.crear"] },
   editar_precios: { modulo: "inventario", nombre: "Editar precios", detalle: "Cambiar el precio de venta de los productos en Odoo", acciones: ["inventario.editar_precio"] },
+  editar_nombres: { modulo: "inventario", nombre: "Editar nombres", detalle: "Cambiar el nombre de los productos en Odoo (queda en el registro de cambios)", acciones: ["inventario.editar_nombre"] },
   compras: { modulo: "compras", nombre: "Ver compras", detalle: "Lista y detalle de las compras a proveedores", acciones: ["compras.ver"] },
   cargar_compras: { modulo: "compras", nombre: "Cargar compras", detalle: "Crear compras en Odoo y recibir la mercadería (entra al stock)", acciones: ["compras.crear"] },
 } as const satisfies Record<string, { modulo: Modulo; nombre: string; detalle: string; acciones: readonly Accion[] }>;

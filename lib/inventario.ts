@@ -22,6 +22,7 @@ type ProductoOdoo = {
   standard_price: number;
   list_price: number;
   uom_id: Many2one;
+  name?: string;
   product_tmpl_id: Many2one;
   seller_ids: number[];
 };
@@ -131,10 +132,11 @@ export type ProveedorProducto = { id: number; proveedor: string; precio: number;
 
 export async function detalleProducto(id: number) {
   const [p] = await odoo
-    .searchRead<ProductoOdoo>("product.product", [["id", "=", id], ["active", "in", [true, false]]], [...CAMPOS, "product_tmpl_id", "seller_ids"], { limit: 1 })
+    .searchRead<ProductoOdoo>("product.product", [["id", "=", id], ["active", "in", [true, false]]], [...CAMPOS, "name", "product_tmpl_id", "seller_ids"], { limit: 1 })
     .catch(() => []);
   if (!p) return null;
-  return { ...aLista(p, await ultimasComprasDe([p.id])), sellerIds: p.seller_ids, tmplId: p.product_tmpl_id ? p.product_tmpl_id[0] : null };
+  // nombreSolo es el que se edita: "nombre" (display_name) puede traer el código adelante.
+  return { ...aLista(p, await ultimasComprasDe([p.id])), nombreSolo: p.name ?? p.display_name, sellerIds: p.seller_ids, tmplId: p.product_tmpl_id ? p.product_tmpl_id[0] : null };
 }
 
 export async function comprasDeProducto(id: number, sellerIds: number[]) {

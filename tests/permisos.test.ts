@@ -19,6 +19,7 @@ const SOLO_JEFE_Y_ADMIN: Accion[] = [
   "inventario.ver",
   "inventario.crear",
   "inventario.editar_precio",
+  "inventario.editar_nombre",
   "compras.ver",
   "compras.crear",
   "devoluciones.ver",
@@ -73,7 +74,7 @@ describe("permisos por usuario", () => {
 
   it("cada rol solo ofrece los permisos que tiene", () => {
     expect(permisosDelRol("mecanico")).toEqual(["ver_ordenes", "finalizar", "gps"]);
-    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "cambiar_mecanico", "aprobar", "eliminar", "gps", "encendido", "devoluciones", "registrar_devoluciones", "inventario", "crear_productos", "editar_precios", "compras", "cargar_compras"]);
+    expect(permisosDelRol("jefe")).toEqual(["ver_ordenes", "finalizar", "crear", "tablero", "mover_tablero", "repuestos", "reportes", "cambiar_mecanico", "aprobar", "eliminar", "gps", "encendido", "devoluciones", "registrar_devoluciones", "inventario", "crear_productos", "editar_precios", "editar_nombres", "compras", "cargar_compras"]);
     expect(limpiarPermisosOff("mecanico", ["repuestos", "finalizar", "finalizar", "inventado"])).toEqual(["finalizar"]);
   });
 

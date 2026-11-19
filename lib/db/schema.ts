@@ -107,9 +107,15 @@ export const logAcciones = pgTable(
     ordenId: integer("orden_id"),
     vehiculoId: integer("vehiculo_id"),
     detalle: jsonb("detalle").$type<Record<string, unknown>>(),
+    // Registro de cambios: a qué se le hizo ("producto:46") y solo los campos que cambiaron, con su etiqueta legible.
+    objeto: text("objeto"),
+    antes: jsonb("antes").$type<Record<string, unknown>>(),
+    despues: jsonb("despues").$type<Record<string, unknown>>(),
+    // Nombre copiado en el momento, por si el usuario cambia o se borra.
+    usuarioNombre: text("usuario_nombre"),
     fecha: timestamp("fecha", { withTimezone: true }).notNull().defaultNow(),
   },
-  (t) => [index("log_fecha_idx").on(t.fecha)],
+  (t) => [index("log_fecha_idx").on(t.fecha), index("log_objeto_idx").on(t.objeto)],
 );
 
 export const config = pgTable("config", {
