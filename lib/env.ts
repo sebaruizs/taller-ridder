@@ -60,6 +60,9 @@ const schema = z.object({
   // Clave de la API con la que Acceso crea, actualiza y desactiva usuarios (/api/acceso/usuarios). 32 caracteres o más
   // y distinta de las demás; vacía = esa API responde 503.
   ACCESO_API_SECRET: limpio,
+  // Avisos al teléfono (app Gestiones): clave con la que Taller le pide a Acceso que avise (POST ACCESO_URL/api/acceso/avisos).
+  // 32 caracteres o más; vacía o sin ACCESO_URL = no se avisa nada (lib/avisos.ts).
+  ACCESO_AVISOS_SECRET: limpio,
   // Etapa 2 de Ridder Acceso (CONTRATO.md de Acceso, sección 5): "1" o "true" = Acceso es el único ingreso. Quien llega
   // sin sesión va a ACCESO_URL/ir/taller y vuelve a donde estaba; Salir cierra también Acceso (ACCESO_URL/salir); el
   // login propio queda solo para admins (entrada de emergencia). Necesita ACCESO_URL y ACCESO_SECRET. Apagado por defecto:

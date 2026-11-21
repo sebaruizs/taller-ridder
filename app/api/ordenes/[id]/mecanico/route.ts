@@ -3,6 +3,7 @@ import { exigir, registrar } from "@/lib/auth";
 import { json, manejar } from "@/lib/api";
 import { odoo } from "@/lib/odoo";
 import { cambiarMecanico } from "@/lib/tablero";
+import { avisarTareaAsignada, despuesDeResponder } from "@/lib/avisos";
 import { mecanicosOdoo } from "@/lib/usuarios";
 import { NoVerificable } from "@/lib/verificar";
 
@@ -17,5 +18,7 @@ export const POST = manejar(async (req, ctx: RouteContext<"/api/ordenes/[id]/mec
   if (!mecanico) throw new NoVerificable("Ese contacto no es mecánico en Odoo");
   const r = await cambiarMecanico(odoo, ordenId, mecanico, u.nombre, u.odooPartnerId);
   await registrar(u.id, "orden.cambiar_mecanico", { ordenId, detalle: { chapa: r.chapa, de: r.de, a: r.a, aviso: r.aviso } });
-  return json(r);
+  // Reasignada con la orden En proceso: pasa a ser tarea del mecánico nuevo.
+  if (r.enProceso) await despuesDeResponder(() => avisarTareaAsignada(ordenId, mecanico.id, u.id));
+  return json({ chapa: r.chapa, de: r.de, a: r.a, aviso: r.aviso });
 });

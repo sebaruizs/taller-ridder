@@ -9,7 +9,7 @@ type OdooTablero = Pick<OdooClient, "read" | "write" | "messagePost">;
 // La nota de seguimiento no es crítica: si falla, el cambio de estado queda igual.
 export async function moverOrden(odoo: OdooTablero, ordenId: number, de: EstadoOrden, a: EstadoOrden, autor: string, autorPartnerId: number | null = null) {
   if (!movimientoValido(de, a)) throw new NoVerificable(`No se puede pasar de «${ESTADOS[de]}» a «${ESTADOS[a]}» desde el tablero`);
-  const [o] = await odoo.read<{ id: number; state: EstadoOrden; vehicle_id: Many2one }>(MODELO_ORDEN, [ordenId], ["id", "state", "vehicle_id"]);
+  const [o] = await odoo.read<{ id: number; state: EstadoOrden; vehicle_id: Many2one; vendor_id?: Many2one }>(MODELO_ORDEN, [ordenId], ["id", "state", "vehicle_id", "vendor_id"]);
   if (!o) throw new NoVerificable("La orden no existe en Odoo");
   if (o.state !== de) throw new NoVerificable(`Esta orden ya no está en «${ESTADOS[de]}». Actualizá el tablero.`);
   await odoo.write(MODELO_ORDEN, [ordenId], { state: a });
@@ -19,7 +19,8 @@ export async function moverOrden(odoo: OdooTablero, ordenId: number, de: EstadoO
   } catch (e) {
     aviso = `No se pudo publicar la nota de seguimiento: ${e instanceof Error ? e.message : String(e)}`;
   }
-  return { chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : `#${ordenId}`, aviso };
+  // mecanicoPartnerId: a quién avisarle que tiene la tarea cuando la orden pasa a En proceso (lib/avisos.ts).
+  return { chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : `#${ordenId}`, aviso, mecanicoPartnerId: o.vendor_id ? o.vendor_id[0] : null };
 }
 
 // Nuevo → En proceso.
@@ -49,7 +50,7 @@ export async function cambiarMecanico(
   autor: string,
   autorPartnerId: number | null = null,
 ) {
-  const [o] = await odoo.read<{ id: number; vendor_id: Many2one; vehicle_id: Many2one }>(MODELO_ORDEN, [ordenId], ["id", "vendor_id", "vehicle_id"]);
+  const [o] = await odoo.read<{ id: number; vendor_id: Many2one; vehicle_id: Many2one; state?: EstadoOrden }>(MODELO_ORDEN, [ordenId], ["id", "vendor_id", "vehicle_id", "state"]);
   if (!o) throw new NoVerificable("La orden no existe en Odoo");
   if (o.vendor_id && o.vendor_id[0] === mecanico.id) throw new NoVerificable(`Ya figura ${mecanico.nombre} como mecánico`);
   const de = o.vendor_id ? o.vendor_id[1] : null;
@@ -60,5 +61,5 @@ export async function cambiarMecanico(
   } catch (e) {
     aviso = `No se pudo publicar la nota en la orden: ${e instanceof Error ? e.message : String(e)}`;
   }
-  return { chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : `#${ordenId}`, de, a: mecanico.nombre, aviso };
+  return { chapa: o.vehicle_id ? chapaDe({ license_plate: false, display_name: o.vehicle_id[1] }) : `#${ordenId}`, de, a: mecanico.nombre, aviso, enProceso: o.state === "running" };
 }

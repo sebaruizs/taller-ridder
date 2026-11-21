@@ -34,7 +34,7 @@ describe("tablero", () => {
     const r = await iniciarOrden(t.odoo, 4366, "Derlis");
     expect(t.llamadas[0]).toEqual({ method: "write", args: ["fleet.vehicle.log.services", [4366], { state: "running" }] });
     expect((t.llamadas[1].args[2] as { body: string }).body).toContain("Derlis</b> pasó la orden de «Nuevo» a «En proceso»");
-    expect(r).toEqual({ chapa: "409ABSM", aviso: null });
+    expect(r).toEqual({ chapa: "409ABSM", aviso: null, mecanicoPartnerId: null });
   });
 
   it("no mueve órdenes que ya no están en Nuevo", async () => {
@@ -135,7 +135,7 @@ describe("cambiar el mecánico de un trabajo", () => {
 
   it("cambia vendor_id y deja la nota a nombre de quien lo cambió", async () => {
     const o = conMecanico([2006, "Diego"]);
-    expect(await cambiarMecanico(o, 4366, { id: 2010, nombre: "Angel" }, "Jefe", 1685)).toEqual({ chapa: "409ABSM", de: "Diego", a: "Angel", aviso: null });
+    expect(await cambiarMecanico(o, 4366, { id: 2010, nombre: "Angel" }, "Jefe", 1685)).toEqual({ chapa: "409ABSM", de: "Diego", a: "Angel", aviso: null, enProceso: false });
     expect(o.write).toHaveBeenCalledWith("fleet.vehicle.log.services", [4366], { vendor_id: 2010 });
     const [, , nota] = (o.messagePost.mock.calls[0] as unknown[]) as [string, number, { body: string; author_id: number }];
     expect(nota.author_id).toBe(1685);
